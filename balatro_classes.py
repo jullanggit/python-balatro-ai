@@ -63,30 +63,9 @@ class Card:
     enhancement: Enhancement | None = None
     seal: Seal | None = None
 
-    extra_chips: int = 0
+    bonus_chips: int = 0
 
     debuffed: bool = False
-
-    def __str__(self) -> str:
-        s = f"{self.rank.value} of {self.suit.value}"
-
-        modifiers = []
-        if self.edition is not Edition.BASE:
-            modifiers.append(self.edition.value)
-        if self.enhancement is not None:
-            modifiers.append(self.enhancement.value)
-        if self.seal is not None:
-            modifiers.append(self.seal.value)
-        if self.extra_chips > 0:
-            modifiers.append(f"+{self.extra_chips} extra chips")
-
-        if modifiers:
-            s += f" ({modifiers[0]}"
-            for modifier in modifiers[1:]:
-                s += f", {modifier}"
-            s += ")"
-
-        return s
 
     def _repr_png_(self) -> bytes:
         from balatro_resources import get_sprite
