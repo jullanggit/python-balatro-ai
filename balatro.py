@@ -506,7 +506,7 @@ class Balatro:
         self.deck_cards_left: list[Card] | None = None
 
         self.reroll_cost: int | None = None
-        self.chaos_rerolls: int | None = None
+        self.used_chaos: bool | None = None
         self.shop_cards: list[Joker | Consumable | Card] | None = None
         self.shop_vouchers: list[Voucher] | None = None
         self.shop_packs: list[Pack] | None = None
@@ -521,9 +521,13 @@ class Balatro:
             case _:
                 raise NotImplementedError
 
+    def _add_card(self, card: Card) -> None:
+        raise NotImplementedError
+
     def _add_joker(self, joker: Joker) -> None:
         self.jokers.append(joker)
-        joker.on_acquired()
+        if not joker.debuffed:
+            joker.on_acquired()
         joker.on_leftmost_joker_changed()
         if len(self.jokers) > 1:
             self.jokers[-2].on_right_joker_changed()
@@ -612,7 +616,8 @@ class Balatro:
         self._sort_hand()
 
     def _end_round(self) -> None:
-        self.unused_discards += self.discards
+        for joker in self.jokers:
+            joker.on_round_end()
 
         interest_amt, interest_per = self.interest
         interest = max(0, self.money) // interest_per * interest_amt
@@ -627,15 +632,13 @@ class Balatro:
         self.round_score = None
         self.round_goal = None
         self.hands = None
+        self.unused_discards += self.discards
         self.discards = None
         self.hand_size = None
         self.hand = None
         self.deck_cards_left = None
         self.first_hand = None
         self.first_discard = None
-
-        for joker in self.jokers:
-            joker.on_round_end()
 
         self._populate_shop()
         self.state = State.IN_SHOP
@@ -892,7 +895,7 @@ class Balatro:
             self.tags.remove(Tag.D_SIX)
             self.reroll_cost = 0
 
-        self.chaos_rerolls = self.active_jokers.count(JokerType.CHAOS)
+        self.used_chaos = False
 
         self._populate_shop_cards(coupon=coupon)
 
@@ -1061,17 +1064,12 @@ class Balatro:
     def _remove_joker(self, joker: Joker) -> None:
         raise NotImplementedError
 
-        match joker:
-            case JokerType.CHAOS:
-                if self.chaos_rerolls is not None and self.chaos_rerolls > 0:
-                    self.chaos_rerolls -= 1
-
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
             font_base64 = base64.b64encode(f.read()).decode("utf-8")
 
-        reroll_cost = self.next_reroll_cost
-        can_reroll = self.money >= reroll_cost
+        reroll_cost, _ = self.next_reroll
+        can_reroll = self.available_money >= reroll_cost
 
         html = f"""
         <style>
@@ -1207,7 +1205,7 @@ class Balatro:
 
         item, cost = section_items[item_index]
 
-        assert self.money >= cost
+        assert self.available_money >= cost
 
         self.money -= cost
         section_items.pop(item_index)
@@ -1260,7 +1258,7 @@ class Balatro:
         assert self.state is State.IN_SHOP
 
         self.reroll_cost = None
-        self.chaos_rerolls = None
+        self.used_chaos = None
         self.shop_cards = None
         self.shop_vouchers = None
         self.shop_packs = None
@@ -1368,14 +1366,14 @@ class Balatro:
     def reroll(self) -> None:
         assert self.state is State.IN_SHOP
 
-        reroll_cost = self.next_reroll_cost
+        reroll_cost, used_chaos = self.next_reroll
 
-        assert self.money >= reroll_cost
+        assert self.available_money >= reroll_cost
 
         self.money -= reroll_cost
 
-        if self.chaos_rerolls > 0:
-            self.chaos_rerolls -= 1
+        if used_chaos:
+            self.used_chaos = True
         else:
             self.reroll_cost += 1
 
@@ -1398,7 +1396,7 @@ class Balatro:
         self.first_discard = True
 
         for joker in self.active_jokers:
-            joker.on_blind_select()
+            joker.on_blind_selected()
 
         while Tag.JUGGLE in self.tags:
             self.tags.remove(Tag.JUGGLE)
@@ -1455,6 +1453,17 @@ class Balatro:
                 yield joker
 
     @property
+    def available_money(self) -> int:
+        return max(
+            0,
+            (
+                (self.money + 20)
+                if JokerType.CREDIT_CARD in self.active_jokers
+                else self.money
+            ),
+        )
+
+    @property
     def effective_consumable_slots(self) -> int:
         return self.consumable_slots + sum(
             consumable.is_negative for consumable in self.consumables
@@ -1467,10 +1476,12 @@ class Balatro:
         )
 
     @property
-    def next_reroll_cost(self) -> int | None:
+    def next_reroll(self) -> tuple[int, bool] | None:
         if self.reroll_cost is None:
             return None
-        return 0 if self.chaos_rerolls > 0 else self.reroll_cost
+        if not self.used_chaos and JokerType.CHAOS in self.active_jokers:
+            return 0, True
+        return self.reroll_cost, False
 
     @property
     def unlocked_poker_hands(self) -> list[PokerHand]:

@@ -156,4 +156,9 @@ JOKER_CLASSES = {
     JokerType.MAIL: MailInRebate,
     JokerType.TRADING: TradingCard,
     JokerType.BURNT: BurntJoker,
+    JokerType.FOUR_FINGERS: FourFingers,
+    JokerType.CREDIT_CARD: CreditCard,
+    JokerType.MARBLE: MarbleJoker,
+    JokerType.CHAOS: ChaosTheClown,
+    JokerType.DELAYED_GRAT: DelayedGratification,
 }

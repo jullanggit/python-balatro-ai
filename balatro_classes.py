@@ -32,10 +32,7 @@ class Joker(ABC):
 
         return get_sprite(self, False)
 
-    def on_acquired(self) -> None:
-        pass
-
-    def on_blind_select(self) -> None:
+    def on_blind_selected(self) -> None:
         pass
 
     def on_boss_defeated(self) -> None:
@@ -99,6 +96,9 @@ class Joker(ABC):
         pass
 
     def on_round_end(self) -> None:
+        pass
+
+    def on_sold(self) -> None:
         pass
 
     @property

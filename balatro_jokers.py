@@ -100,7 +100,7 @@ class DNA(Joker):
     def on_hand_played(self) -> None:
         if self._balatro.first_hand and len(self._balatro.played_cards) == 1:
             card_copy = self._balatro.played_cards[0].copy()
-            self._balatro.deck_cards.append(card_copy)
+            self._balatro._add_card(card_copy)
             self._balatro.hand.append(card_copy)
 
     @property
@@ -751,7 +751,7 @@ class JokerStencil(Joker):
 class CeremonialDagger(Joker):
     mult: int = field(default=0, init=False)
 
-    def on_blind_select(self) -> None:
+    def on_blind_selected(self) -> None:
         for i, joker in self._balatro.jokers:
             if joker is self:
                 break
@@ -989,7 +989,7 @@ class RedCard(Joker):
 class Madness(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_blind_select(self) -> None:
+    def on_blind_selected(self) -> None:
         if self._balatro.blind in [Blind.SMALL, Blind.BIG]:
             self.xmult += 0.5
             valid_destroys = [
@@ -1317,7 +1317,7 @@ class TheTribe(Joker):
 
 @dataclass(eq=False)
 class Stuntman(Joker):
-    def on_blind_select(self):  # TODO: fix with copiers
+    def on_blind_selected(self) -> None:  # TODO: fix with copiers
         self._balatro.hand_size -= 2
 
     def on_independent_ability(self) -> None:
@@ -1557,7 +1557,7 @@ class Castle(Joker):
     def on_independent_ability(self) -> None:
         self._balatro.chips += self.chips
 
-    def on_round_end(self):
+    def on_round_end(self) -> None:
         self._set_random_suit()
 
     @property
@@ -1680,7 +1680,7 @@ class MailInRebate(Joker):
             if self._balatro.hand[i] == self.rank:
                 self._balatro.money += 5
 
-    def on_round_end(self):
+    def on_round_end(self) -> None:
         self._set_random_rank()
 
     @property
@@ -1716,5 +1716,50 @@ class BurntJoker(Joker):
 # ---- /on-discard ---- #
 
 # ---- other/ ---- #
+
+
+@dataclass(eq=False)
+class FourFingers(Joker):
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FOUR_FINGERS
+
+
+@dataclass(eq=False)
+class CreditCard(Joker):
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CREDIT_CARD
+
+
+@dataclass(eq=False)
+class MarbleJoker(Joker):
+    def on_blind_selected(self) -> None:
+        stone_card = self._balatro._get_random_card()
+        stone_card.enhancement = Enhancement.STONE
+        self._balatro._add_card(stone_card)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MARBLE
+
+
+@dataclass(eq=False)
+class ChaosTheClown(Joker):
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CHAOS
+
+
+@dataclass(eq=False)
+class DelayedGratification(Joker):
+    def on_round_end(self) -> None:
+        if self._balatro.first_discard:
+            self._balatro.money += 2 * self._balatro.discards
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.DELAYED_GRAT
+
 
 # ---- /other ---- #
