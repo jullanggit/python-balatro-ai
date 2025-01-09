@@ -22,7 +22,7 @@ class JokerType(Enum):
     HALF = "Half Joker"
     CREDIT_CARD = "Credit Card"
     BANNER = "Banner"
-    MYSTISUMMIT = "Mystic Summit"
+    MYSTIC_SUMMIT = "Mystic Summit"
     EIGHT_BALL = "8 Ball"
     MISPRINT = "Misprint"
     RAISED_FIST = "Raised Fist"
@@ -105,7 +105,7 @@ class JokerType(Enum):
     FLASH = "Flash Card"
     TROUSERS = "Spare Trousers"
     RAMEN = "Ramen"
-    SELZER = "Seltzer"
+    SELTZER = "Seltzer"
     CASTLE = "Castle"
     MR_BONES = "Mr. Bones"
     ACROBAT = "Acrobat"
@@ -152,7 +152,7 @@ class JokerType(Enum):
     DRIVERS_LICENSE = "Driver's License"
     BURNT = "Burnt Joker"
     # Legendary - 5
-    CAINO = "Canio"
+    CANIO = "Canio"
     TRIBOULET = "Triboulet"
     YORICK = "Yorick"
     CHICOT = "Chicot"
@@ -425,7 +425,7 @@ class Rank(Enum):
         return 14 - list(self.__class__).index(self)
 
     def __lt__(self, other: Rank) -> bool:
-        if isinstance(other, self.__class__):
+        if isinstance(other, Rank):
             return int(self) < int(other)
         return NotImplemented
 

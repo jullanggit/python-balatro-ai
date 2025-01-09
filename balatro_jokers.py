@@ -24,17 +24,21 @@ class CopierJoker:
         if copied_joker.joker_type not in NON_COPYABLE_JOKERS:
             self.copied = copied_joker
 
-    def on_played(self) -> None:
+    def on_card_scored(self, scored_card: Card) -> None:
         if self.copied is not None:
-            self.copied.on_played()
+            self.copied.on_card_scored()
 
-    def on_scored(self) -> None:
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
         if self.copied is not None:
-            self.copied.on_scored()
+            return self.copied.on_card_scored_check_retrigger()
 
-    def on_scored_retriggers(self) -> int:
+    def on_hand_played(self) -> None:
         if self.copied is not None:
-            return self.copied.on_scored_retriggers()
+            self.copied.on_hand_played()
+
+    def on_independent_ability(self) -> None:
+        if self.copied is not None:
+            self.copied.on_independent_ability()
 
     @property
     def is_active(self) -> bool:
@@ -50,7 +54,9 @@ class CopierJoker:
 class Blueprint(CopierJoker, Joker):
     def on_right_joker_changed(self) -> None:
         self.copied = None
-        i = self.balatro.jokers.index(self)
+        for i, joker in self.balatro.jokers:
+            if joker is self:
+                break
         if i < len(self.balatro.jokers) - 1:
             self._set_copied_joker(self.balatro.jokers[i + 1])
 
@@ -77,9 +83,9 @@ class Brainstorm(CopierJoker, Joker):
 
 @dataclass(eq=False)
 class SpaceJoker(Joker):
-    def on_played(self) -> None:
+    def on_hand_played(self) -> None:
         if self.balatro._chance(1, 4):
-            self.balatro.poker_hand_info[self.balatro.poker_hand][0] += 1
+            self.balatro.poker_hand_info[self.balatro.poker_hands[0]][0] += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -88,8 +94,8 @@ class SpaceJoker(Joker):
 
 @dataclass(eq=False)
 class DNA(Joker):
-    def on_played(self) -> None:
-        if self.balatro.played_hands_round == 1 and len(self.balatro.played_cards) == 1:
+    def on_hand_played(self) -> None:
+        if self.balatro.first_hand and len(self.balatro.played_cards) == 1:
             card_copy = self.balatro.played_cards[0].copy()
             self.balatro.deck_cards.append(card_copy)
             self.balatro.hand.append(card_copy)
@@ -109,12 +115,12 @@ class ToDoList(Joker):
     def _set_random_poker_hand(self) -> None:
         self.poker_hand = r.choice(self.balatro.unlocked_poker_hands)
 
-    def on_end_round(self) -> None:
-        self._set_random_poker_hand()
-
-    def on_played(self) -> None:
-        if self.balatro.poker_hand is self.poker_hand:
+    def on_hand_played(self) -> None:
+        if self.balatro.poker_hands[0] is self.poker_hand:
             self.balatro.money += 4
+
+    def on_round_end(self) -> None:
+        self._set_random_poker_hand()
 
     @property
     def joker_type(self) -> JokerType:
@@ -123,9 +129,11 @@ class ToDoList(Joker):
 
 @dataclass(eq=False)
 class MidasMask(Joker):
-    def on_played(self) -> None:
+    def on_hand_played(self) -> None:
         for i in self.balatro.scored_card_indices:
-            self.balatro.played_cards[i].enhancement = Enhancement.GOLD
+            scored_card = self.balatro.played_cards[i]
+            if self.balatro._is_face_card(scored_card):
+                scored_card.enhancement = Enhancement.GOLD
 
     @property
     def joker_type(self) -> JokerType:
@@ -139,11 +147,8 @@ class MidasMask(Joker):
 
 @dataclass(eq=False)
 class GreedyJoker(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.DIAMONDS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.DIAMONDS:
             self.balatro.mult += 3
 
     @property
@@ -153,11 +158,8 @@ class GreedyJoker(Joker):
 
 @dataclass(eq=False)
 class LustyJoker(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.HEARTS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.HEARTS:
             self.balatro.mult += 3
 
     @property
@@ -167,11 +169,8 @@ class LustyJoker(Joker):
 
 @dataclass(eq=False)
 class WrathfulJoker(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.SPADES
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.SPADES:
             self.balatro.mult += 3
 
     @property
@@ -181,11 +180,8 @@ class WrathfulJoker(Joker):
 
 @dataclass(eq=False)
 class GluttonousJoker(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.CLUBS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.CLUBS:
             self.balatro.mult += 3
 
     @property
@@ -195,9 +191,9 @@ class GluttonousJoker(Joker):
 
 @dataclass(eq=False)
 class EightBall(Joker):
-    def on_scored(self) -> None:
+    def on_card_scored(self, scored_card: Card) -> None:
         if (
-            self.balatro.scored_card.rank is Rank.EIGHT
+            scored_card == Rank.EIGHT
             and self.balatro.effective_consumable_slots > len(self.balatro.consumables)
             and self.balatro._chance(1, 4)
         ):
@@ -210,7 +206,7 @@ class EightBall(Joker):
 
 @dataclass(eq=False)
 class Dusk(Joker):
-    def on_scored_retriggers(self) -> int:
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
         return int(self.balatro.hands == 0)
 
     @property
@@ -220,8 +216,8 @@ class Dusk(Joker):
 
 @dataclass(eq=False)
 class Fibonacci(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank in [
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card in [
             Rank.ACE,
             Rank.TWO,
             Rank.THREE,
@@ -237,16 +233,8 @@ class Fibonacci(Joker):
 
 @dataclass(eq=False)
 class ScaryFace(Joker):
-    def on_scored(self) -> None:
-        if (
-            JokerType.PAREIDOLIA in self.balatro.jokers
-            or self.balatro.scored_card.rank
-            in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if self.balatro._is_face_card(scored_card):
             self.balatro.chips += 30
 
     @property
@@ -256,9 +244,9 @@ class ScaryFace(Joker):
 
 @dataclass(eq=False)
 class Hack(Joker):
-    def on_scored_retriggers(self) -> int:
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
         return int(
-            self.balatro.scored_card.rank
+            scored_card
             in [
                 Rank.TWO,
                 Rank.THREE,
@@ -274,8 +262,8 @@ class Hack(Joker):
 
 @dataclass(eq=False)
 class EvenSteven(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank in [
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card in [
             Rank.TWO,
             Rank.FOUR,
             Rank.SIX,
@@ -291,8 +279,8 @@ class EvenSteven(Joker):
 
 @dataclass(eq=False)
 class OddTodd(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank in [
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card in [
             Rank.THREE,
             Rank.FIVE,
             Rank.SEVEN,
@@ -308,8 +296,8 @@ class OddTodd(Joker):
 
 @dataclass(eq=False)
 class Scholar(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank is Rank.ACE:
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Rank.ACE:
             self.balatro.chips += 20
             self.balatro.mult += 4
 
@@ -320,16 +308,8 @@ class Scholar(Joker):
 
 @dataclass(eq=False)
 class BusinessCard(Joker):
-    def on_scored(self) -> None:
-        if (
-            JokerType.PAREIDOLIA in self.balatro.jokers
-            or self.balatro.scored_card.rank
-            in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]
-        ) and self.balatro._chance(1, 2):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if self.balatro._is_face_card(scored_card) and self.balatro._chance(1, 2):
             self.balatro.money += 2
 
     @property
@@ -339,8 +319,8 @@ class BusinessCard(Joker):
 
 @dataclass(eq=False)
 class Hiker(Joker):
-    def on_scored(self) -> None:
-        self.balatro.scored_card.bonus_chips += 5
+    def on_card_scored(self, scored_card: Card) -> None:
+        scored_card.bonus_chips += 5
 
     @property
     def joker_type(self) -> JokerType:
@@ -349,18 +329,17 @@ class Hiker(Joker):
 
 @dataclass(eq=False)
 class Photograph(Joker):
-    def on_scored(self) -> None:
-        for i in self.balatro.scored_card_indices:
-            scored_card = self.balatro.played_cards[i]
-
-            if JokerType.PAREIDOLIA in self.balatro.jokers or scored_card.rank in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]:
-                if scored_card is self.balatro.scored_card:
-                    self.balatro.mult *= 2
-                return
+    def on_card_scored(self, scored_card: Card) -> None:
+        first_scored_face_card = next(
+            (
+                self.balatro.played_cards[i]
+                for i in self.balatro.scored_card_indices
+                if self.balatro._is_face_card(self.balatro.played_cards[i])
+            ),
+            None,
+        )
+        if scored_card is first_scored_face_card:
+            self.balatro.mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -380,12 +359,12 @@ class AncientJoker(Joker):
             new_suit = r.choice(list(Suit))
         self.suit = new_suit
 
-    def on_end_round(self) -> None:
-        self._set_random_suit()
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == self.suit:
+            self.balatro.mult *= 1.5
 
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.suit is self.suit:
-            self.balatro.mult = int(self.balatro.mult * 1.5)
+    def on_round_end(self) -> None:
+        self._set_random_suit()
 
     @property
     def joker_type(self) -> JokerType:
@@ -394,8 +373,8 @@ class AncientJoker(Joker):
 
 @dataclass(eq=False)
 class WalkieTalkie(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank in [Rank.TEN, Rank.FOUR]:
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card in [Rank.TEN, Rank.FOUR]:
             self.balatro.chips += 10
             self.balatro.mult += 4
 
@@ -408,29 +387,21 @@ class WalkieTalkie(Joker):
 class Seltzer(Joker):
     hands_left: int = field(default=10, init=False)
 
-    def on_scored_retriggers(self) -> int:
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
         self.hands_left -= 1
         if self.hands_left == 0:
-            raise NotImplementedError  # TODO: drank
+            self.balatro._destroy_joker(self)
         return 1
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SELZER
+        return JokerType.SELTZER
 
 
 @dataclass(eq=False)
 class SmileyFace(Joker):
-    def on_scored(self) -> None:
-        if (
-            JokerType.PAREIDOLIA in self.balatro.jokers
-            or self.balatro.scored_card.rank
-            in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if self.balatro._is_face_card(scored_card):
             self.balatro.mult += 5
 
     @property
@@ -440,8 +411,8 @@ class SmileyFace(Joker):
 
 @dataclass(eq=False)
 class GoldenTicket(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.enhancement is Enhancement.GOLD:
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Enhancement.GOLD:
             self.balatro.money += 4
 
     @property
@@ -451,16 +422,8 @@ class GoldenTicket(Joker):
 
 @dataclass(eq=False)
 class SockAndBuskin(Joker):
-    def on_scored_retriggers(self) -> int:
-        return int(
-            JokerType.PAREIDOLIA in self.balatro.jokers
-            or self.balatro.scored_card.rank
-            in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]
-        )
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
+        return int(self.balatro._is_face_card(scored_card))
 
     @property
     def joker_type(self) -> JokerType:
@@ -469,11 +432,11 @@ class SockAndBuskin(Joker):
 
 @dataclass(eq=False)
 class HangingChad(Joker):
-    def on_scored_retriggers(self) -> int:
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
         return (
             2
             if (
-                self.balatro.scored_card
+                scored_card
                 is self.balatro.played_cards[self.balatro.scored_card_indices[0]]
             )
             else 0
@@ -486,11 +449,8 @@ class HangingChad(Joker):
 
 @dataclass(eq=False)
 class RoughGem(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.DIAMONDS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.DIAMONDS:
             self.balatro.money += 1
 
     @property
@@ -500,12 +460,9 @@ class RoughGem(Joker):
 
 @dataclass(eq=False)
 class Bloodstone(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.HEARTS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ) and self.balatro._chance(1, 2):
-            self.balatro.mult = int(self.balatro.mult * 1.5)
+    def on_card_scored(self, scored_card: Card) -> None:
+        if (scored_card == Suit.HEARTS) and self.balatro._chance(1, 2):
+            self.balatro.mult *= 1.5
 
     @property
     def joker_type(self) -> JokerType:
@@ -514,11 +471,8 @@ class Bloodstone(Joker):
 
 @dataclass(eq=False)
 class Arrowhead(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.SPADES
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.SPADES:
             self.balatro.chips += 50
 
     @property
@@ -528,11 +482,8 @@ class Arrowhead(Joker):
 
 @dataclass(eq=False)
 class OnyxAgate(Joker):
-    def on_scored(self) -> None:
-        if (
-            self.balatro.scored_card.suit is Suit.CLUBS
-            or self.balatro.scored_card.enhancement is Enhancement.WILD
-        ):
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Suit.CLUBS:
             self.balatro.mult += 7
 
     @property
@@ -551,20 +502,20 @@ class TheIdol(Joker):
         valid_deck_cards = [
             deck_card
             for deck_card in self.balatro.deck_cards
-            if deck_card.enhancement is not Enhancement.STONE
+            if not deck_card.is_stone_card
         ]
         if valid_deck_cards:
             random_deck_card = r.choice(valid_deck_cards)
-            self.card = Card(random_deck_card.suit, random_deck_card.rank)
+            self.card = Card(random_deck_card._suit, random_deck_card._rank)
         else:
             self.card = Card(Suit.SPADES, Rank.ACE)
 
-    def on_end_round(self) -> None:
-        self._set_random_card()
-
-    def on_scored(self) -> None:
-        if self.balatro.scored_card == self.card:
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == self.card:
             self.balatro.mult *= 2
+
+    def on_round_end(self) -> None:
+        self._set_random_card()
 
     @property
     def joker_type(self) -> JokerType:
@@ -573,8 +524,8 @@ class TheIdol(Joker):
 
 @dataclass(eq=False)
 class Triboulet(Joker):
-    def on_scored(self) -> None:
-        if self.balatro.scored_card.rank in [Rank.KING, Rank.QUEEN]:
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card in [Rank.KING, Rank.QUEEN]:
             self.balatro.mult *= 2
 
     @property
@@ -589,7 +540,7 @@ class Triboulet(Joker):
 
 @dataclass(eq=False)
 class Mime(Joker):
-    def on_held(self) -> None:
+    def on_card_held(self, held_card: Card) -> None:
         raise NotImplementedError
 
     @property
@@ -599,19 +550,12 @@ class Mime(Joker):
 
 @dataclass(eq=False)
 class RaisedFist(Joker):
-    def on_held(self) -> None:
-        self.balatro.mult += (
-            min(
-                [
-                    int(held_card.rank)
-                    for held_card in self.balatro.hand
-                    if held_card.enhancement is not Enhancement.STONE
-                    and not held_card.debuffed
-                ],
-                default=0,
-            )
-            * 2
-        )
+    def on_card_held(self, held_card: Card) -> None:
+        valid_hand_cards = [
+            hand_card for hand_card in self.balatro.hand if not hand_card.is_stone_card
+        ]
+        if valid_hand_cards and held_card is min(reversed(valid_hand_cards)):
+            self.balatro.mult += held_card.base_chips * 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -620,10 +564,9 @@ class RaisedFist(Joker):
 
 @dataclass(eq=False)
 class Baron(Joker):
-    def on_held(self) -> None:
-        for held_card in self.balatro.hand:
-            if held_card.rank is Rank.KING and not held_card.debuffed:
-                self.balatro.mult = int(self.balatro.mult * 1.5)
+    def on_card_held(self, held_card: Card) -> None:
+        if held_card == Rank.KING:
+            self.balatro.mult *= 1.5
 
     @property
     def joker_type(self) -> JokerType:
@@ -632,34 +575,20 @@ class Baron(Joker):
 
 @dataclass(eq=False)
 class ReservedParking(Joker):
-    def on_held(self) -> None:
-        pass
+    def on_card_held(self, held_card: Card) -> None:
+        if self.balatro._is_face_card(held_card) and self.balatro._chance(1, 2):
+            self.balatro.money += 1
 
     @property
     def joker_type(self) -> JokerType:
-        for held_card in self.balatro.hand:
-            if (
-                (
-                    JokerType.PAREIDOLIA in self.balatro.jokers
-                    or held_card.rank
-                    in [
-                        Rank.KING,
-                        Rank.QUEEN,
-                        Rank.JACK,
-                    ]
-                )
-                and not held_card.debuffed
-                and self.balatro._chance(1, 2)
-            ):
-                self.balatro.money += 1
+        return JokerType.RESERVED_PARKING
 
 
 @dataclass(eq=False)
 class ShootTheMoon(Joker):
-    def on_held(self) -> None:
-        for held_card in self.balatro.hand:
-            if held_card.rank is Rank.QUEEN and not held_card.debuffed:
-                self.balatro.mult += 13
+    def on_card_held(self, held_card: Card) -> None:
+        if held_card == Rank.QUEEN:
+            self.balatro.mult += 13
 
     @property
     def joker_type(self) -> JokerType:
@@ -684,7 +613,7 @@ class Jimbo(Joker):
 @dataclass(eq=False)
 class JollyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.PAIR in self.balatro.poker_hand_contains:
+        if PokerHand.PAIR in self.balatro.poker_hands:
             self.balatro.mult += 8
 
     @property
@@ -695,7 +624,7 @@ class JollyJoker(Joker):
 @dataclass(eq=False)
 class ZanyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.THREE_OF_A_KIND in self.balatro.poker_hand_contains:
+        if PokerHand.THREE_OF_A_KIND in self.balatro.poker_hands:
             self.balatro.mult += 12
 
     @property
@@ -706,7 +635,7 @@ class ZanyJoker(Joker):
 @dataclass(eq=False)
 class MadJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.TWO_PAIR in self.balatro.poker_hand_contains:
+        if PokerHand.TWO_PAIR in self.balatro.poker_hands:
             self.balatro.mult += 10
 
     @property
@@ -717,7 +646,7 @@ class MadJoker(Joker):
 @dataclass(eq=False)
 class CrazyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.STRAIGHT in self.balatro.poker_hand_contains:
+        if PokerHand.STRAIGHT in self.balatro.poker_hands:
             self.balatro.mult += 12
 
     @property
@@ -728,7 +657,7 @@ class CrazyJoker(Joker):
 @dataclass(eq=False)
 class DrollJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.FLUSH in self.balatro.poker_hand_contains:
+        if PokerHand.FLUSH in self.balatro.poker_hands:
             self.balatro.mult += 10
 
     @property
@@ -739,7 +668,7 @@ class DrollJoker(Joker):
 @dataclass(eq=False)
 class SlyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.PAIR in self.balatro.poker_hand_contains:
+        if PokerHand.PAIR in self.balatro.poker_hands:
             self.balatro.chips += 50
 
     @property
@@ -750,7 +679,7 @@ class SlyJoker(Joker):
 @dataclass(eq=False)
 class WilyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.THREE_OF_A_KIND in self.balatro.poker_hand_contains:
+        if PokerHand.THREE_OF_A_KIND in self.balatro.poker_hands:
             self.balatro.chips += 100
 
     @property
@@ -761,7 +690,7 @@ class WilyJoker(Joker):
 @dataclass(eq=False)
 class CleverJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.TWO_PAIR in self.balatro.poker_hand_contains:
+        if PokerHand.TWO_PAIR in self.balatro.poker_hands:
             self.balatro.chips += 80
 
     @property
@@ -772,7 +701,7 @@ class CleverJoker(Joker):
 @dataclass(eq=False)
 class DeviousJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.STRAIGHT in self.balatro.poker_hand_contains:
+        if PokerHand.STRAIGHT in self.balatro.poker_hands:
             self.balatro.chips += 100
 
     @property
@@ -783,7 +712,7 @@ class DeviousJoker(Joker):
 @dataclass(eq=False)
 class CraftyJoker(Joker):
     def on_independent_ability(self) -> None:
-        if PokerHand.FLUSH in self.balatro.poker_hand_contains:
+        if PokerHand.FLUSH in self.balatro.poker_hands:
             self.balatro.chips += 80
 
     @property
@@ -815,28 +744,967 @@ class JokerStencil(Joker):
 
 
 @dataclass(eq=False)
-class JokerStencil(Joker):
+class CeremonialDagger(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_blind_select(self) -> None:
+        for i, joker in self.balatro.jokers:
+            if joker is self:
+                break
+        if i < len(self.balatro.jokers) - 1:
+            right_joker = self.balatro.jokers[i + 1]
+            self.mult += self.balatro._calculate_sell_value(right_joker)
+            self.balatro._destroy_joker(right_joker)
+
     def on_independent_ability(self) -> None:
-        self.balatro.mult *= (
-            self.balatro.effective_joker_slots - len(self.balatro.jokers)
-        ) + self.balatro.jokers.count(JokerType.STENCIL)
+        self.balatro.mult += self.mult
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.STENCIL
+        return JokerType.CEREMONIAL
+
+
+@dataclass(eq=False)
+class Banner(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += 30 * self.balatro.discards
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BANNER
+
+
+@dataclass(eq=False)
+class MysticSummit(Joker):
+    def on_independent_ability(self) -> None:
+        if self.balatro.discards == 0:
+            self.balatro.mult += 15
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MYSTIC_SUMMIT
+
+
+@dataclass(eq=False)
+class LoyaltyCard(Joker):
+    hands_remaining: int = field(default=5, init=False)
+
+    def on_end_hand(self) -> None:
+        if self.hands_remaining == 0:
+            self.hands_remaining = 5
+        else:
+            self.hands_remaining -= 1
+
+    def on_independent_ability(self) -> None:
+        if self.hands_remaining == 0:
+            self.balatro.mult *= 4
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.LOYALTY_CARD
+
+
+@dataclass(eq=False)
+class Misprint(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += r.randint(0, 23)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MISPRINT
+
+
+@dataclass(eq=False)
+class SteelJoker(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= 1 + (
+            0.2
+            * sum(
+                deck_card._enhancement is Enhancement.STEEL
+                for deck_card in self.balatro.deck_cards
+            )
+        )
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.STEEL_JOKER
+
+
+@dataclass(eq=False)
+class AbstractJoker(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += 3 * len(self.balatro.jokers)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.ABSTRACT
+
+
+@dataclass(eq=False)
+class GrosMichel(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += 15
+
+    def on_round_end(self) -> None:
+        if self.balatro._chance(1, 6):
+            self.balatro._destroy_joker(self)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.GROS_MICHEL
+
+
+@dataclass(eq=False)
+class Supernova(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.balatro.poker_hand_info[self.balatro.poker_hands[0]][
+            1
+        ]
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SUPERNOVA
+
+
+@dataclass(eq=False)
+class Blackboard(Joker):
+    def on_independent_ability(self) -> None:
+        if all(
+            held_card.suit in [Suit.SPADES, Suit.CLUBS] or held_card == Enhancement.WILD
+            for held_card in self.balatro.hand
+        ):
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BLACKBOARD
+
+
+@dataclass(eq=False)
+class IceCream(Joker):
+    chips: int = field(default=100, init=False)
+
+    def on_end_hand(self) -> None:
+        self.chips -= 5
+        if self.chips == 0:
+            self.balatro._destroy_joker(self)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += self.chips
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.ICE_CREAM
+
+
+@dataclass(eq=False)
+class BlueJoker(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += 2 * len(self.balatro.deck_cards_left)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BLUE_JOKER
+
+
+@dataclass(eq=False)
+class Constellation(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    def on_planet_used(self) -> None:
+        self.xmult += 0.1
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CONSTELLATION
+
+
+@dataclass(eq=False)
+class Superposition(Joker):
+    def on_independent_ability(self) -> None:
+        if (
+            PokerHand.STRAIGHT in self.balatro.poker_hands
+            and any(
+                self.balatro.played_cards[i] == Rank.ACE
+                for i in self.balatro.scored_card_indices
+            )
+            and self.balatro.effective_consumable_slots > len(self.balatro.consumables)
+        ):
+            self.balatro.consumables.append(self.balatro._get_random_tarot())
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SUPERPOSITION
+
+
+@dataclass(eq=False)
+class Cavendish(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= 3
+
+    def on_round_end(self) -> None:
+        if self.balatro._chance(1, 1000):
+            self.balatro._destroy_joker(self)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CAVENDISH
+
+
+@dataclass(eq=False)
+class CardSharp(Joker):
+    def on_independent_ability(self) -> None:
+        if self.balatro.poker_hands[0] in self.balatro.round_poker_hands:
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CARD_SHARP
+
+
+@dataclass(eq=False)
+class RedCard(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    def on_pack_skipped(self) -> None:
+        self.mult += 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.RED_CARD
+
+
+@dataclass(eq=False)
+class Madness(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_blind_select(self) -> None:
+        if self.balatro.blind in [Blind.SMALL, Blind.BIG]:
+            self.xmult += 0.5
+            valid_destroys = [
+                joker
+                for joker in self.balatro.jokers
+                if joker is not self and not joker.eternal
+            ]
+            if valid_destroys:
+                self.balatro._destroy_joker(r.choice(valid_destroys))
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MADNESS
+
+
+@dataclass(eq=False)
+class Seance(Joker):
+    def on_independent_ability(self) -> None:
+        if self.balatro.poker_hands[
+            0
+        ] is PokerHand.STRAIGHT_FLUSH and self.balatro.effective_consumable_slots > len(
+            self.balatro.consumables
+        ):
+            self.balatro.consumables.append(self.balatro._get_random_spectral())
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SEANCE
+
+
+@dataclass(eq=False)
+class Hologram(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_card_added(self, added_card: Card) -> None:
+        self.xmult += 0.25
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.HOLOGRAM
+
+
+@dataclass(eq=False)
+class Vagabond(Joker):
+    will_create: bool = field(default=False, init=False)
+
+    def on_hand_played(self) -> None:
+        self.will_create = self.balatro.money <= 4
+
+    def on_independent_ability(self) -> None:
+        if self.will_create and self.balatro.effective_consumable_slots > len(
+            self.balatro.consumables
+        ):
+            self.balatro.consumables.append(self.balatro._get_random_tarot())
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.VAGABOND
+
+
+@dataclass(eq=False)
+class Erosion(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += 4 * max(
+            0,
+            (40 if self.balatro.deck is Deck.ABANDONED else 52)
+            - len(self.balatro.deck_cards),
+        )
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.EROSION
+
+
+@dataclass(eq=False)
+class FortuneTeller(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.balatro.tarot_cards_used
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FORTUNE_TELLER
+
+
+@dataclass(eq=False)
+class StoneJoker(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += 25 * sum(
+            deck_card.is_stone_card for deck_card in self.balatro.deck_cards
+        )
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.STONE
+
+
+@dataclass(eq=False)
+class Bull(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += 2 * max(0, self.balatro.money)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BULL
+
+
+@dataclass(eq=False)
+class FlashCard(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    def on_reroll(self) -> None:
+        self.mult += 2
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FLASH
+
+
+@dataclass(eq=False)
+class Popcorn(Joker):
+    mult: int = field(default=20, init=False)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    def on_round_end(self) -> None:
+        self.mult -= 4
+        if self.mult == 0:
+            self.balatro._destroy_joker(self)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.POPCORN
+
+
+@dataclass(eq=False)
+class Campfire(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_boss_defeated(self) -> None:
+        self.xmult = 1.0
+
+    def on_card_sold(self) -> None:
+        self.xmult += 0.25
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CAMPFIRE
+
+
+@dataclass(eq=False)
+class Acrobat(Joker):
+    def on_independent_ability(self) -> None:
+        if self.balatro.hands == 0:
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.ACROBAT
+
+
+@dataclass(eq=False)
+class Swashbuckler(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += sum(
+            self.balatro._calculate_sell_value(joker)
+            for joker in self.balatro.jokers
+            if joker is not self
+        )
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SWASHBUCKLER
+
+
+@dataclass(eq=False)
+class Throwback(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= 1 + (0.25 * self.balatro.blinds_skipped)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.THROWBACK
+
+
+@dataclass(eq=False)
+class GlassJoker(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_glass_card_destroyed(self) -> None:
+        self.xmult += 0.75
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.GLASS
+
+
+@dataclass(eq=False)
+class FlowerPot(Joker):
+    def on_independent_ability(self) -> None:
+        suits = set()
+        num_wilds = 0
+        for i in self.balatro.scored_card_indices:
+            scored_card = self.balatro.played_cards[i]
+            if scored_card == Enhancement.WILD:
+                num_wilds += 1
+            elif not scored_card.is_stone_card:
+                suits.add(scored_card._suit)
+        if len(suits) + num_wilds >= 4:
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FLOWER_POT
+
+
+@dataclass(eq=False)
+class SeeingDouble(Joker):
+    def on_independent_ability(self) -> None:
+        club = False
+        other = False
+        num_wilds = 0
+        for i in self.balatro.scored_card_indices:
+            scored_card = self.balatro.played_cards[i]
+            if scored_card == Enhancement.WILD:
+                num_wilds += 1
+            elif not scored_card.is_stone_card:
+                if scored_card._suit is Suit.CLUBS and not scored_card.debuffed:
+                    club = True
+                elif scored_card._suit is not Suit.CLUBS:
+                    other = True
+        if club + other + num_wilds >= 2:
+            self.balatro.mult *= 2
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SEEING_DOUBLE
+
+
+@dataclass(eq=False)
+class Matador(Joker):
+    will_earn: bool = field(default=False, init=False)
+
+    def on_hand_played(self) -> None:
+        raise NotImplementedError
+
+    def on_independent_ability(self) -> None:
+        if self.will_earn:
+            self.balatro.money += 8
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MATADOR
+
+
+@dataclass(eq=False)
+class TheDuo(Joker):
+    def on_independent_ability(self) -> None:
+        if PokerHand.PAIR in self.balatro.poker_hands:
+            self.balatro.mult *= 2
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.DUO
+
+
+@dataclass(eq=False)
+class TheTrio(Joker):
+    def on_independent_ability(self) -> None:
+        if PokerHand.THREE_OF_A_KIND in self.balatro.poker_hands:
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.TRIO
+
+
+@dataclass(eq=False)
+class TheFamily(Joker):
+    def on_independent_ability(self) -> None:
+        if PokerHand.FOUR_OF_A_KIND in self.balatro.poker_hands:
+            self.balatro.mult *= 4
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FAMILY
+
+
+@dataclass(eq=False)
+class TheOrder(Joker):
+    def on_independent_ability(self) -> None:
+        if PokerHand.STRAIGHT in self.balatro.poker_hands:
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.ORDER
+
+
+@dataclass(eq=False)
+class TheTribe(Joker):
+    def on_independent_ability(self) -> None:
+        if PokerHand.FLUSH in self.balatro.poker_hands:
+            self.balatro.mult *= 2
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.TRIBE
+
+
+@dataclass(eq=False)
+class Stuntman(Joker):
+    def on_blind_select(self):
+        self.balatro.hand_size -= 2
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += 250
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.STUNTMAN
+
+
+@dataclass(eq=False)
+class DriversLicense(Joker):
+    def on_independent_ability(self) -> None:
+        if (
+            sum(
+                deck_card._enhancement is not None
+                for deck_card in self.balatro.deck_cards
+            )
+            >= 16
+        ):
+            self.balatro.mult *= 3
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.DRIVERS_LICENSE
+
+
+@dataclass(eq=False)
+class Bootstraps(Joker):
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += 2 * max(0, self.balatro.money // 5)
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BOOTSTRAPS
+
+
+@dataclass(eq=False)
+class Canio(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_card_destroyed(self, destroyed_card: Card):
+        if self.balatro._is_face_card(destroyed_card):
+            self.xmult += 1.0
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CANIO
 
 
 # ---- /independent ---- #
 
 # ---- mixed/ ---- #
 
+
+@dataclass(eq=False)
+class RideTheBus(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_hand_played(self) -> None:
+        for i in self.balatro.scored_card_indices:
+            if self.balatro._is_face_card(self.balatro.played_cards[i]):
+                self.mult = 0
+                break
+        else:
+            self.mult += 1
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.RIDE_THE_BUS
+
+
+@dataclass(eq=False)
+class Runner(Joker):
+    chips: int = field(default=0, init=False)
+
+    def on_hand_played(self) -> None:
+        if PokerHand.STRAIGHT in self.balatro.poker_hands:
+            self.chips += 15
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += self.chips
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.RUNNER
+
+
+@dataclass(eq=False)
+class GreenJoker(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_discard(self) -> None:
+        self.mult = max(0, self.mult - 1)
+
+    def on_hand_played(self) -> None:
+        self.mult += 1
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.GREEN_JOKER
+
+
+@dataclass(eq=False)
+class SquareJoker(Joker):
+    chips: int = field(default=0, init=False)
+
+    def on_hand_played(self) -> None:
+        if len(self.balatro.played_cards) == 4:
+            self.chips += 4
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += self.chips
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.SQUARE
+
+
+@dataclass(eq=False)
+class Vampire(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_hand_played(self) -> None:
+        for i in self.balatro.scored_card_indices:
+            scored_card = self.balatro.played_cards[i]
+            if scored_card.enhancement is not None:
+                self.xmult += 0.1
+                scored_card.enhancement = None
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.VAMPIRE
+
+
+@dataclass(eq=False)
+class Obelisk(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_hand_played(self) -> None:
+        if self.balatro.poker_hand_info[self.balatro.poker_hands[0]][1] < max(
+            times_played for hand_level, times_played in self.balatro.poker_hand_info
+        ):
+            self.xmult += 0.2
+        else:
+            self.xmult = 1.0
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.OBELISK
+
+
+@dataclass(eq=False)
+class LuckyCat(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_lucky_card_trigger(self) -> None:
+        self.xmult += 0.25
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.LUCKY_CAT
+
+
+@dataclass(eq=False)
+class SpareTrousers(Joker):
+    mult: int = field(default=0, init=False)
+
+    def on_hand_played(self) -> None:
+        if PokerHand.TWO_PAIR in self.balatro.poker_hands:
+            self.mult += 2
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult += self.mult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.TROUSERS
+
+
+@dataclass(eq=False)
+class Ramen(Joker):
+    xmult: float = field(default=2.0, init=False)
+
+    def on_discard(self) -> None:
+        self.xmult -= 0.01 * len(self.balatro.discard_indices)
+        if self.xmult <= 1.0:
+            self.balatro._destroy_joker(self)
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.RAMEN
+
+
+@dataclass(eq=False)
+class Castle(Joker):
+    chips: int = field(default=0, init=False)
+    suit: Suit = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._set_random_suit()
+
+    def _set_random_suit(self) -> None:
+        valid_suits = [
+            deck_card._suit
+            for deck_card in self.balatro.deck_cards
+            if not deck_card.is_stone_card
+        ]
+        self.suit = r.choice(valid_suits) if valid_suits else Suit.SPADES
+
+    def on_discard(self) -> None:
+        for i in self.balatro.discard_indices:
+            if self.balatro.hand[i] == self.suit:
+                self.chips += 3
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += self.chips
+
+    def on_round_end(self):
+        self._set_random_suit()
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.CASTLE
+
+
+@dataclass(eq=False)
+class WeeJoker(Joker):
+    chips: int = field(default=0, init=False)
+
+    def on_card_scored(self, scored_card: Card) -> None:
+        if scored_card == Rank.TWO:
+            self.chips += 8
+
+    def on_independent_ability(self) -> None:
+        self.balatro.chips += self.chips
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.WEE
+
+
+@dataclass(eq=False)
+class HitTheRoad(Joker):
+    xmult: float = field(default=1.0, init=False)
+
+    def on_discard(self) -> None:
+        for i in self.balatro.discard_indices:
+            if self.balatro.hand[i] == Rank.JACK:
+                self.xmult += 0.5
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    def on_round_end(self) -> None:
+        self.xmult = 1.0
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.HIT_THE_ROAD
+
+
+@dataclass(eq=False)
+class Yorick(Joker):
+    xmult: float = field(default=1.0, init=False)
+    discards_remaining: int = field(default=23, init=False)
+
+    def on_discard(self) -> None:
+        self.discards_remaining -= len(self.balatro.discard_indices)
+        while self.discards_remaining <= 0:
+            self.xmult += 1.0
+            self.discards_remaining += 23
+
+    def on_independent_ability(self) -> None:
+        self.balatro.mult *= self.xmult
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.YORICK
+
+
 # ---- /mixed ---- #
 
 # ---- on-other-jokers/ ---- #
 
+
+@dataclass(eq=False)
+class BaseballCard(Joker):
+    def on_dependent_ability(self, joker: Joker) -> None:
+        if joker in Balatro.JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
+            self.balatro.mult *= 1.5
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BASEBALL
+
+
 # ---- /on-other-jokers ---- #
 
 # ---- on-discard/ ---- #
+
+
+@dataclass(eq=False)
+class FacelessJoker(Joker):
+    def on_discard(self) -> None:
+        if (
+            sum(
+                self.balatro._is_face_card(self.balatro.hand[i])
+                for i in self.balatro.discard_indices
+            )
+            >= 3
+        ):
+            self.balatro.money += 5
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.FACELESS
+
+
+@dataclass(eq=False)
+class MailInRebate(Joker):
+    rank: Rank = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._set_random_rank()
+
+    def _set_random_rank(self) -> None:
+        valid_ranks = [
+            deck_card._rank
+            for deck_card in self.balatro.deck_cards
+            if not deck_card.is_stone_card
+        ]
+        self.rank = r.choice(valid_ranks) if valid_ranks else Rank.ACE
+
+    def on_discard(self) -> None:
+        for i in self.balatro.discard_indices:
+            if self.balatro.hand[i] == self.rank:
+                self.balatro.money += 5
+
+    def on_round_end(self):
+        self._set_random_rank()
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.MAIL
+
+
+@dataclass(eq=False)
+class TradingCard(Joker):
+    def on_discard(self) -> None:
+        if self.balatro.first_discard and len(self.balatro.discard_indices) == 1:
+            self.balatro.money += 3
+            self.balatro._destroy_card(
+                self.balatro.hand[self.balatro.discard_indices[0]]
+            )
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.TRADING
+
+
+@dataclass(eq=False)
+class BurntJoker(Joker):
+    def on_discard(self) -> None:
+        if self.balatro.first_discard:
+            self.balatro.poker_hand_info[self.balatro.poker_hand_discarded][1] += 1
+
+    @property
+    def joker_type(self) -> JokerType:
+        return JokerType.BURNT
+
 
 # ---- /on-discard ---- #
 

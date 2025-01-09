@@ -88,7 +88,7 @@ JOKER_COORDINATES = {
     JokerType.GLUTTENOUS_JOKER: [1, 9],
     JokerType.TROUBADOUR: [2, 0],
     JokerType.BANNER: [2, 1],
-    JokerType.MYSTISUMMIT: [2, 2],
+    JokerType.MYSTIC_SUMMIT: [2, 2],
     JokerType.MARBLE: [2, 3],
     JokerType.LOYALTY_CARD: [2, 4],
     JokerType.HACK: [2, 5],
@@ -148,7 +148,7 @@ JOKER_COORDINATES = {
     JokerType.BLOODSTONE: [8, 0],
     JokerType.ARROWHEAD: [8, 1],
     JokerType.ONYX_AGATE: [8, 2],
-    JokerType.CAINO: [8, 3],
+    JokerType.CANIO: [8, 3],
     JokerType.TRIBOULET: [8, 4],
     JokerType.YORICK: [8, 5],
     JokerType.CHICOT: [8, 6],
@@ -208,7 +208,7 @@ JOKER_COORDINATES = {
     JokerType.FLASH: [15, 0],
     JokerType.POPCORN: [15, 1],
     JokerType.RAMEN: [15, 2],
-    JokerType.SELZER: [15, 3],
+    JokerType.SELTZER: [15, 3],
     JokerType.TROUSERS: [15, 4],
     JokerType.CAMPFIRE: [15, 5],
     JokerType.SMILEY: [15, 6],
@@ -694,7 +694,7 @@ def get_sprite(
                     WIDTH, HEIGHT = int(WIDTH * 0.7), int(HEIGHT * 0.7)
                     sprite = sprite.resize((WIDTH, HEIGHT))
                 case (
-                    JokerType.CAINO
+                    JokerType.CANIO
                     | JokerType.TRIBOULET
                     | JokerType.YORICK
                     | JokerType.CHICOT

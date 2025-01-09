@@ -32,27 +32,49 @@ class Joker(ABC):
 
         return get_sprite(self, False)
 
-    def on_acquire(self) -> None:
-        pass
-
     def on_blind_select(self) -> None:
         pass
 
-    def on_held(self) -> None:
+    def on_boss_defeated(self) -> None:
         pass
 
-    def on_edition_after(self) -> None:
-        if self.edition is Edition.POLYCHROME:
-            self.balatro.mult = int(self.balatro.mult * 1.5)
+    def on_card_added(self, added_card: Card) -> None:
+        pass
 
-    def on_edition_before(self) -> None:
-        match self.edition:
-            case Edition.FOIL:
-                self.balatro.chips += 50
-            case Edition.HOLO:
-                self.balatro.mult += 10
+    def on_card_destroyed(self, destroyed_card: Card) -> None:
+        pass
 
-    def on_end_round(self) -> None:
+    # def on_card_discarded(self, discarded_card: Card) -> None:
+    #     pass
+
+    def on_card_held(self, held_card: Card) -> None:
+        pass
+
+    def on_card_scored(self, scored_card: Card) -> None:
+        pass
+
+    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
+        return 0
+
+    def on_card_sold(self) -> None:
+        pass
+
+    def on_dependent_ability(self, joker: Joker) -> None:
+        pass
+
+    def on_discard(self) -> None:
+        pass
+
+    def on_end_hand(self) -> None:
+        pass
+
+    def on_glass_card_destroyed(self) -> None:
+        pass
+
+    def on_hand_played(self) -> None:
+        pass
+
+    def on_joker_added(self) -> None:
         pass
 
     def on_leftmost_joker_changed(self) -> None:
@@ -61,22 +83,23 @@ class Joker(ABC):
     def on_independent_ability(self) -> None:
         pass
 
-    def on_independent(self) -> None:
-        self.on_edition_before()
-        self.on_independent_ability()
-        self.on_edition_after()
+    def on_lucky_card_trigger(self) -> None:
+        pass
 
-    def on_played(self) -> None:
+    def on_pack_skipped(self) -> None:
+        pass
+
+    def on_planet_used(self) -> None:
+        pass
+
+    def on_reroll(self) -> None:
         pass
 
     def on_right_joker_changed(self) -> None:
         pass
 
-    def on_scored(self) -> None:
+    def on_round_end(self) -> None:
         pass
-
-    def on_scored_retriggers(self) -> int:
-        return 0
 
     @property
     @abstractmethod
@@ -140,21 +163,29 @@ class Card:
     _rank: Rank
 
     edition: Edition = Edition.BASE
-    enhancement: Enhancement | None = None
+    _enhancement: Enhancement | None = None
     seal: Seal | None = None
 
     bonus_chips: int = 0
 
     debuffed: bool = False
 
-    def __eq__(self, other: Card) -> bool:
+    def __eq__(self, other: Suit | Rank | Enhancement | Card) -> bool:
+        if isinstance(other, Suit):
+            return self.suit is other or (self == Enhancement.WILD)
+        if isinstance(other, Rank):
+            return self.rank is other
+        if isinstance(other, Enhancement):
+            return not self.debuffed and self.enhancement is other
         if isinstance(other, Card):
-            if (
-                self.enhancement is Enhancement.STONE
-                or other.enhancement is Enhancement.STONE
-            ):
+            if self.is_stone_card or other.is_stone_card:
                 return False
-            return self._suit is other._suit and self._rank is other._rank
+            return self == other._suit and self._rank is other._rank
+        return NotImplemented
+
+    def __lt__(self, other: Card) -> bool:
+        if isinstance(other, Card):
+            return self.rank < other.rank
         return NotImplemented
 
     def _repr_png_(self) -> bytes:
@@ -164,9 +195,19 @@ class Card:
 
     @property
     def base_chips(self) -> int:
-        return (
-            50 if self.enhancement is Enhancement.STONE else self._rank.chips
-        ) + self.bonus_chips
+        return (50 if self.is_stone_card else self._rank.chips) + self.bonus_chips
+
+    @property
+    def enhancement(self) -> Enhancement | None:
+        return None if self.debuffed else self._enhancement
+
+    @enhancement.setter
+    def enhancement(self, enhancement: Enhancement) -> None:
+        self._enhancement = enhancement
+
+    @property
+    def is_stone_card(self) -> bool:
+        return self._enhancement is Enhancement.STONE
 
     @property
     def rank(self) -> Rank | None:
