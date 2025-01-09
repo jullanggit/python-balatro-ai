@@ -116,7 +116,7 @@ JOKER_COORDINATES = {
     JokerType.FAMILY: [4, 7],
     JokerType.ORDER: [4, 8],
     JokerType.TRIBE: [4, 9],
-    JokerType._8_BALL: [5, 0],
+    JokerType.EIGHT_BALL: [5, 0],
     JokerType.FIBONACCI: [5, 1],
     JokerType.STENCIL: [5, 2],
     JokerType.SPACE: [5, 3],

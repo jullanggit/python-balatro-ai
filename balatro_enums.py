@@ -23,7 +23,7 @@ class JokerType(Enum):
     CREDIT_CARD = "Credit Card"
     BANNER = "Banner"
     MYSTISUMMIT = "Mystic Summit"
-    _8_BALL = "8 Ball"
+    EIGHT_BALL = "8 Ball"
     MISPRINT = "Misprint"
     RAISED_FIST = "Raised Fist"
     CHAOS = "Chaos the Clown"
@@ -411,15 +411,15 @@ class Rank(Enum):
     KING = "King"
     QUEEN = "Queen"
     JACK = "Jack"
-    _10 = "10"
-    _9 = "9"
-    _8 = "8"
-    _7 = "7"
-    _6 = "6"
-    _5 = "5"
-    _4 = "4"
-    _3 = "3"
-    _2 = "2"
+    TEN = "10"
+    NINE = "9"
+    EIGHT = "8"
+    SEVEN = "7"
+    SIX = "6"
+    FIVE = "5"
+    FOUR = "4"
+    THREE = "3"
+    TWO = "2"
 
     def __int__(self) -> int:
         return 14 - list(self.__class__).index(self)
@@ -428,6 +428,15 @@ class Rank(Enum):
         if isinstance(other, self.__class__):
             return int(self) < int(other)
         return NotImplemented
+
+    @property
+    def chips(self) -> int:
+        if self is Rank.ACE:
+            return 11
+        elif self in [Rank.KING, Rank.QUEEN, Rank.JACK]:
+            return 10
+        else:
+            return int(self)
 
 
 class PokerHand(Enum):
