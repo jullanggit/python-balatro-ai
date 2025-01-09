@@ -1,6 +1,13 @@
 from balatro_enums import *
 from balatro_jokers import *
 
+JOKER_TYPE_RARITIES = {
+    Rarity.COMMON: list(JokerType)[:61],
+    Rarity.UNCOMMON: list(JokerType)[61 : 61 + 64],
+    Rarity.RARE: list(JokerType)[61 + 64 : 61 + 64 + 20],
+    Rarity.LEGENDARY: list(JokerType)[61 + 64 + 20 : 61 + 64 + 20 + 5],
+}
+
 NON_COPYABLE_JOKERS = {
     JokerType.CREDIT_CARD,
     JokerType.CHAOS,

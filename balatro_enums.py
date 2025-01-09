@@ -422,11 +422,11 @@ class Rank(Enum):
     TWO = "2"
 
     def __int__(self) -> int:
-        return 14 - list(self.__class__).index(self)
+        return 14 - list(Rank).index(self)
 
     def __lt__(self, other: Rank) -> bool:
         if isinstance(other, Rank):
-            return int(self) < int(other)
+            return list(Rank).index(self) > list(Rank).index(other)
         return NotImplemented
 
     @property
@@ -453,9 +453,14 @@ class PokerHand(Enum):
     PAIR = "Pair"
     HIGH_CARD = "High Card"
 
+    def __lt__(self, other: PokerHand) -> bool:
+        if isinstance(other, PokerHand):
+            return list(PokerHand).index(self) > list(PokerHand).index(other)
+        return NotImplemented
+
     @property
     def planet(self) -> Planet:
-        return list(Planet)[list(self.__class__).index(self)]
+        return list(Planet)[list(PokerHand).index(self)]
 
 
 class Rarity(Enum):

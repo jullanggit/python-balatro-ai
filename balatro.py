@@ -2,11 +2,10 @@ from __future__ import annotations
 import base64
 from collections import Counter
 from copy import deepcopy
-from IPython.display import clear_output, display
 import random as r
-import time as t
 from typing import Iterator
 
+from balatro_constants import *
 from balatro_classes import *
 from balatro_enums import *
 from balatro_jokers import *
@@ -297,12 +296,6 @@ class Balatro:
         Edition.FOIL: 8,
     }
     JOKER_BASE_RARITY_WEIGHTS = {Rarity.COMMON: 70, Rarity.UNCOMMON: 25, Rarity.RARE: 5}
-    JOKER_TYPE_RARITIES = {
-        Rarity.COMMON: list(JokerType)[:61],
-        Rarity.UNCOMMON: list(JokerType)[61 : 61 + 64],
-        Rarity.RARE: list(JokerType)[61 + 64 : 61 + 64 + 20],
-        Rarity.LEGENDARY: list(JokerType)[61 + 64 + 20 : 61 + 64 + 20 + 5],
-    }
     NON_ETERNAL_JOKERS = {
         JokerType.GROS_MICHEL,
         JokerType.ICE_CREAM,
@@ -418,6 +411,9 @@ class Balatro:
 
         self.deck_cards: list[Card] = deepcopy(Balatro.BASE_DECK_CARDS)
 
+        self.jokers: list[Joker] = []
+        self.consumables: list[Consumable] = []
+
         match deck:
             case Deck.RED:
                 self.starting_discards += 1
@@ -445,9 +441,7 @@ class Balatro:
                 self.consumables.append(Consumable(Spectral.HEX))
             case Deck.ABANDONED:
                 self.deck_cards = [
-                    card
-                    for card in self.deck_cards
-                    if card.rank not in [Rank.KING, Rank.QUEEN, Rank.JACK]
+                    card for card in self.deck_cards if not self._is_face_card(card)
                 ]
             case Deck.CHECKERED:
                 self.deck_cards = self.deck_cards[:26] + self.deck_cards[:26]
@@ -490,9 +484,6 @@ class Balatro:
 
         self.blind: Blind = Blind.SMALL
 
-        self.jokers: list[Joker] = []
-        self.consumables: list[Consumable] = []
-
         self.played_hands: int = 0
         self.first_hand: bool | None = None
         self.first_discard: bool | None = None
@@ -502,9 +493,9 @@ class Balatro:
         self.round_score: int | None = None
         self.round_goal: int | None = None
         self.chips: int | None = None
-        self.mult: int | None = None
+        self.mult: float | None = None
         self.played_cards: list[Card] | None = None
-        self.poker_hand_played: PokerHand | None = None
+        self.poker_hands: list[PokerHand] | None = None
         self.scored_card_indices: list[int] | None = None
         self.poker_hand_discarded: PokerHand | None = None
         self.discard_indices: list[int] | None = None
@@ -532,7 +523,7 @@ class Balatro:
 
     def _add_joker(self, joker: Joker) -> None:
         self.jokers.append(joker)
-        joker.on_acquire()
+        joker.on_acquired()
         joker.on_leftmost_joker_changed()
         if len(self.jokers) > 1:
             self.jokers[-2].on_right_joker_changed()
@@ -589,8 +580,24 @@ class Balatro:
         buy_cost = (base_cost + edition_cost) * discount_percent
         return max(round(buy_cost - 0.001), 1)
 
-    def _chance(hit: int, pool: int) -> bool:
+    def _chance(self, hit: int, pool: int) -> bool:
         return r.randint(hit, pool) == 1
+
+    def _create_joker(
+        self,
+        joker_type: JokerType,
+        edition: Edition = Edition.BASE,
+        eternal: bool = False,
+        perishable: bool = False,
+        rental: bool = False,
+    ) -> Joker:
+        return JOKER_CLASSES[joker_type](
+            self,
+            edition,
+            eternal,
+            perishable,
+            rental,
+        )
 
     def _deal(self) -> None:
         num_cards = self.hand_size - len(self.hand)
@@ -633,102 +640,33 @@ class Balatro:
         self._populate_shop()
         self.state = State.IN_SHOP
 
-    def _get_poker_hand(self, played_cards: list[Card]) -> tuple[PokerHand, list[int]]:
-        best_hand = None
-        scored_card_indices = {
-            i
-            for i, card in enumerate(played_cards)
-            if card.enhancement is Enhancement.STONE
-        }
-
-        rank_counts = Counter(
-            played_card.rank
-            for played_card in played_cards
-            if played_card.rank is not None
-        )
-        suit_counts = Counter(
-            played_card.suit
-            for played_card in played_cards
-            if played_card.suit is not None
-            and (
-                played_card.enhancement is not Enhancement.WILD or played_card.debuffed
-            )
-        )
-        num_wilds = sum(
-            played_card.enhancement is Enhancement.WILD and not played_card.debuffed
-            for played_card in played_cards
-        )
+    def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, set[int]]:
+        poker_hands = {}
 
         flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self.active_jokers) else 5
         max_straight_gap = 2 if (JokerType.SHORTCUT in self.active_jokers) else 1
 
-        flush_suit = None
-        if suit_counts:
-            flush_suit, flush_suit_count = suit_counts.most_common(1)[0]
-        else:
-            flush_suit_count = 0
-        is_flush = flush_suit_count + num_wilds >= flush_straight_len
+        non_stone_cards = [card for card in played_cards if not card.is_stone_card]
 
-        # ranks matching
-        for rank, n in rank_counts.most_common():
-            match n:
-                case 5:
-                    best_hand = (
-                        PokerHand.FLUSH_FIVE if is_flush else PokerHand.FIVE_OF_A_KIND
-                    )
-                    scored_card_indices = set(range(5))
-                    return best_hand, scored_card_indices
-                case 4:
-                    best_hand = PokerHand.FOUR_OF_A_KIND
-                    scored_card_indices.update(
-                        i
-                        for i, played_card in enumerate(played_cards)
-                        if played_card.rank is rank
-                    )
-                    return best_hand, scored_card_indices
-                case 3:
-                    best_hand = PokerHand.THREE_OF_A_KIND
-                    scored_card_indices.update(
-                        i
-                        for i, played_card in enumerate(played_cards)
-                        if played_card.rank is rank
-                    )
-                case 2:
-                    if best_hand is PokerHand.THREE_OF_A_KIND:
-                        best_hand = (
-                            PokerHand.FLUSH_HOUSE if is_flush else PokerHand.FULL_HOUSE
-                        )
-                        scored_card_indices = set(range(5))
-                        return best_hand, scored_card_indices
-                    elif best_hand is PokerHand.PAIR:
-                        best_hand = PokerHand.TWO_PAIR
-                        scored_card_indices.update(
-                            i
-                            for i, played_card in enumerate(played_cards)
-                            if played_card.rank is rank
-                        )
-                    else:
-                        best_hand = PokerHand.PAIR
-                        scored_card_indices.update(
-                            i
-                            for i, played_card in enumerate(played_cards)
-                            if played_card.rank is rank
-                        )
-                case 1:
-                    break
+        rank_counts = Counter(valid_card.rank for valid_card in non_stone_cards)
+        non_wild_cards = [
+            valid_card
+            for valid_card in non_stone_cards
+            if valid_card != Enhancement.WILD
+        ]
+        suit_counts = Counter(non_wild_card.suit for non_wild_card in non_wild_cards)
+        num_wilds = len(non_stone_cards) - len(non_wild_cards)
 
         # flush
-        if is_flush:
-            best_hand = PokerHand.FLUSH
-            scored_card_indices.update(
+        flush_suit, flush_suit_count = (
+            suit_counts.most_common(1)[0] if suit_counts else (None, 0)
+        )
+        if flush_suit_count + num_wilds >= flush_straight_len:
+            poker_hands[PokerHand.FLUSH] = [
                 i
-                for i, played_card in enumerate(played_cards)
-                if played_card.suit is flush_suit
-                or (
-                    played_card.enhancement is Enhancement.WILD
-                    and not played_card.debuffed
-                )
-            )
+                for i, card in enumerate(played_cards)
+                if card == flush_suit or card == Enhancement.WILD
+            ]
 
         # straight
         if len(rank_counts) >= flush_straight_len:
@@ -754,28 +692,55 @@ class Balatro:
                 longest_straight.add(Rank.ACE)
 
             if len(longest_straight) >= flush_straight_len:
-                best_hand = (
-                    PokerHand.STRAIGHT_FLUSH
-                    if best_hand is PokerHand.FLUSH
-                    else PokerHand.STRAIGHT
-                )
-                scored_card_indices.update(
+                straight_indices = [
                     i
-                    for i, played_card in enumerate(played_cards)
-                    if played_card.rank in longest_straight
-                )
-                return best_hand, scored_card_indices
+                    for i, card in enumerate(played_cards)
+                    if not card.is_stone_card and card.rank in longest_straight
+                ]
+                if PokerHand.FLUSH in poker_hands:
+                    poker_hands[PokerHand.STRAIGHT_FLUSH] = straight_indices
+                poker_hands[PokerHand.STRAIGHT] = straight_indices
+
+        # rank matching
+        for rank, n in rank_counts.most_common():
+            if n == 5:
+                poker_hands[PokerHand.FIVE_OF_A_KIND] = [0, 1, 2, 3, 4]
+                if PokerHand.FLUSH in poker_hands:
+                    poker_hands[PokerHand.FLUSH_FIVE] = [0, 1, 2, 3, 4]
+            if n >= 4:
+                poker_hands[PokerHand.FOUR_OF_A_KIND] = [
+                    i for i, card in enumerate(played_cards) if card == rank
+                ][:4]
+            if n >= 3:
+                poker_hands[PokerHand.THREE_OF_A_KIND] = [
+                    i for i, card in enumerate(played_cards) if card == rank
+                ][:3]
+            if n >= 2:
+                if (
+                    PokerHand.THREE_OF_A_KIND in poker_hands
+                    and played_cards[poker_hands[PokerHand.THREE_OF_A_KIND][0]] != rank
+                ):
+                    poker_hands[PokerHand.FULL_HOUSE] = [0, 1, 2, 3, 4]
+                    if PokerHand.FLUSH in poker_hands:
+                        poker_hands[PokerHand.FLUSH_HOUSE] = [0, 1, 2, 3, 4]
+                if (
+                    PokerHand.PAIR in poker_hands
+                    and played_cards[poker_hands[PokerHand.PAIR][0]] != rank
+                ):
+                    poker_hands[PokerHand.TWO_PAIR] = (
+                        poker_hands[PokerHand.PAIR]
+                        + [i for i, card in enumerate(played_cards) if card == rank][:2]
+                    )
+                poker_hands[PokerHand.PAIR] = [
+                    i for i, card in enumerate(played_cards) if card == rank
+                ][:2]
 
         # high card
-        if best_hand is None:
-            best_hand = PokerHand.HIGH_CARD
-            scored_card_indices.update(
-                i
-                for i, played_card in enumerate(played_cards)
-                if played_card.rank is max(rank_counts)
-            )
+        poker_hands[PokerHand.HIGH_CARD] = [
+            i for i, card in enumerate(played_cards) if card == max(rank_counts)
+        ][:1]
 
-        return best_hand, scored_card_indices
+        return poker_hands
 
     def _get_random_card(self, allow_modifiers: bool = False) -> Card:
         card = Card(r.choice(list(Suit)), r.choice(list(Rank)))
@@ -837,7 +802,7 @@ class Balatro:
                 )
             )
         ):
-            joker_type = r.choice(Balatro.JOKER_TYPE_RARITIES[rarity])
+            joker_type = r.choice(JOKER_TYPE_RARITIES[rarity])
 
         edition_chances = (
             Balatro.JOKER_BASE_EDITION_CHANCES_GLOW_UP
@@ -852,7 +817,7 @@ class Balatro:
             list(edition_chances), weights=edition_chances.values(), k=1
         )[0]
 
-        return Joker.create(self, joker_type, edition=edition)
+        return self._create_joker(joker_type, edition=edition)
 
     def _get_random_tarot(self) -> Consumable:
         tarot = None
@@ -1226,7 +1191,7 @@ class Balatro:
             case Edition.HOLO:
                 self.mult += 10
             case Edition.POLYCHROME:
-                self.mult = int(self.mult * 1.5)
+                self.mult *= 1.5
 
         for joker in self.active_jokers:
             joker.on_card_scored(scored_card)
@@ -1273,9 +1238,10 @@ class Balatro:
         assert len(set(discard_indices)) == len(discard_indices)
 
         self.discard_indices = sorted(discard_indices)
-        self.poker_hand_discarded, _ = self._get_poker_hand(
+        poker_hands_discarded = self._get_poker_hands(
             [self.hand[i] for i in self.discard_indices]
         )
+        self.poker_hand_discarded = max(poker_hands_discarded)
 
         for joker in self.active_jokers:
             joker.on_discard()
@@ -1315,19 +1281,24 @@ class Balatro:
         self.played_cards = [self.hand[i] for i in card_indices]
         for i in sorted(card_indices, reverse=True):
             self.hand.pop(i)
-        self.poker_hand_played, self.scored_card_indices = self._get_poker_hand(
-            self.played_cards
-        )
+        poker_hands = self._get_poker_hands(self.played_cards)
+        self.poker_hands = sorted(poker_hands, reverse=True)
+        poker_hand_card_indices = poker_hands[self.poker_hands[0]]
+        self.scored_card_indices = [
+            i
+            for i, card in enumerate(self.played_cards)
+            if card in poker_hand_card_indices or card.is_stone_card
+        ]
 
         for joker in self.active_jokers:
             joker.on_hand_played()
 
-        poker_hand_level = self.poker_hand_info[self.poker_hand_played][0]
+        poker_hand_level = self.poker_hand_info[self.poker_hands[0]][0]
         poker_hand_base_chips, poker_hand_base_mult = Balatro.HAND_BASE_SCORE[
-            self.poker_hand_played
+            self.poker_hands[0]
         ]
         poker_hand_chips_scaling, poker_hand_mult_scaling = Balatro.HAND_SCALING[
-            self.poker_hand_played
+            self.poker_hands[0]
         ]
         poker_hand_chips, poker_hand_mult = (
             poker_hand_base_chips + poker_hand_chips_scaling * (poker_hand_level - 1),
@@ -1366,23 +1337,23 @@ class Balatro:
                 other_joker.on_dependent_ability(joker)
 
             if joker.edition is Edition.POLYCHROME:
-                self.mult = int(self.mult * 1.5)
+                self.mult *= 1.5
 
         score = (
             ((self.chips + self.mult) // 2) ** 2
             if self.deck is Deck.PLASMA
-            else self.chips * self.mult
+            else int(self.chips * self.mult)
         )
         self.round_score += score
 
-        self.poker_hand_info[self.poker_hand_played][1] += 1
+        self.poker_hand_info[self.poker_hands[0]][1] += 1
 
         return
 
         self.chips = None
         self.mult = None
         self.played_cards = None
-        self.poker_hand_played = None
+        self.poker_hands = None
         self.scored_card_indices = None
         self.first_hand = False
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,7 +10,7 @@ from balatro_enums import *
 
 @dataclass
 class Joker(ABC):
-    balatro: Balatro
+    _balatro: Balatro
 
     edition: Edition
 
@@ -18,9 +18,9 @@ class Joker(ABC):
     perishable: bool
     rental: bool
 
-    debuffed: bool
-
-    rounds_until_debuff: int | None
+    debuffed: bool = field(default=False, init=False)
+    perishable_rounds_left: int = field(default=5, init=False)
+    extra_sell_value: int = field(default=0, init=False)
 
     def __eq__(self, other: JokerType) -> bool:
         if isinstance(other, JokerType):
@@ -31,6 +31,9 @@ class Joker(ABC):
         from balatro_resources import get_sprite
 
         return get_sprite(self, False)
+
+    def on_acquired(self) -> None:
+        pass
 
     def on_blind_select(self) -> None:
         pass
@@ -74,9 +77,6 @@ class Joker(ABC):
     def on_hand_played(self) -> None:
         pass
 
-    def on_joker_added(self) -> None:
-        pass
-
     def on_leftmost_joker_changed(self) -> None:
         pass
 
@@ -110,29 +110,6 @@ class Joker(ABC):
     def is_active(self) -> bool:
         return not self.debuffed
 
-    @staticmethod
-    def create(
-        balatro: Balatro,
-        joker_type: JokerType,
-        edition: Edition = Edition.BASE,
-        eternal: bool = False,
-        perishable: bool = False,
-        rental: bool = False,
-        debuffed: bool = False,
-        rounds_until_debuff: int | None = None,
-    ) -> Joker:
-        from balatro_constants import JOKER_CLASSES
-
-        return JOKER_CLASSES[joker_type](
-            balatro,
-            edition,
-            eternal,
-            perishable,
-            rental,
-            debuffed,
-            rounds_until_debuff,
-        )
-
 
 @dataclass
 class Consumable:
@@ -159,11 +136,11 @@ class Consumable:
 
 @dataclass
 class Card:
-    _suit: Suit
-    _rank: Rank
+    suit: Suit
+    rank: Rank
 
     edition: Edition = Edition.BASE
-    _enhancement: Enhancement | None = None
+    enhancement: Enhancement | None = None
     seal: Seal | None = None
 
     bonus_chips: int = 0
@@ -172,15 +149,15 @@ class Card:
 
     def __eq__(self, other: Suit | Rank | Enhancement | Card) -> bool:
         if isinstance(other, Suit):
-            return self.suit is other or (self == Enhancement.WILD)
+            return not self.is_stone_card and (
+                self.suit is other or (self == Enhancement.WILD)
+            )
         if isinstance(other, Rank):
-            return self.rank is other
+            return not self.is_stone_card and self.rank is other
         if isinstance(other, Enhancement):
             return not self.debuffed and self.enhancement is other
         if isinstance(other, Card):
-            if self.is_stone_card or other.is_stone_card:
-                return False
-            return self == other._suit and self._rank is other._rank
+            return self == other.suit and self == other.rank
         return NotImplemented
 
     def __lt__(self, other: Card) -> bool:
@@ -195,32 +172,8 @@ class Card:
 
     @property
     def base_chips(self) -> int:
-        return (50 if self.is_stone_card else self._rank.chips) + self.bonus_chips
-
-    @property
-    def enhancement(self) -> Enhancement | None:
-        return None if self.debuffed else self._enhancement
-
-    @enhancement.setter
-    def enhancement(self, enhancement: Enhancement) -> None:
-        self._enhancement = enhancement
+        return (50 if self.is_stone_card else self.rank.chips) + self.bonus_chips
 
     @property
     def is_stone_card(self) -> bool:
-        return self._enhancement is Enhancement.STONE
-
-    @property
-    def rank(self) -> Rank | None:
-        return None if self.enhancement is Enhancement.STONE else self._rank
-
-    @rank.setter
-    def rank(self, rank: Rank) -> None:
-        self._rank = rank
-
-    @property
-    def suit(self) -> Suit | None:
-        return None if self.enhancement is Enhancement.STONE else self._suit
-
-    @suit.setter
-    def suit(self, suit: Suit) -> None:
-        self._suit = suit
+        return self.enhancement is Enhancement.STONE
