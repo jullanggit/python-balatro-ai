@@ -9,7 +9,12 @@ from balatro_enums import *
 
 
 @dataclass
-class Joker(ABC):
+class Sellable:
+    extra_sell_value: int = field(default=0, init=False)
+
+
+@dataclass
+class Joker(Sellable, ABC):
     _balatro: Balatro
 
     edition: Edition
@@ -20,7 +25,6 @@ class Joker(ABC):
 
     debuffed: bool = field(default=False, init=False)
     perishable_rounds_left: int = field(default=5, init=False)
-    extra_sell_value: int = field(default=0, init=False)
 
     def __eq__(self, other: JokerType) -> bool:
         if isinstance(other, JokerType):
@@ -31,6 +35,9 @@ class Joker(ABC):
         from balatro_resources import get_sprite
 
         return get_sprite(self, False)
+
+    def dependent_ability(self, joker: Joker) -> None:
+        pass
 
     def on_blind_selected(self) -> None:
         pass
@@ -53,13 +60,10 @@ class Joker(ABC):
     def on_card_scored(self, scored_card: Card) -> None:
         pass
 
-    def on_card_scored_check_retrigger(self, scored_card: Card) -> int:
+    def on_card_scored_retrigger(self, scored_card: Card) -> int:
         return 0
 
     def on_card_sold(self) -> None:
-        pass
-
-    def on_dependent_ability(self, joker: Joker) -> None:
         pass
 
     def on_discard(self) -> None:
@@ -74,13 +78,16 @@ class Joker(ABC):
     def on_hand_played(self) -> None:
         pass
 
+    def independent_ability(self) -> None:
+        pass
+
     def on_leftmost_joker_changed(self) -> None:
         pass
 
-    def on_independent_ability(self) -> None:
+    def on_lucky_card_triggered(self) -> None:
         pass
 
-    def on_lucky_card_trigger(self) -> None:
+    def on_pack_opened(self) -> None:
         pass
 
     def on_pack_skipped(self) -> None:
@@ -89,13 +96,13 @@ class Joker(ABC):
     def on_planet_used(self) -> None:
         pass
 
-    def on_reroll(self) -> None:
-        pass
-
     def on_right_joker_changed(self) -> None:
         pass
 
-    def on_round_end(self) -> None:
+    def on_round_ended(self) -> None:
+        pass
+
+    def on_shop_rerolled(self) -> None:
         pass
 
     def on_sold(self) -> None:
@@ -112,7 +119,7 @@ class Joker(ABC):
 
 
 @dataclass
-class Consumable:
+class Consumable(Sellable):
     consumable_type: Tarot | Planet | Spectral
 
     is_negative: bool = False
