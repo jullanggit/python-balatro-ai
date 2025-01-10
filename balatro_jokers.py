@@ -5,67 +5,18 @@ from balatro_classes import *
 from balatro_enums import *
 
 
-# ---- base classes/ ---- #
-
-
-@dataclass
-class CopierJoker:
-    copied: Joker | None = field(default=None, init=False)
-
-    def __eq__(self, other: JokerType) -> bool:
-        if isinstance(other, JokerType):
-            return self.copied == other
-        return NotImplemented
-
-    def _set_copied_joker(self, copied_joker: Joker) -> None:
-        from balatro_constants import NON_COPYABLE_JOKERS
-
-        if copied_joker.joker_type not in NON_COPYABLE_JOKERS:
-            self.copied = copied_joker
-
-    def dependent_ability(self, joker: Joker) -> None:
-        if self.copied is not None:
-            self.copied.dependent_ability(joker)
-
-    def on_card_scored(self, scored_card: Card) -> None:
-        if self.copied is not None:
-            self.copied.on_card_scored(scored_card)
-
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
-        if self.copied is not None:
-            return self.copied.on_card_scored_retrigger(scored_card)
-
-    def on_discard(self) -> int:
-        if self.copied is not None:
-            return self.copied.on_discard()
-
-    def on_hand_played_ability(self) -> None:
-        if self.copied is not None:
-            self.copied.on_hand_played_ability()
-
-    def independent_ability(self) -> None:
-        if self.copied is not None:
-            self.copied.independent_ability()
-
-    @property
-    def is_active(self) -> bool:
-        return self.copied.is_active
-
-
-# ---- /base classes ---- #
-
 # ---- copiers/ ---- #
 
 
 @dataclass(eq=False)
-class Blueprint(CopierJoker, Joker):
-    def on_right_joker_changed(self) -> None:
-        self.copied = None
+class Blueprint(CopyJoker):
+    def _right_joker_changed_action(self) -> None:
+        self.copied_joker = None
         for i, joker in enumerate(self._balatro.jokers):
             if joker is self:
                 break
         if i < len(self._balatro.jokers) - 1:
-            self._set_copied_joker(self._balatro.jokers[i + 1])
+            self.copied_joker = self._balatro.jokers[i + 1]
 
     @property
     def joker_type(self) -> JokerType:
@@ -73,10 +24,9 @@ class Blueprint(CopierJoker, Joker):
 
 
 @dataclass(eq=False)
-class Brainstorm(CopierJoker, Joker):
-    def on_leftmost_joker_changed(self) -> None:
-        self.copied = None
-        self._set_copied_joker(self._balatro.jokers[0])
+class Brainstorm(CopyJoker):
+    def _leftmost_joker_changed_action(self) -> None:
+        self.copied_joker = self._balatro.jokers[0]
 
     @property
     def joker_type(self) -> JokerType:
@@ -90,9 +40,14 @@ class Brainstorm(CopierJoker, Joker):
 
 @dataclass(eq=False)
 class SpaceJoker(Joker):
-    def on_hand_played_ability(self) -> None:
+    def _hand_played_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro._chance(1, 4):
-            self._balatro.poker_hand_info[self._balatro.poker_hands[0]][0] += 1
+            self._balatro.poker_hand_info[poker_hands_played[0]][0] += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -101,9 +56,14 @@ class SpaceJoker(Joker):
 
 @dataclass(eq=False)
 class DNA(Joker):
-    def on_hand_played_ability(self) -> None:
-        if self._balatro.first_hand and len(self._balatro.played_cards) == 1:
-            card_copy = replace(self._balatro.played_cards[0])
+    def _hand_played_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if self._balatro.first_hand and len(played_cards) == 1:
+            card_copy = replace(played_cards[0])
             self._balatro._add_card(card_copy)
             self._balatro.hand.append(card_copy)
 
@@ -122,11 +82,16 @@ class ToDoList(Joker):
     def _set_random_poker_hand(self) -> None:
         self.poker_hand = r.choice(self._balatro.unlocked_poker_hands)
 
-    def on_hand_played_ability(self) -> None:
-        if self._balatro.poker_hands[0] is self.poker_hand:
+    def _hand_played_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if poker_hands_played[0] is self.poker_hand:
             self._balatro.money += 4
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self._set_random_poker_hand()
 
     @property
@@ -136,9 +101,14 @@ class ToDoList(Joker):
 
 @dataclass(eq=False)
 class MidasMask(Joker):
-    def on_hand_played_ability(self) -> None:
-        for i in self._balatro.scored_card_indices:
-            scored_card = self._balatro.played_cards[i]
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        for i in scored_card_indices:
+            scored_card = played_cards[i]
             if self._balatro._is_face_card(scored_card):
                 scored_card.enhancement = Enhancement.GOLD
 
@@ -154,7 +124,7 @@ class MidasMask(Joker):
 
 @dataclass(eq=False)
 class GreedyJoker(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.DIAMONDS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -165,7 +135,7 @@ class GreedyJoker(Joker):
 
 @dataclass(eq=False)
 class LustyJoker(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.HEARTS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -176,7 +146,7 @@ class LustyJoker(Joker):
 
 @dataclass(eq=False)
 class WrathfulJoker(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.SPADES in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -187,7 +157,7 @@ class WrathfulJoker(Joker):
 
 @dataclass(eq=False)
 class GluttonousJoker(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.CLUBS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -198,7 +168,7 @@ class GluttonousJoker(Joker):
 
 @dataclass(eq=False)
 class EightBall(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if (
             scored_card == Rank.EIGHT
             and self._balatro.effective_consumable_slots
@@ -214,7 +184,7 @@ class EightBall(Joker):
 
 @dataclass(eq=False)
 class Dusk(Joker):
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(self, scored_card: Card) -> int:
         return int(self._balatro.hands == 0)
 
     @property
@@ -224,7 +194,7 @@ class Dusk(Joker):
 
 @dataclass(eq=False)
 class Fibonacci(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card in [
             Rank.ACE,
             Rank.TWO,
@@ -241,7 +211,7 @@ class Fibonacci(Joker):
 
 @dataclass(eq=False)
 class ScaryFace(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if self._balatro._is_face_card(scored_card):
             self._balatro.chips += 30
 
@@ -252,7 +222,7 @@ class ScaryFace(Joker):
 
 @dataclass(eq=False)
 class Hack(Joker):
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(self, scored_card: Card) -> int:
         return int(
             scored_card
             in [
@@ -270,7 +240,7 @@ class Hack(Joker):
 
 @dataclass(eq=False)
 class EvenSteven(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card in [
             Rank.TWO,
             Rank.FOUR,
@@ -287,7 +257,7 @@ class EvenSteven(Joker):
 
 @dataclass(eq=False)
 class OddTodd(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card in [
             Rank.THREE,
             Rank.FIVE,
@@ -304,7 +274,7 @@ class OddTodd(Joker):
 
 @dataclass(eq=False)
 class Scholar(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card == Rank.ACE:
             self._balatro.chips += 20
             self._balatro.mult += 4
@@ -316,7 +286,7 @@ class Scholar(Joker):
 
 @dataclass(eq=False)
 class BusinessCard(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if self._balatro._is_face_card(scored_card) and self._balatro._chance(1, 2):
             self._balatro.money += 2
 
@@ -327,7 +297,7 @@ class BusinessCard(Joker):
 
 @dataclass(eq=False)
 class Hiker(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         scored_card.bonus_chips += 5
 
     @property
@@ -337,7 +307,7 @@ class Hiker(Joker):
 
 @dataclass(eq=False)
 class Photograph(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         first_scored_face_card = next(
             (
                 self._balatro.played_cards[i]
@@ -367,11 +337,11 @@ class AncientJoker(Joker):
             new_suit = r.choice(list(Suit))
         self.suit = new_suit
 
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if self.suit in self._balatro._get_card_suits(scored_card):
             self._balatro.mult *= 1.5
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self._set_random_suit()
 
     @property
@@ -381,7 +351,7 @@ class AncientJoker(Joker):
 
 @dataclass(eq=False)
 class WalkieTalkie(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card in [Rank.TEN, Rank.FOUR]:
             self._balatro.chips += 10
             self._balatro.mult += 4
@@ -395,10 +365,10 @@ class WalkieTalkie(Joker):
 class Seltzer(Joker):
     hands_left: int = field(default=10, init=False)
 
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(self, scored_card: Card) -> int:
         self.hands_left -= 1
         if self.hands_left == 0:
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
         return 1
 
     @property
@@ -408,7 +378,7 @@ class Seltzer(Joker):
 
 @dataclass(eq=False)
 class SmileyFace(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if self._balatro._is_face_card(scored_card):
             self._balatro.mult += 5
 
@@ -419,7 +389,7 @@ class SmileyFace(Joker):
 
 @dataclass(eq=False)
 class GoldenTicket(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card == Enhancement.GOLD:
             self._balatro.money += 4
 
@@ -430,7 +400,7 @@ class GoldenTicket(Joker):
 
 @dataclass(eq=False)
 class SockAndBuskin(Joker):
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(self, scored_card: Card) -> int:
         return int(self._balatro._is_face_card(scored_card))
 
     @property
@@ -440,7 +410,7 @@ class SockAndBuskin(Joker):
 
 @dataclass(eq=False)
 class HangingChad(Joker):
-    def on_card_scored_retrigger(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(self, scored_card: Card) -> int:
         return (
             2
             if (
@@ -457,7 +427,7 @@ class HangingChad(Joker):
 
 @dataclass(eq=False)
 class RoughGem(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.DIAMONDS in self._balatro._get_card_suits(scored_card):
             self._balatro.money += 1
 
@@ -468,7 +438,7 @@ class RoughGem(Joker):
 
 @dataclass(eq=False)
 class Bloodstone(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if (
             Suit.HEARTS in self._balatro._get_card_suits(scored_card)
         ) and self._balatro._chance(1, 2):
@@ -481,7 +451,7 @@ class Bloodstone(Joker):
 
 @dataclass(eq=False)
 class Arrowhead(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.SPADES in self._balatro._get_card_suits(scored_card):
             self._balatro.chips += 50
 
@@ -492,7 +462,7 @@ class Arrowhead(Joker):
 
 @dataclass(eq=False)
 class OnyxAgate(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if Suit.CLUBS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 7
 
@@ -520,14 +490,14 @@ class TheIdol(Joker):
         else:
             self.card = Card(Suit.SPADES, Rank.ACE)
 
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if (
             scored_card == self.card.rank
             and self.card.suit in self._balatro._get_card_suits(scored_card)
         ):
             self._balatro.mult *= 2
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self._set_random_card()
 
     @property
@@ -537,7 +507,7 @@ class TheIdol(Joker):
 
 @dataclass(eq=False)
 class Triboulet(Joker):
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_ability(self, scored_card: Card) -> None:
         if scored_card in [Rank.KING, Rank.QUEEN]:
             self._balatro.mult *= 2
 
@@ -553,8 +523,8 @@ class Triboulet(Joker):
 
 @dataclass(eq=False)
 class Mime(Joker):
-    def on_card_held(self, held_card: Card) -> None:
-        raise NotImplementedError
+    def _card_held_retriggers(self, held_card: Card) -> int:
+        return 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -563,7 +533,7 @@ class Mime(Joker):
 
 @dataclass(eq=False)
 class RaisedFist(Joker):
-    def on_card_held(self, held_card: Card) -> None:
+    def _card_held_ability(self, held_card: Card) -> None:
         valid_hand_cards = [
             hand_card for hand_card in self._balatro.hand if not hand_card.is_stone_card
         ]
@@ -577,7 +547,7 @@ class RaisedFist(Joker):
 
 @dataclass(eq=False)
 class Baron(Joker):
-    def on_card_held(self, held_card: Card) -> None:
+    def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.KING:
             self._balatro.mult *= 1.5
 
@@ -588,7 +558,7 @@ class Baron(Joker):
 
 @dataclass(eq=False)
 class ReservedParking(Joker):
-    def on_card_held(self, held_card: Card) -> None:
+    def _card_held_ability(self, held_card: Card) -> None:
         if self._balatro._is_face_card(held_card) and self._balatro._chance(1, 2):
             self._balatro.money += 1
 
@@ -599,7 +569,7 @@ class ReservedParking(Joker):
 
 @dataclass(eq=False)
 class ShootTheMoon(Joker):
-    def on_card_held(self, held_card: Card) -> None:
+    def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.QUEEN:
             self._balatro.mult += 13
 
@@ -615,7 +585,12 @@ class ShootTheMoon(Joker):
 
 @dataclass(eq=False)
 class Jimbo(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += 4
 
     @property
@@ -625,8 +600,13 @@ class Jimbo(Joker):
 
 @dataclass(eq=False)
 class JollyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.PAIR in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.PAIR in poker_hands_played:
             self._balatro.mult += 8
 
     @property
@@ -636,8 +616,13 @@ class JollyJoker(Joker):
 
 @dataclass(eq=False)
 class ZanyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.THREE_OF_A_KIND in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.THREE_OF_A_KIND in poker_hands_played:
             self._balatro.mult += 12
 
     @property
@@ -647,8 +632,13 @@ class ZanyJoker(Joker):
 
 @dataclass(eq=False)
 class MadJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.TWO_PAIR in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.TWO_PAIR in poker_hands_played:
             self._balatro.mult += 10
 
     @property
@@ -658,8 +648,13 @@ class MadJoker(Joker):
 
 @dataclass(eq=False)
 class CrazyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.STRAIGHT in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.STRAIGHT in poker_hands_played:
             self._balatro.mult += 12
 
     @property
@@ -669,8 +664,13 @@ class CrazyJoker(Joker):
 
 @dataclass(eq=False)
 class DrollJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.FLUSH in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.FLUSH in poker_hands_played:
             self._balatro.mult += 10
 
     @property
@@ -680,8 +680,13 @@ class DrollJoker(Joker):
 
 @dataclass(eq=False)
 class SlyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.PAIR in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.PAIR in poker_hands_played:
             self._balatro.chips += 50
 
     @property
@@ -691,8 +696,13 @@ class SlyJoker(Joker):
 
 @dataclass(eq=False)
 class WilyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.THREE_OF_A_KIND in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.THREE_OF_A_KIND in poker_hands_played:
             self._balatro.chips += 100
 
     @property
@@ -702,8 +712,13 @@ class WilyJoker(Joker):
 
 @dataclass(eq=False)
 class CleverJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.TWO_PAIR in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.TWO_PAIR in poker_hands_played:
             self._balatro.chips += 80
 
     @property
@@ -713,8 +728,13 @@ class CleverJoker(Joker):
 
 @dataclass(eq=False)
 class DeviousJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.STRAIGHT in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.STRAIGHT in poker_hands_played:
             self._balatro.chips += 100
 
     @property
@@ -724,8 +744,13 @@ class DeviousJoker(Joker):
 
 @dataclass(eq=False)
 class CraftyJoker(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.FLUSH in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.FLUSH in poker_hands_played:
             self._balatro.chips += 80
 
     @property
@@ -735,8 +760,13 @@ class CraftyJoker(Joker):
 
 @dataclass(eq=False)
 class HalfJoker(Joker):
-    def independent_ability(self) -> None:
-        if len(self._balatro.played_cards) <= 3:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if len(played_cards) <= 3:
             self._balatro.mult += 20
 
     @property
@@ -746,7 +776,12 @@ class HalfJoker(Joker):
 
 @dataclass(eq=False)
 class JokerStencil(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= (
             self._balatro.effective_joker_slots - len(self._balatro.jokers)
         ) + self._balatro.jokers.count(JokerType.STENCIL)
@@ -760,7 +795,7 @@ class JokerStencil(Joker):
 class CeremonialDagger(Joker):
     mult: int = field(default=0, init=False)
 
-    def on_blind_selected(self) -> None:
+    def _blind_selected_action(self) -> None:
         for i, joker in self._balatro.jokers:
             if joker is self:
                 break
@@ -769,7 +804,12 @@ class CeremonialDagger(Joker):
             self.mult += self._balatro._calculate_sell_value(right_joker)
             self._balatro._destroy_joker(right_joker)
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
     @property
@@ -779,7 +819,12 @@ class CeremonialDagger(Joker):
 
 @dataclass(eq=False)
 class Banner(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += 30 * self._balatro.discards
 
     @property
@@ -789,7 +834,12 @@ class Banner(Joker):
 
 @dataclass(eq=False)
 class MysticSummit(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro.discards == 0:
             self._balatro.mult += 15
 
@@ -802,13 +852,18 @@ class MysticSummit(Joker):
 class LoyaltyCard(Joker):
     hands_remaining: int = field(default=5, init=False)
 
-    def on_end_hand(self) -> None:
+    def _end_hand_action(self) -> None:
         if self.hands_remaining == 0:
             self.hands_remaining = 5
         else:
             self.hands_remaining -= 1
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.hands_remaining == 0:
             self._balatro.mult *= 4
 
@@ -819,7 +874,12 @@ class LoyaltyCard(Joker):
 
 @dataclass(eq=False)
 class Misprint(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += r.randint(0, 23)
 
     @property
@@ -829,11 +889,16 @@ class Misprint(Joker):
 
 @dataclass(eq=False)
 class SteelJoker(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= 1 + (
             0.2
             * sum(
-                deck_card._enhancement is Enhancement.STEEL
+                deck_card.enhancement is Enhancement.STEEL
                 for deck_card in self._balatro.deck_cards
             )
         )
@@ -845,7 +910,12 @@ class SteelJoker(Joker):
 
 @dataclass(eq=False)
 class AbstractJoker(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += 3 * len(self._balatro.jokers)
 
     @property
@@ -855,12 +925,17 @@ class AbstractJoker(Joker):
 
 @dataclass(eq=False)
 class GrosMichel(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += 15
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         if self._balatro._chance(1, 6):
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
     @property
     def joker_type(self) -> JokerType:
@@ -869,10 +944,13 @@ class GrosMichel(Joker):
 
 @dataclass(eq=False)
 class Supernova(Joker):
-    def independent_ability(self) -> None:
-        self._balatro.mult += self._balatro.poker_hand_info[
-            self._balatro.poker_hands[0]
-        ][1]
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        self._balatro.mult += self._balatro.poker_hand_info[poker_hands_played[0]][1]
 
     @property
     def joker_type(self) -> JokerType:
@@ -881,9 +959,16 @@ class Supernova(Joker):
 
 @dataclass(eq=False)
 class Blackboard(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         for held_card in self._balatro.hand:
-            held_card_suits = self._balatro._get_card_suits(held_card)
+            held_card_suits = self._balatro._get_card_suits(
+                held_card, include_base=True
+            )
             if Suit.SPADES not in held_card_suits and Suit.CLUBS not in held_card_suits:
                 break
         else:
@@ -898,12 +983,17 @@ class Blackboard(Joker):
 class IceCream(Joker):
     chips: int = field(default=100, init=False)
 
-    def on_end_hand(self) -> None:
+    def _end_hand_action(self) -> None:
         self.chips -= 5
         if self.chips == 0:
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += self.chips
 
     @property
@@ -913,7 +1003,12 @@ class IceCream(Joker):
 
 @dataclass(eq=False)
 class BlueJoker(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += 2 * len(self._balatro.deck_cards_left)
 
     @property
@@ -925,10 +1020,15 @@ class BlueJoker(Joker):
 class Constellation(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
-    def on_planet_used(self) -> None:
+    def _planet_used_action(self) -> None:
         self.xmult += 0.1
 
     @property
@@ -938,13 +1038,15 @@ class Constellation(Joker):
 
 @dataclass(eq=False)
 class Superposition(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if (
-            PokerHand.STRAIGHT in self._balatro.poker_hands
-            and any(
-                self._balatro.played_cards[i] == Rank.ACE
-                for i in self._balatro.scored_card_indices
-            )
+            PokerHand.STRAIGHT in poker_hands_played
+            and any(played_cards[i] == Rank.ACE for i in scored_card_indices)
             and self._balatro.effective_consumable_slots
             > len(self._balatro.consumables)
         ):
@@ -957,12 +1059,17 @@ class Superposition(Joker):
 
 @dataclass(eq=False)
 class Cavendish(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= 3
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         if self._balatro._chance(1, 1000):
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
     @property
     def joker_type(self) -> JokerType:
@@ -971,8 +1078,13 @@ class Cavendish(Joker):
 
 @dataclass(eq=False)
 class CardSharp(Joker):
-    def independent_ability(self) -> None:
-        if self._balatro.poker_hands[0] in self._balatro.round_poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if poker_hands_played[0] in self._balatro.round_poker_hands:
             self._balatro.mult *= 3
 
     @property
@@ -984,10 +1096,15 @@ class CardSharp(Joker):
 class RedCard(Joker):
     mult: int = field(default=0, init=False)
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
-    def on_pack_skipped(self) -> None:
+    def _pack_skipped_action(self) -> None:
         self.mult += 3
 
     @property
@@ -999,7 +1116,7 @@ class RedCard(Joker):
 class Madness(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_blind_selected(self) -> None:
+    def _blind_selected_action(self) -> None:
         if self._balatro.blind in [Blind.SMALL, Blind.BIG]:
             self.xmult += 0.5
             valid_destroys = [
@@ -1010,7 +1127,12 @@ class Madness(Joker):
             if valid_destroys:
                 self._balatro._destroy_joker(r.choice(valid_destroys))
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1020,8 +1142,13 @@ class Madness(Joker):
 
 @dataclass(eq=False)
 class Seance(Joker):
-    def independent_ability(self) -> None:
-        if self._balatro.poker_hands[
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if poker_hands_played[
             0
         ] is PokerHand.STRAIGHT_FLUSH and self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
@@ -1037,10 +1164,15 @@ class Seance(Joker):
 class Hologram(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_card_added(self, added_card: Card) -> None:
+    def _card_added_action(self, added_card: Card) -> None:
         self.xmult += 0.25
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1052,10 +1184,20 @@ class Hologram(Joker):
 class Vagabond(Joker):
     will_create: bool = field(default=False, init=False)
 
-    def on_hand_played(self) -> None:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self.will_create = self._balatro.money <= 4
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.will_create and self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
         ):
@@ -1068,11 +1210,15 @@ class Vagabond(Joker):
 
 @dataclass(eq=False)
 class Erosion(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += 4 * max(
             0,
-            (40 if self._balatro.deck is Deck.ABANDONED else 52)
-            - len(self._balatro.deck_cards),
+            self._balatro.deck.starting_size - len(self._balatro.deck_cards),
         )
 
     @property
@@ -1082,7 +1228,12 @@ class Erosion(Joker):
 
 @dataclass(eq=False)
 class FortuneTeller(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self._balatro.tarot_cards_used
 
     @property
@@ -1092,7 +1243,12 @@ class FortuneTeller(Joker):
 
 @dataclass(eq=False)
 class StoneJoker(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += 25 * sum(
             deck_card.is_stone_card for deck_card in self._balatro.deck_cards
         )
@@ -1104,7 +1260,12 @@ class StoneJoker(Joker):
 
 @dataclass(eq=False)
 class Bull(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += 2 * max(0, self._balatro.money)
 
     @property
@@ -1116,10 +1277,15 @@ class Bull(Joker):
 class FlashCard(Joker):
     mult: int = field(default=0, init=False)
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
-    def on_shop_rerolled(self) -> None:
+    def _shop_rerolled_action(self) -> None:
         self.mult += 2
 
     @property
@@ -1131,13 +1297,18 @@ class FlashCard(Joker):
 class Popcorn(Joker):
     mult: int = field(default=20, init=False)
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self.mult -= 4
         if self.mult == 0:
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
     @property
     def joker_type(self) -> JokerType:
@@ -1148,13 +1319,18 @@ class Popcorn(Joker):
 class Campfire(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_boss_defeated(self) -> None:
+    def _boss_defeated_action(self) -> None:
         self.xmult = 1.0
 
-    def on_card_sold(self) -> None:
+    def _item_sold_action(self) -> None:
         self.xmult += 0.25
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1164,7 +1340,12 @@ class Campfire(Joker):
 
 @dataclass(eq=False)
 class Acrobat(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro.hands == 0:
             self._balatro.mult *= 3
 
@@ -1175,7 +1356,12 @@ class Acrobat(Joker):
 
 @dataclass(eq=False)
 class Swashbuckler(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += sum(
             self._balatro._calculate_sell_value(joker)
             for joker in self._balatro.jokers
@@ -1189,7 +1375,12 @@ class Swashbuckler(Joker):
 
 @dataclass(eq=False)
 class Throwback(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= 1 + (0.25 * self._balatro.blinds_skipped)
 
     @property
@@ -1201,10 +1392,15 @@ class Throwback(Joker):
 class GlassJoker(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_glass_card_destroyed(self) -> None:
+    def _glass_card_destroyed_action(self) -> None:
         self.xmult += 0.75
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1214,11 +1410,16 @@ class GlassJoker(Joker):
 
 @dataclass(eq=False)
 class FlowerPot(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         scored_suits = set()
         possible_suits = [
-            self._balatro._get_card_suits(self._balatro.played_cards[i])
-            for i in self._balatro.scored_card_indices
+            self._balatro._get_card_suits(played_cards[i], include_base=True)
+            for i in scored_card_indices
         ]
         possible_suits.sort(key=lambda suits: len(suits))
         for suits in possible_suits:
@@ -1236,17 +1437,24 @@ class FlowerPot(Joker):
 
 @dataclass(eq=False)
 class SeeingDouble(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         club, other = False, False
         possible_suits = [
-            self._balatro._get_card_suits(self._balatro.played_cards[i])
-            for i in self._balatro.scored_card_indices
+            self._balatro._get_card_suits(played_cards[i], include_base=True)
+            for i in scored_card_indices
         ]
         possible_suits.sort(key=lambda suits: len(suits))
         for suits in possible_suits:
             if not club and Suit.CLUBS in suits:
                 club = True
-            elif not other and any(suit is not Suit.CLUBS for suit in possible_suits):
+            elif not other and any(
+                suit in possible_suits for suit in Suit if suit is not Suit.CLUBS
+            ):
                 other = True
         if club and other:
             self._balatro.mult *= 2
@@ -1260,10 +1468,20 @@ class SeeingDouble(Joker):
 class Matador(Joker):
     will_earn: bool = field(default=False, init=False)
 
-    def on_hand_played(self) -> None:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         raise NotImplementedError
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.will_earn:
             self._balatro.money += 8
 
@@ -1274,8 +1492,13 @@ class Matador(Joker):
 
 @dataclass(eq=False)
 class TheDuo(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.PAIR in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.PAIR in poker_hands_played:
             self._balatro.mult *= 2
 
     @property
@@ -1285,8 +1508,13 @@ class TheDuo(Joker):
 
 @dataclass(eq=False)
 class TheTrio(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.THREE_OF_A_KIND in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.THREE_OF_A_KIND in poker_hands_played:
             self._balatro.mult *= 3
 
     @property
@@ -1296,8 +1524,13 @@ class TheTrio(Joker):
 
 @dataclass(eq=False)
 class TheFamily(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.FOUR_OF_A_KIND in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.FOUR_OF_A_KIND in poker_hands_played:
             self._balatro.mult *= 4
 
     @property
@@ -1307,8 +1540,13 @@ class TheFamily(Joker):
 
 @dataclass(eq=False)
 class TheOrder(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.STRAIGHT in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.STRAIGHT in poker_hands_played:
             self._balatro.mult *= 3
 
     @property
@@ -1318,8 +1556,13 @@ class TheOrder(Joker):
 
 @dataclass(eq=False)
 class TheTribe(Joker):
-    def independent_ability(self) -> None:
-        if PokerHand.FLUSH in self._balatro.poker_hands:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.FLUSH in poker_hands_played:
             self._balatro.mult *= 2
 
     @property
@@ -1329,10 +1572,12 @@ class TheTribe(Joker):
 
 @dataclass(eq=False)
 class Stuntman(Joker):
-    def on_blind_selected(self) -> None:
-        self._balatro.hand_size -= 2
-
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += 250
 
     @property
@@ -1342,10 +1587,15 @@ class Stuntman(Joker):
 
 @dataclass(eq=False)
 class DriversLicense(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if (
             sum(
-                deck_card._enhancement is not None
+                deck_card.enhancement is not None
                 for deck_card in self._balatro.deck_cards
             )
             >= 16
@@ -1359,7 +1609,12 @@ class DriversLicense(Joker):
 
 @dataclass(eq=False)
 class Bootstraps(Joker):
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += 2 * max(0, self._balatro.money // 5)
 
     @property
@@ -1371,11 +1626,16 @@ class Bootstraps(Joker):
 class Canio(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_card_destroyed(self, destroyed_card: Card):
+    def _card_destroyed_action(self, destroyed_card: Card):
         if self._balatro._is_face_card(destroyed_card):
             self.xmult += 1.0
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1392,15 +1652,25 @@ class Canio(Joker):
 class RideTheBus(Joker):
     mult: int = field(default=0, init=False)
 
-    def on_hand_played(self) -> None:
-        for i in self._balatro.scored_card_indices:
-            if self._balatro._is_face_card(self._balatro.played_cards[i]):
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        for i in scored_card_indices:
+            if self._balatro._is_face_card(played_cards[i]):
                 self.mult = 0
                 break
         else:
             self.mult += 1
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
     @property
@@ -1412,11 +1682,21 @@ class RideTheBus(Joker):
 class Runner(Joker):
     chips: int = field(default=0, init=False)
 
-    def on_hand_played(self) -> None:
-        if PokerHand.STRAIGHT in self._balatro.poker_hands:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.STRAIGHT in poker_hands_played:
             self.chips += 15
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += self.chips
 
     @property
@@ -1428,13 +1708,23 @@ class Runner(Joker):
 class GreenJoker(Joker):
     mult: int = field(default=0, init=False)
 
-    def on_discard(self) -> None:
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.mult = max(0, self.mult - 1)
 
-    def on_hand_played(self) -> None:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self.mult += 1
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
     @property
@@ -1446,11 +1736,21 @@ class GreenJoker(Joker):
 class SquareJoker(Joker):
     chips: int = field(default=0, init=False)
 
-    def on_hand_played(self) -> None:
-        if len(self._balatro.played_cards) == 4:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if len(played_cards) == 4:
             self.chips += 4
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += self.chips
 
     @property
@@ -1462,14 +1762,24 @@ class SquareJoker(Joker):
 class Vampire(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_hand_played(self) -> None:
-        for i in self._balatro.scored_card_indices:
-            scored_card = self._balatro.played_cards[i]
-            if scored_card.enhancement is not None and not scored_card.debuffed:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        for i in scored_card_indices:
+            scored_card = played_cards[i]
+            if scored_card.enhancement in Enhancement:
                 self.xmult += 0.1
                 scored_card.enhancement = None
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1481,15 +1791,25 @@ class Vampire(Joker):
 class Obelisk(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_hand_played(self) -> None:
-        if self._balatro.poker_hand_info[self._balatro.poker_hands[0]][1] < max(
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if self._balatro.poker_hand_info[poker_hands_played[0]][1] < max(
             times_played for hand_level, times_played in self._balatro.poker_hand_info
         ):
             self.xmult += 0.2
         else:
             self.xmult = 1.0
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1501,10 +1821,15 @@ class Obelisk(Joker):
 class LuckyCat(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_lucky_card_triggered(self) -> None:
+    def _lucky_card_triggered_action(self) -> None:
         self.xmult += 0.25
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1516,11 +1841,21 @@ class LuckyCat(Joker):
 class SpareTrousers(Joker):
     mult: int = field(default=0, init=False)
 
-    def on_hand_played(self) -> None:
-        if PokerHand.TWO_PAIR in self._balatro.poker_hands:
+    def _hand_played_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if PokerHand.TWO_PAIR in poker_hands_played:
             self.mult += 2
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult += self.mult
 
     @property
@@ -1532,12 +1867,17 @@ class SpareTrousers(Joker):
 class Ramen(Joker):
     xmult: float = field(default=2.0, init=False)
 
-    def on_discard(self) -> None:
-        self.xmult -= 0.01 * len(self._balatro.discard_indices)
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        self.xmult -= 0.01 * len(discarded_cards)
         if self.xmult <= 1.0:
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1561,15 +1901,20 @@ class Castle(Joker):
         ]
         self.suit = r.choice(valid_suits) if valid_suits else Suit.SPADES
 
-    def on_discard(self) -> None:
-        for i in self._balatro.discard_indices:
-            if self.suit in self._balatro._get_card_suits(self._balatro.hand[i]):
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        for discarded_card in discarded_cards:
+            if self.suit in self._balatro._get_card_suits(discarded_card):
                 self.chips += 3
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += self.chips
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self._set_random_suit()
 
     @property
@@ -1581,11 +1926,16 @@ class Castle(Joker):
 class WeeJoker(Joker):
     chips: int = field(default=0, init=False)
 
-    def on_card_scored(self, scored_card: Card) -> None:
+    def _card_scored_action(self, scored_card: Card) -> None:
         if scored_card == Rank.TWO:
             self.chips += 8
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.chips += self.chips
 
     @property
@@ -1597,15 +1947,20 @@ class WeeJoker(Joker):
 class HitTheRoad(Joker):
     xmult: float = field(default=1.0, init=False)
 
-    def on_discard(self) -> None:
-        for i in self._balatro.discard_indices:
-            if self._balatro.hand[i] == Rank.JACK:
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        for discarded_card in discarded_cards:
+            if discarded_card == Rank.JACK:
                 self.xmult += 0.5
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self.xmult = 1.0
 
     @property
@@ -1618,13 +1973,18 @@ class Yorick(Joker):
     xmult: float = field(default=1.0, init=False)
     discards_remaining: int = field(default=23, init=False)
 
-    def on_discard(self) -> None:
-        self.discards_remaining -= len(self._balatro.discard_indices)
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        self.discards_remaining -= len(discarded_cards)
         while self.discards_remaining <= 0:
             self.xmult += 1.0
             self.discards_remaining += 23
 
-    def independent_ability(self) -> None:
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self._balatro.mult *= self.xmult
 
     @property
@@ -1639,10 +1999,10 @@ class Yorick(Joker):
 
 @dataclass(eq=False)
 class BaseballCard(Joker):
-    def dependent_ability(self, joker: Joker) -> None:
+    def _dependent_ability(self, other_joker: Joker) -> None:
         from balatro_constants import JOKER_TYPE_RARITIES
 
-        if joker in JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
+        if other_joker in JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
             self._balatro.mult *= 1.5
 
     @property
@@ -1657,11 +2017,11 @@ class BaseballCard(Joker):
 
 @dataclass(eq=False)
 class FacelessJoker(Joker):
-    def on_discard(self) -> None:
+    def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if (
             sum(
-                self._balatro._is_face_card(self._balatro.hand[i])
-                for i in self._balatro.discard_indices
+                self._balatro._is_face_card(discarded_card)
+                for discarded_card in discarded_cards
             )
             >= 3
         ):
@@ -1687,12 +2047,12 @@ class MailInRebate(Joker):
         ]
         self.rank = r.choice(valid_ranks) if valid_ranks else Rank.ACE
 
-    def on_discard(self) -> None:
-        for i in self._balatro.discard_indices:
-            if self._balatro.hand[i] == self.rank:
+    def _discard_ability(self, discarded_cards: list[Card]) -> None:
+        for discarded_card in discarded_cards:
+            if discarded_card == self.rank:
                 self._balatro.money += 5
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self._set_random_rank()
 
     @property
@@ -1702,12 +2062,10 @@ class MailInRebate(Joker):
 
 @dataclass(eq=False)
 class TradingCard(Joker):
-    def on_discard(self) -> None:
-        if self._balatro.first_discard and len(self._balatro.discard_indices) == 1:
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        if self._balatro.first_discard and len(discarded_cards) == 1:
             self._balatro.money += 3
-            self._balatro._destroy_card(
-                self._balatro.hand[self._balatro.discard_indices[0]]
-            )
+            self._balatro._destroy_card(self._balatro.hand[discarded_cards[0]])
 
     @property
     def joker_type(self) -> JokerType:
@@ -1716,9 +2074,11 @@ class TradingCard(Joker):
 
 @dataclass(eq=False)
 class BurntJoker(Joker):
-    def on_discard(self) -> None:
+    def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if self._balatro.first_discard:
-            self._balatro.poker_hand_info[self._balatro.poker_hand_discarded][1] += 1
+            self._balatro.poker_hand_info[
+                max(self._balatro._get_poker_hands(discarded_cards))
+            ][1] += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -1746,7 +2106,7 @@ class CreditCard(Joker):
 
 @dataclass(eq=False)
 class MarbleJoker(Joker):
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         added_card = self._balatro._get_random_card()
         added_card.enhancement = Enhancement.STONE
         self._balatro._add_card(added_card)
@@ -1765,7 +2125,7 @@ class ChaosTheClown(Joker):
 
 @dataclass(eq=False)
 class DelayedGratification(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         if self._balatro.first_discard:
             self._balatro.money += 2 * self._balatro.discards
 
@@ -1783,7 +2143,7 @@ class Pareidolia(Joker):
 
 @dataclass(eq=False)
 class Egg(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         self.extra_sell_value += 3
 
     @property
@@ -1793,7 +2153,7 @@ class Egg(Joker):
 
 @dataclass(eq=False)
 class Burglar(Joker):
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         self._balatro.hands += 3
         self._balatro.discards = 0
 
@@ -1811,18 +2171,6 @@ class Splash(Joker):
 
 @dataclass(eq=False)
 class SixthSense(Joker):
-    def on_hand_played_ability(self) -> None:
-        if (
-            self._balatro.first_hand
-            and len(self._balatro.played_cards) == 1
-            and self._balatro.played_cards[0] == Rank.SIX
-        ):
-            self._balatro._destroy_card(self._balatro.played_cards[0])
-            if self._balatro.effective_consumable_slots > len(
-                self._balatro.consumables
-            ):
-                self._balatro.consumables.append(self._balatro._get_random_spectral())
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SIXTH_SENSE
@@ -1830,7 +2178,7 @@ class SixthSense(Joker):
 
 @dataclass(eq=False)
 class RiffRaff(Joker):
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         for _ in range(
             min(2, self._balatro.effective_joker_slots - len(self._balatro.jokers))
         ):
@@ -1850,7 +2198,7 @@ class Shortcut(Joker):
 
 @dataclass(eq=False)
 class CloudNine(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         self._balatro.money += self._balatro.deck_cards.count(Rank.NINE)
 
     @property
@@ -1862,10 +2210,10 @@ class CloudNine(Joker):
 class Rocket(Joker):
     payout: int = field(default=1, init=False)
 
-    def on_boss_defeated(self) -> None:
+    def _boss_defeated_action(self) -> None:
         self.payout += 2
 
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         self._balatro.money += self.payout
 
     @property
@@ -1875,7 +2223,7 @@ class Rocket(Joker):
 
 @dataclass(eq=False)
 class Luchador(Joker):
-    def on_sold(self) -> None:
+    def _sold_ability(self) -> None:
         raise NotImplementedError
 
     @property
@@ -1885,7 +2233,7 @@ class Luchador(Joker):
 
 @dataclass(eq=False)
 class GiftCard(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         for joker in self._balatro.jokers:
             joker.extra_sell_value += 1
         for consumable in self._balatro.consumables:
@@ -1900,13 +2248,10 @@ class GiftCard(Joker):
 class TurtleBean(Joker):
     hand_size_increase: int = field(default=5, init=False)
 
-    def on_blind_selected(self) -> None:
-        self._balatro.hand_size += self.hand_size_increase
-
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         self.hand_size_increase -= 1
         if self.hand_size_increase == 0:
-            self._balatro._destroy_joker(self)
+            raise NotImplementedError
 
     @property
     def joker_type(self) -> JokerType:
@@ -1922,7 +2267,7 @@ class ToTheMoon(Joker):
 
 @dataclass(eq=False)
 class Hallucination(Joker):
-    def on_pack_opened(self) -> None:
+    def _pack_opened_ability(self) -> None:
         if self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
         ) and self._balatro._chance(1, 2):
@@ -1935,9 +2280,6 @@ class Hallucination(Joker):
 
 @dataclass(eq=False)
 class Juggler(Joker):
-    def on_blind_selected(self) -> None:
-        self._balatro.hand_size += 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.JUGGLER
@@ -1945,9 +2287,6 @@ class Juggler(Joker):
 
 @dataclass(eq=False)
 class Drunkard(Joker):
-    def on_blind_selected(self) -> None:
-        self._balatro.discards += 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.DRUNKARD
@@ -1955,7 +2294,7 @@ class Drunkard(Joker):
 
 @dataclass(eq=False)
 class GoldenJoker(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         self._balatro.money += 4
 
     @property
@@ -1965,7 +2304,7 @@ class GoldenJoker(Joker):
 
 @dataclass(eq=False)
 class DietCola(Joker):
-    def on_sold(self) -> None:
+    def _sold_ability(self) -> None:
         self._balatro.tags.append(Tag.DOUBLE)
 
     @property
@@ -1982,11 +2321,6 @@ class MrBones(Joker):
 
 @dataclass(eq=False)
 class Troubadour(Joker):
-    def on_blind_selected(self) -> None:
-        self._balatro.hand_size += 2
-        if self._balatro.hands > 1:
-            self._balatro.hands -= 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.TROUBADOUR
@@ -1994,7 +2328,7 @@ class Troubadour(Joker):
 
 @dataclass(eq=False)
 class Certificate(Joker):
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         added_card = self._balatro._get_random_card()
         added_card.seal = r.choice(list(Seal))
         self._balatro._add_card(added_card)
@@ -2021,11 +2355,6 @@ class Showman(Joker):
 
 @dataclass(eq=False)
 class MerryAndy(Joker):
-    def on_blind_selected(self) -> None:
-        self._balatro.discards += 3
-        if self._balatro.hand_size > 1:
-            self._balatro.hand_size -= 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.MERRY_ANDY
@@ -2042,11 +2371,11 @@ class OopsAllSixes(Joker):
 class InvisibleJoker(Joker):
     rounds_remaining: int = field(default=2, init=False)
 
-    def on_round_ended(self) -> None:
+    def _round_ended_action(self) -> None:
         if self.rounds_remaining > 0:
             self.rounds_remaining -= 1
 
-    def on_sold(self) -> None:
+    def _sold_action(self) -> None:
         if (
             self.rounds_remaining == 0
             and self._balatro.effective_joker_slots - len(self._balatro.jokers) > 1
@@ -2067,7 +2396,7 @@ class InvisibleJoker(Joker):
 
 @dataclass(eq=False)
 class Satellite(Joker):
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         self._balatro.money += len(self._balatro.planet_cards_used)
 
     @property
@@ -2077,7 +2406,7 @@ class Satellite(Joker):
 
 @dataclass(eq=False)
 class Cartomancer(Joker):
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         if self._balatro.effective_consumable_slots > len(self._balatro.consumables):
             self._balatro.consumables.append(self._balatro._get_random_tarot())
 
@@ -2104,7 +2433,7 @@ class Chicot(Joker):
 
 @dataclass(eq=False)
 class Perkeo(Joker):
-    def on_shop_exited(self) -> None:
+    def _shop_exited_ability(self) -> None:
         self._balatro.consumables.append(
             replace(r.choice(self._balatro.consumables), is_negative=True)
         )

@@ -368,6 +368,10 @@ class Deck(Enum):
     ERRATIC = "Erratic Deck"
     CHALLENGE = "Challenge Deck"
 
+    @property
+    def starting_size(self) -> int:
+        return 40 if self is Deck.ABANDONED else 52
+
 
 class Seal(Enum):
     GOLD_SEAL = "Gold Seal"
@@ -425,8 +429,9 @@ class Rank(Enum):
         return 14 - list(Rank).index(self)
 
     def __lt__(self, other: Rank) -> bool:
-        if isinstance(other, Rank):
-            return list(Rank).index(self) > list(Rank).index(other)
+        match other:
+            case Rank():
+                return list(Rank).index(self) > list(Rank).index(other)
         return NotImplemented
 
     @property
@@ -454,8 +459,9 @@ class PokerHand(Enum):
     HIGH_CARD = "High Card"
 
     def __lt__(self, other: PokerHand) -> bool:
-        if isinstance(other, PokerHand):
-            return list(PokerHand).index(self) > list(PokerHand).index(other)
+        match other:
+            case PokerHand():
+                return list(PokerHand).index(self) > list(PokerHand).index(other)
         return NotImplemented
 
     @property

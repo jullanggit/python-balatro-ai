@@ -8,37 +8,37 @@ JOKER_TYPE_RARITIES = {
     Rarity.LEGENDARY: list(JokerType)[61 + 64 + 20 : 61 + 64 + 20 + 5],
 }
 
-NON_COPYABLE_JOKERS = {
-    JokerType.CREDIT_CARD,
-    JokerType.CHAOS,
-    JokerType.DELAYED_GRAT,
-    JokerType.EGG,
-    JokerType.SPLASH,
-    JokerType.JUGGLER,
-    JokerType.DRUNKARD,
-    JokerType.GOLDEN,
-    JokerType.FOUR_FINGERS,
-    JokerType.PAREIDOLIA,
-    JokerType.SIXTH_SENSE,
-    JokerType.SHORTCUT,
-    JokerType.CLOUD_9,
-    JokerType.ROCKET,
-    JokerType.MIDAS_MASK,
-    JokerType.GIFT,
-    JokerType.TURTLE_BEAN,
-    JokerType.TO_THE_MOON,
-    JokerType.TRADING,
-    JokerType.MR_BONES,
-    JokerType.TROUBADOUR,
-    JokerType.SMEARED,
-    JokerType.RING_MASTER,
-    JokerType.MERRY_ANDY,
-    JokerType.OOPS,
-    JokerType.SATELLITE,
-    JokerType.ASTRONOMER,
-    JokerType.INVISIBLE,
-    JokerType.CHICOT,
-}
+# NON_COPYABLE_JOKERS = {
+#     JokerType.CREDIT_CARD,  #
+#     JokerType.CHAOS,  #
+#     JokerType.DELAYED_GRAT,  #
+#     JokerType.EGG,  #
+#     JokerType.SPLASH,  #
+#     JokerType.JUGGLER,  #
+#     JokerType.DRUNKARD,  #
+#     JokerType.GOLDEN,  #
+#     JokerType.FOUR_FINGERS,  #
+#     JokerType.PAREIDOLIA,  #
+#     JokerType.SIXTH_SENSE,  #
+#     JokerType.SHORTCUT,  #
+#     JokerType.CLOUD_9,  #
+#     JokerType.ROCKET,  #
+#     JokerType.MIDAS_MASK,  #
+#     JokerType.GIFT,  #
+#     JokerType.TURTLE_BEAN,  #
+#     JokerType.TO_THE_MOON,  #
+#     JokerType.TRADING,  #
+#     JokerType.MR_BONES,  #
+#     JokerType.TROUBADOUR,  #
+#     JokerType.SMEARED,  #
+#     JokerType.RING_MASTER,  #
+#     JokerType.MERRY_ANDY,  #
+#     JokerType.OOPS,  #
+#     JokerType.SATELLITE,  #
+#     JokerType.ASTRONOMER,  #
+#     JokerType.INVISIBLE,  #
+#     JokerType.CHICOT,  #
+# }
 
 JOKER_CLASSES = {
     JokerType.BLUEPRINT: Blueprint,
