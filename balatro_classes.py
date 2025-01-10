@@ -400,9 +400,6 @@ class CopyJoker(Joker):
     def on_item_sold(self) -> None:
         pass
 
-    def on_leftmost_joker_changed(self) -> None:
-        pass
-
     def on_lucky_card_triggered(self) -> None:
         pass
 
@@ -414,9 +411,6 @@ class CopyJoker(Joker):
         pass
 
     def on_planet_used(self) -> None:
-        pass
-
-    def on_right_joker_changed(self) -> None:
         pass
 
     def on_round_ended(self) -> None:

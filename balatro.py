@@ -1235,10 +1235,12 @@ class Balatro:
             case Edition.POLYCHROME:
                 self.mult *= 1.5
 
+        print(self.chips, self.mult)
         for joker in self.jokers:
             joker.on_card_scored(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
+        print(self.chips, self.mult)
 
     def _trigger_held_card(self, held_card: Card) -> None:
         match held_card.enhancement:

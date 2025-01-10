@@ -10,6 +10,9 @@ from balatro_enums import *
 
 @dataclass(eq=False)
 class Blueprint(CopyJoker):
+    def _leftmost_joker_changed_action(self) -> None:
+        pass
+
     def _right_joker_changed_action(self) -> None:
         self.copied_joker = None
         for i, joker in enumerate(self._balatro.jokers):
@@ -27,6 +30,9 @@ class Blueprint(CopyJoker):
 class Brainstorm(CopyJoker):
     def _leftmost_joker_changed_action(self) -> None:
         self.copied_joker = self._balatro.jokers[0]
+
+    def _right_joker_changed_action(self) -> None:
+        pass
 
     @property
     def joker_type(self) -> JokerType:
