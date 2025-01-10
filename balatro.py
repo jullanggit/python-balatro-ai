@@ -1,9 +1,7 @@
 from __future__ import annotations
 import base64
 from collections import Counter
-from copy import deepcopy
 import random as r
-from typing import Iterator
 
 from balatro_constants import *
 from balatro_classes import *
@@ -518,6 +516,7 @@ class Balatro:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
+        return None  # TODO: remove
         raise NotImplementedError
         for joker in self.jokers:
             joker.on_card_added(card)
@@ -1203,7 +1202,13 @@ class Balatro:
                 )
             )
 
-    def _trigger_scored_card(self, scored_card: Card) -> None:
+    def _trigger_scored_card(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self.chips += scored_card.base_chips
 
         match scored_card.enhancement:
@@ -1231,7 +1236,9 @@ class Balatro:
                 self.mult *= 1.5
 
         for joker in self.jokers:
-            joker.on_card_scored(scored_card)
+            joker.on_card_scored(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
 
     def _trigger_held_card(self, held_card: Card) -> None:
         match held_card.enhancement:
@@ -1361,19 +1368,39 @@ class Balatro:
         )
         self.chips = poker_hand_chips
         self.mult = poker_hand_mult
+        print(self.chips, self.mult)
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
 
-            self._trigger_scored_card(scored_card)
+            self._trigger_scored_card(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
 
             match scored_card.seal:
                 case Seal.RED_SEAL:
-                    self._trigger_scored_card(scored_card)
+                    self._trigger_scored_card(
+                        scored_card,
+                        played_cards,
+                        scored_card_indices,
+                        poker_hands_played,
+                    )
 
             for joker in self.jokers:
-                for _ in range(joker.on_card_scored_retriggers(scored_card)):
-                    self._trigger_scored_card(scored_card)
+                for _ in range(
+                    joker.on_card_scored_retriggers(
+                        scored_card,
+                        played_cards,
+                        scored_card_indices,
+                        poker_hands_played,
+                    )
+                ):
+                    self._trigger_scored_card(
+                        scored_card,
+                        played_cards,
+                        scored_card_indices,
+                        poker_hands_played,
+                    )
 
         for held_card in self.hand:
             self._trigger_held_card(held_card)
@@ -1556,10 +1583,8 @@ class Balatro:
         self._next_blind()
 
     @property
-    def active_jokers(self) -> Iterator[Joker]:
-        for joker in self.jokers:
-            if not joker.debuffed:
-                yield joker
+    def active_jokers(self) -> list[Joker]:
+        return [joker for joker in self.jokers if not joker.debuffed]
 
     @property
     def available_money(self) -> int:

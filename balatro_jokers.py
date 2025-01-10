@@ -124,7 +124,13 @@ class MidasMask(Joker):
 
 @dataclass(eq=False)
 class GreedyJoker(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.DIAMONDS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -135,7 +141,13 @@ class GreedyJoker(Joker):
 
 @dataclass(eq=False)
 class LustyJoker(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.HEARTS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -146,7 +158,13 @@ class LustyJoker(Joker):
 
 @dataclass(eq=False)
 class WrathfulJoker(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.SPADES in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -157,7 +175,13 @@ class WrathfulJoker(Joker):
 
 @dataclass(eq=False)
 class GluttonousJoker(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.CLUBS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 3
 
@@ -168,7 +192,13 @@ class GluttonousJoker(Joker):
 
 @dataclass(eq=False)
 class EightBall(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if (
             scored_card == Rank.EIGHT
             and self._balatro.effective_consumable_slots
@@ -184,7 +214,13 @@ class EightBall(Joker):
 
 @dataclass(eq=False)
 class Dusk(Joker):
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         return int(self._balatro.hands == 0)
 
     @property
@@ -194,7 +230,13 @@ class Dusk(Joker):
 
 @dataclass(eq=False)
 class Fibonacci(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card in [
             Rank.ACE,
             Rank.TWO,
@@ -211,7 +253,13 @@ class Fibonacci(Joker):
 
 @dataclass(eq=False)
 class ScaryFace(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro._is_face_card(scored_card):
             self._balatro.chips += 30
 
@@ -222,7 +270,13 @@ class ScaryFace(Joker):
 
 @dataclass(eq=False)
 class Hack(Joker):
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         return int(
             scored_card
             in [
@@ -240,7 +294,13 @@ class Hack(Joker):
 
 @dataclass(eq=False)
 class EvenSteven(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card in [
             Rank.TWO,
             Rank.FOUR,
@@ -257,7 +317,13 @@ class EvenSteven(Joker):
 
 @dataclass(eq=False)
 class OddTodd(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card in [
             Rank.THREE,
             Rank.FIVE,
@@ -274,7 +340,13 @@ class OddTodd(Joker):
 
 @dataclass(eq=False)
 class Scholar(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card == Rank.ACE:
             self._balatro.chips += 20
             self._balatro.mult += 4
@@ -286,7 +358,13 @@ class Scholar(Joker):
 
 @dataclass(eq=False)
 class BusinessCard(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro._is_face_card(scored_card) and self._balatro._chance(1, 2):
             self._balatro.money += 2
 
@@ -297,7 +375,13 @@ class BusinessCard(Joker):
 
 @dataclass(eq=False)
 class Hiker(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         scored_card.bonus_chips += 5
 
     @property
@@ -307,16 +391,21 @@ class Hiker(Joker):
 
 @dataclass(eq=False)
 class Photograph(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
-        first_scored_face_card = next(
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if scored_card is next(
             (
-                self._balatro.played_cards[i]
-                for i in self._balatro.scored_card_indices
-                if self._balatro._is_face_card(self._balatro.played_cards[i])
+                played_cards[i]
+                for i in scored_card_indices
+                if self._balatro._is_face_card(played_cards[i])
             ),
             None,
-        )
-        if scored_card is first_scored_face_card:
+        ):
             self._balatro.mult *= 2
 
     @property
@@ -337,7 +426,13 @@ class AncientJoker(Joker):
             new_suit = r.choice(list(Suit))
         self.suit = new_suit
 
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.suit in self._balatro._get_card_suits(scored_card):
             self._balatro.mult *= 1.5
 
@@ -351,7 +446,13 @@ class AncientJoker(Joker):
 
 @dataclass(eq=False)
 class WalkieTalkie(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card in [Rank.TEN, Rank.FOUR]:
             self._balatro.chips += 10
             self._balatro.mult += 4
@@ -365,7 +466,13 @@ class WalkieTalkie(Joker):
 class Seltzer(Joker):
     hands_left: int = field(default=10, init=False)
 
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         self.hands_left -= 1
         if self.hands_left == 0:
             raise NotImplementedError
@@ -378,7 +485,13 @@ class Seltzer(Joker):
 
 @dataclass(eq=False)
 class SmileyFace(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self._balatro._is_face_card(scored_card):
             self._balatro.mult += 5
 
@@ -389,7 +502,13 @@ class SmileyFace(Joker):
 
 @dataclass(eq=False)
 class GoldenTicket(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card == Enhancement.GOLD:
             self._balatro.money += 4
 
@@ -400,7 +519,13 @@ class GoldenTicket(Joker):
 
 @dataclass(eq=False)
 class SockAndBuskin(Joker):
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         return int(self._balatro._is_face_card(scored_card))
 
     @property
@@ -410,15 +535,14 @@ class SockAndBuskin(Joker):
 
 @dataclass(eq=False)
 class HangingChad(Joker):
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
-        return (
-            2
-            if (
-                scored_card
-                is self._balatro.played_cards[self._balatro.scored_card_indices[0]]
-            )
-            else 0
-        )
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
+        return 2 if (scored_card is played_cards[scored_card_indices[0]]) else 0
 
     @property
     def joker_type(self) -> JokerType:
@@ -427,7 +551,13 @@ class HangingChad(Joker):
 
 @dataclass(eq=False)
 class RoughGem(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.DIAMONDS in self._balatro._get_card_suits(scored_card):
             self._balatro.money += 1
 
@@ -438,7 +568,13 @@ class RoughGem(Joker):
 
 @dataclass(eq=False)
 class Bloodstone(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if (
             Suit.HEARTS in self._balatro._get_card_suits(scored_card)
         ) and self._balatro._chance(1, 2):
@@ -451,7 +587,13 @@ class Bloodstone(Joker):
 
 @dataclass(eq=False)
 class Arrowhead(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.SPADES in self._balatro._get_card_suits(scored_card):
             self._balatro.chips += 50
 
@@ -462,7 +604,13 @@ class Arrowhead(Joker):
 
 @dataclass(eq=False)
 class OnyxAgate(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if Suit.CLUBS in self._balatro._get_card_suits(scored_card):
             self._balatro.mult += 7
 
@@ -490,7 +638,13 @@ class TheIdol(Joker):
         else:
             self.card = Card(Suit.SPADES, Rank.ACE)
 
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if (
             scored_card == self.card.rank
             and self.card.suit in self._balatro._get_card_suits(scored_card)
@@ -507,7 +661,13 @@ class TheIdol(Joker):
 
 @dataclass(eq=False)
 class Triboulet(Joker):
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card in [Rank.KING, Rank.QUEEN]:
             self._balatro.mult *= 2
 
@@ -1926,7 +2086,13 @@ class Castle(Joker):
 class WeeJoker(Joker):
     chips: int = field(default=0, init=False)
 
-    def _card_scored_action(self, scored_card: Card) -> None:
+    def _card_scored_action(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if scored_card == Rank.TWO:
             self.chips += 8
 

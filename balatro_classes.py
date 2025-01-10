@@ -61,13 +61,31 @@ class Joker(Sellable, ABC):
     def _card_held_retriggers(self, held_card: Card) -> int:
         return 0
 
-    def _card_scored_ability(self, scored_card: Card) -> None:
+    def _card_scored_ability(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         pass
 
-    def _card_scored_action(self, scored_card: Card) -> None:
+    def _card_scored_action(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         pass
 
-    def _card_scored_retriggers(self, scored_card: Card) -> int:
+    def _card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         return 0
 
     def _dependent_ability(self, other_joker: Joker) -> None:
@@ -169,13 +187,35 @@ class Joker(Sellable, ABC):
     def on_card_held_retriggers(self, held_card: Card) -> int:
         return 0 if self.debuffed else self._card_held_retriggers(held_card)
 
-    def on_card_scored(self, scored_card: Card) -> None:
-        self._card_scored_action(scored_card)
+    def on_card_scored(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        self._card_scored_action(
+            scored_card, played_cards, scored_card_indices, poker_hands_played
+        )
         if not self.debuffed:
-            self._card_scored_ability(scored_card)
+            self._card_scored_ability(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
 
-    def on_card_scored_retriggers(self, scored_card: Card) -> int:
-        return 0 if self.debuffed else self._card_scored_retriggers(scored_card)
+    def on_card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
+        return (
+            0
+            if self.debuffed
+            else self._card_scored_retriggers(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
+        )
 
     def on_dependent(self, other_joker: Joker) -> None:
         if not self.debuffed:
@@ -294,15 +334,31 @@ class CopyJoker(Joker):
             else self.copied_joker._card_held_retriggers(held_card)
         )
 
-    def on_card_scored(self, scored_card: Card) -> None:
+    def on_card_scored(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if not self.debuffed and self.copied_joker is not None:
-            self.copied_joker._card_scored_ability(scored_card)
+            self.copied_joker._card_scored_ability(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
 
-    def on_card_scored_retriggers(self, scored_card: Card) -> int:
+    def on_card_scored_retriggers(
+        self,
+        scored_card: Card,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> int:
         return (
             0
             if self.debuffed or self.copied_joker is None
-            else self.copied_joker._card_scored_retriggers(scored_card)
+            else self.copied_joker._card_scored_retriggers(
+                scored_card, played_cards, scored_card_indices, poker_hands_played
+            )
         )
 
     def on_dependent(self, other_joker: Joker) -> None:
