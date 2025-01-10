@@ -398,9 +398,8 @@ class Balatro:
         self.joker_slots: int = 5
         self.consumable_slots: int = 2
 
-        self.remaining_hand_money: int = 1
-        self.remaining_discard_money: int = 0
-        self.interest: int = 1
+        self.remaining_hand_reward: int = 1
+        self.remaining_discard_reward: int = 0
 
         self.poker_hand_info: dict[PokerHand : list[int, int]] = {
             poker_hand: [1, 0] for poker_hand in PokerHand
@@ -423,9 +422,8 @@ class Balatro:
             case Deck.YELLOW:
                 self.money += 10
             case Deck.GREEN:
-                self.remaining_hand_money = 2
-                self.remaining_discard_money = 1
-                self.interest = 0
+                self.remaining_hand_reward = 2
+                self.remaining_discard_reward = 1
             case Deck.BLACK:
                 self.joker_slots += 1
                 self.starting_hands -= 1
@@ -623,15 +621,16 @@ class Balatro:
         for joker in self.jokers:
             joker.on_round_ended()
 
-        interest = (
-            max(0, self.money)
-            // 5
-            * (self.interest + self.active_jokers.count(JokerType.TO_THE_MOON))
+        interest_amt = (
+            0
+            if self.deck is Deck.GREEN
+            else (1 + self.active_jokers.count(JokerType.TO_THE_MOON))
         )
+        interest = min(5 * interest_amt, (max(0, self.money) // 5 * interest_amt))
         cash_out = (
             self.BLIND_INFO[self.blind][2]
-            + self.remaining_hand_money * self.hands
-            + self.remaining_discard_money * self.discards
+            + self.remaining_hand_reward * self.hands
+            + self.remaining_discard_reward * self.discards
             + interest
         )
         self.money += cash_out
@@ -650,6 +649,19 @@ class Balatro:
         self._populate_shop()
         self.state = State.IN_SHOP
 
+    def _get_card_suits(self, card: Card) -> list[Suit]:
+        if card.is_stone_card:
+            return []
+        if card == Enhancement.WILD:
+            return list(Suit)
+        if JokerType.SMEARED in self.active_jokers:
+            red_suits, black_suits = [Suit.HEARTS, Suit.DIAMONDS], [
+                Suit.SPADES,
+                Suit.CLUBS,
+            ]
+            return red_suits if card.suit in red_suits else black_suits
+        return [card.suit]
+
     def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, set[int]]:
         poker_hands = {}
 
@@ -664,7 +676,9 @@ class Balatro:
             for valid_card in non_stone_cards
             if valid_card != Enhancement.WILD
         ]
-        suit_counts = Counter(non_wild_card.suit for non_wild_card in non_wild_cards)
+        suit_counts = Counter(
+            self._get_card_suits(non_wild_card)[0] for non_wild_card in non_wild_cards
+        )
         num_wilds = len(non_stone_cards) - len(non_wild_cards)
 
         # flush
@@ -675,7 +689,7 @@ class Balatro:
             poker_hands[PokerHand.FLUSH] = [
                 i
                 for i, card in enumerate(played_cards)
-                if card == flush_suit or card == Enhancement.WILD
+                if flush_suit in self._get_card_suits(card)
             ]
 
         # straight
@@ -702,10 +716,9 @@ class Balatro:
                 longest_straight.add(Rank.ACE)
 
             if len(longest_straight) >= flush_straight_len:
+                straight = list(longest_straight)
                 straight_indices = [
-                    i
-                    for i, card in enumerate(played_cards)
-                    if not card.is_stone_card and card.rank in longest_straight
+                    i for i, card in enumerate(played_cards) if card in straight
                 ]
                 if PokerHand.FLUSH in poker_hands:
                     poker_hands[PokerHand.STRAIGHT_FLUSH] = straight_indices
@@ -1165,6 +1178,7 @@ class Balatro:
         return html
 
     def _sort_hand(self, by_suit: bool = False) -> None:
+        raise NotImplementedError
         if by_suit:
             self.hand.sort(
                 key=lambda card: (
@@ -1241,7 +1255,7 @@ class Balatro:
             case Voucher():
                 self.vouchers.add(item)
 
-    def discard(self, *discard_indices: int) -> None:
+    def discard(self, discard_indices: list[int]) -> None:
         assert self.state is State.PLAYING_BLIND
 
         assert self.discards > 0
@@ -1280,7 +1294,7 @@ class Balatro:
         self.state = State.SELECTING_BLIND
         self._next_blind()
 
-    def play_hand(self, *card_indices: int) -> None:
+    def play_hand(self, card_indices: list[int]) -> None:
         assert self.state is State.PLAYING_BLIND
 
         assert 1 <= len(card_indices) <= 5

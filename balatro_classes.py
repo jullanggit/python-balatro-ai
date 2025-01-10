@@ -78,6 +78,9 @@ class Joker(Sellable, ABC):
     def on_hand_played(self) -> None:
         pass
 
+    def on_hand_played_ability(self) -> None:
+        pass
+
     def independent_ability(self) -> None:
         pass
 
@@ -100,6 +103,9 @@ class Joker(Sellable, ABC):
         pass
 
     def on_round_ended(self) -> None:
+        pass
+
+    def on_shop_exited(self) -> None:
         pass
 
     def on_shop_rerolled(self) -> None:
@@ -154,17 +160,12 @@ class Card:
 
     debuffed: bool = False
 
-    def __eq__(self, other: Suit | Rank | Enhancement | Card) -> bool:
-        if isinstance(other, Suit):
-            return not self.is_stone_card and (
-                self.suit is other or (self == Enhancement.WILD)
-            )
+    def __eq__(self, other: Rank | Enhancement) -> bool:
         if isinstance(other, Rank):
             return not self.is_stone_card and self.rank is other
         if isinstance(other, Enhancement):
             return not self.debuffed and self.enhancement is other
-        if isinstance(other, Card):
-            return self == other.suit and self == other.rank
+        raise NotImplementedError  # TODO: remove
         return NotImplemented
 
     def __lt__(self, other: Card) -> bool:
