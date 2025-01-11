@@ -489,8 +489,9 @@ class Rarity(Enum):
 
 
 class State(Enum):
-    SELECTING_BLIND = auto()
-    PLAYING_BLIND = auto()
+    GAME_OVER = auto()
     IN_SHOP = auto()
     OPENING_PACK_SHOP = auto()
     OPENING_PACK_TAG = auto()
+    PLAYING_BLIND = auto()
+    SELECTING_BLIND = auto()

@@ -713,7 +713,7 @@ def get_sprite(
         case Consumable():
             consumable_sheet = Image.open("resources/textures/Tarots.png")
 
-            i, j = CONSUMABLE_COORDINATES[item.consumable_type]
+            i, j = CONSUMABLE_COORDINATES[item.card]
             x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
             x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
             sprite = consumable_sheet.crop((x1, y1, x2, y2))
@@ -722,7 +722,7 @@ def get_sprite(
                 sprite, Edition.NEGATIVE if item.is_negative else Edition.BASE
             )
 
-            if item.consumable_type is Spectral.THE_SOUL:
+            if item.card is Spectral.THE_SOUL:
                 raise NotImplementedError
         case Voucher():
             voucher_sheet = Image.open("resources/textures/Vouchers.png")

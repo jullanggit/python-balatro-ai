@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from dataclasses import astuple, dataclass, field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,8 +27,10 @@ class Joker(Sellable, ABC):
     debuffed: bool = field(default=False, init=False)
     perishable_rounds_left: int = field(default=5, init=False)
 
-    def __eq__(self, other: JokerType | Edition) -> bool:
+    def __eq__(self, other: Joker | JokerType | Edition) -> bool:
         match other:
+            case Joker():
+                return self is other
             case JokerType():
                 return self.joker_type is other
             case Edition():
@@ -307,8 +309,10 @@ class Joker(Sellable, ABC):
 class CopyJoker(Joker):
     copied_joker: Joker | None = field(default=None, init=False)
 
-    def __eq__(self, other: JokerType) -> bool:
+    def __eq__(self, other: Joker | JokerType) -> bool:
         match other:
+            case Joker():
+                return self is other
             case JokerType():
                 return self.copied_joker == other
         return NotImplemented
@@ -411,16 +415,16 @@ class CopyJoker(Joker):
 
 @dataclass
 class Consumable(Sellable):
-    consumable_type: Tarot | Planet | Spectral
+    card: Tarot | Planet | Spectral
 
     is_negative: bool = False
 
     def __eq__(self, other: Consumable | Tarot | Planet | Spectral) -> bool:
         match other:
             case Consumable():
-                return astuple(self) == astuple(other)
+                return self is other
             case Tarot() | Planet() | Spectral():
-                return self.consumable_type is other
+                return self.card is other
         return NotImplemented
 
     def _repr_png_(self) -> bytes:
@@ -442,8 +446,10 @@ class Card:
 
     debuffed: bool = False
 
-    def __eq__(self, other: Suit | Rank | Enhancement | Seal | Edition) -> bool:
+    def __eq__(self, other: Card | Suit | Rank | Enhancement | Seal | Edition) -> bool:
         match other:
+            case Card():
+                return self is other
             case Suit():
                 return (
                     not self.debuffed and not self.is_stone_card and self.suit is other
@@ -458,7 +464,6 @@ class Card:
                 return not self.debuffed and self.seal is other
             case Edition():
                 return not self.debuffed and self.edition is other
-        raise NotImplementedError  # TODO: remove
         return NotImplemented
 
     def __lt__(self, other: Card) -> bool:

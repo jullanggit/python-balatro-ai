@@ -211,7 +211,9 @@ class EightBall(Joker):
             > len(self._balatro.consumables)
             and self._balatro._chance(1, 4)
         ):
-            self._balatro.consumables.append(self._balatro._get_random_tarot())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Tarot)
+            )
 
     @property
     def joker_type(self) -> JokerType:
@@ -480,9 +482,11 @@ class Seltzer(Joker):
         poker_hands_played: list[PokerHand],
     ) -> int:
         self.hands_left -= 1
-        if self.hands_left == 0:
-            raise NotImplementedError
         return 1
+
+    def _end_hand_action(self) -> None:
+        if self.hands_left == 0:
+            self._balatro._destroy_joker(self)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1101,7 +1105,8 @@ class GrosMichel(Joker):
 
     def _round_ended_action(self) -> None:
         if self._balatro._chance(1, 6):
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
+            self._balatro.gros_michel_destroyed = True
 
     @property
     def joker_type(self) -> JokerType:
@@ -1152,7 +1157,7 @@ class IceCream(Joker):
     def _end_hand_action(self) -> None:
         self.chips -= 5
         if self.chips == 0:
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
 
     def _independent_ability(
         self,
@@ -1216,7 +1221,9 @@ class Superposition(Joker):
             and self._balatro.effective_consumable_slots
             > len(self._balatro.consumables)
         ):
-            self._balatro.consumables.append(self._balatro._get_random_tarot())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Tarot)
+            )
 
     @property
     def joker_type(self) -> JokerType:
@@ -1235,7 +1242,7 @@ class Cavendish(Joker):
 
     def _round_ended_action(self) -> None:
         if self._balatro._chance(1, 1000):
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1319,7 +1326,9 @@ class Seance(Joker):
         ] is PokerHand.STRAIGHT_FLUSH and self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
         ):
-            self._balatro.consumables.append(self._balatro._get_random_spectral())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Spectral)
+            )
 
     @property
     def joker_type(self) -> JokerType:
@@ -1367,7 +1376,9 @@ class Vagabond(Joker):
         if self.will_create and self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
         ):
-            self._balatro.consumables.append(self._balatro._get_random_tarot())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Tarot)
+            )
 
     @property
     def joker_type(self) -> JokerType:
@@ -1474,7 +1485,7 @@ class Popcorn(Joker):
     def _round_ended_action(self) -> None:
         self.mult -= 4
         if self.mult == 0:
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2036,7 +2047,7 @@ class Ramen(Joker):
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.xmult -= 0.01 * len(discarded_cards)
         if self.xmult <= 1.0:
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
 
     def _independent_ability(
         self,
@@ -2423,7 +2434,7 @@ class TurtleBean(Joker):
     def _round_ended_action(self) -> None:
         self.hand_size_increase -= 1
         if self.hand_size_increase == 0:
-            raise NotImplementedError
+            self._balatro._destroy_joker(self)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2443,7 +2454,9 @@ class Hallucination(Joker):
         if self._balatro.effective_consumable_slots > len(
             self._balatro.consumables
         ) and self._balatro._chance(1, 2):
-            self._balatro.consumables.append(self._balatro._get_random_tarot())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Tarot)
+            )
 
     @property
     def joker_type(self) -> JokerType:
@@ -2580,7 +2593,9 @@ class Satellite(Joker):
 class Cartomancer(Joker):
     def _blind_selected_ability(self) -> None:
         if self._balatro.effective_consumable_slots > len(self._balatro.consumables):
-            self._balatro.consumables.append(self._balatro._get_random_tarot())
+            self._balatro.consumables.append(
+                self._balatro._get_random_consumable(Tarot)
+            )
 
     @property
     def joker_type(self) -> JokerType:

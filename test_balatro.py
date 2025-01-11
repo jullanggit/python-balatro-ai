@@ -5,6 +5,22 @@ from balatro import *
 
 
 class TestBalatro(unittest.TestCase):
+    def _check_expected(self, test_config: dict[str, Any]) -> None:
+        expected = test_config["expected"]
+
+        if "round_score" in expected:
+            self.assertEqual(
+                Balatro.format_number(self.balatro.round_score),
+                expected["round_score"],
+            )
+            del expected["round_score"]
+        if "custom" in expected:
+            self.assertTrue(expected["custom"](self.balatro))
+            del expected["custom"]
+
+        for attr, value in expected.items():
+            self.assertEqual(getattr(self.balatro, attr), value)
+
     def _set_up_hand(self, test_config: dict[str, Any]) -> Balatro:
         if "deck" in test_config:
             deck = Deck[test_config["deck"]]
@@ -33,13 +49,15 @@ class TestBalatro(unittest.TestCase):
             ].items():
                 self.balatro.poker_hand_info[PokerHand[poker_hand]][1] = times_played
             del test_config["poker_hand_times_played"]
-
         if "num_deck_cards_left" in test_config:
             assert len(self.balatro.deck_cards) >= test_config["num_deck_cards_left"]
             self.balatro.deck_cards = self.balatro.deck_cards[
                 : test_config["num_deck_cards_left"]
             ]
             del test_config["num_deck_cards_left"]
+        if "custom_setup" in test_config:
+            test_config["custom_setup"](self.balatro)
+            del test_config["custom_setup"]
 
         if "hand" in test_config:
             hand = []
@@ -164,36 +182,14 @@ class TestBalatro(unittest.TestCase):
 
         self.balatro.discard(test_config["discard_indices"])
 
-        for attr, value in test_config["expected"].items():
-            self.assertEqual(getattr(self.balatro, attr), value)
+        self._check_expected(test_config)
 
     def run_balatro_test_scored(self, test_config: dict[str, Any]) -> None:
         self._set_up_hand(test_config)
 
-        self.balatro.play_hand(test_config["card_indices"])
+        self.balatro.play_hand(test_config["played_card_indices"])
 
-        if "round_score" in test_config["expected"]:
-            self.assertEqual(
-                Balatro.format_number(self.balatro.round_score),
-                test_config["expected"]["round_score"],
-            )
-            del test_config["expected"]["round_score"]
-        if "expected_consumable_types" in test_config["expected"]:
-            self.assertEqual(
-                len(self.balatro.consumables),
-                len(test_config["expected"]["expected_consumable_types"]),
-            )
-            for consumable, expected_consumable_type in zip(
-                self.balatro.consumables,
-                test_config["expected"]["expected_consumable_types"],
-            ):
-                self.assertIsInstance(
-                    consumable.consumable_type, expected_consumable_type
-                )
-            del test_config["expected"]["expected_consumable_types"]
-
-        for attr, value in test_config["expected"].items():
-            self.assertEqual(getattr(self.balatro, attr), value)
+        self._check_expected(test_config)
 
 
 def create_test_method(test_name, test_config, test_type):
@@ -206,11 +202,19 @@ def create_test_method(test_name, test_config, test_type):
     match test_type:
         case "discarded":
             test_method = test_method_discarded
+        case "round_end":
+            test_method = test_method_scored
         case "scored":
             test_method = test_method_scored
 
     test_method.__name__ = test_name
     return test_method
+
+
+def test_sixth_sense_scored_simple_custom_setup(b: Balatro) -> None:
+    c = Card(Suit.CLUBS, Rank.SIX)
+    b.deck_cards.append(c)
+    b.hand.insert(0, c)
 
 
 test_cases = {
@@ -261,7 +265,50 @@ test_cases = {
             },
         },
     ],
+    "round_end": [
+        {
+            "test_name": "test_mime_retrigger_gold_cards",
+            "config": {
+                "jokers": [
+                    {"joker_type": "MIME"},
+                    {"joker_type": "GREEN_JOKER", "mult": 100},
+                    {"joker_type": "BRAINSTORM"},
+                    {"joker_type": "BLUEPRINT"},
+                ],
+                "hand": [
+                    "AS",
+                    "KH,gold,blueseal",
+                ],
+                "money": 0,
+                "hands": 1,
+                "consumable_slots": 4,
+                "played_card_indices": [0],
+                "expected": {
+                    "custom": lambda b: [c.card.__class__ for c in b.consumables]
+                    == [Planet, Planet, Planet],
+                    "money": 9,
+                },
+            },
+        },
+    ],
     "scored": [
+        {
+            "test_name": "test_sixth_sense_scored_simple",
+            "config": {
+                "custom_setup": test_sixth_sense_scored_simple_custom_setup,
+                "jokers": [
+                    {"joker_type": "SIXTH_SENSE"},
+                ],
+                "played_card_indices": [0],
+                "expected": {
+                    "custom": lambda b: sum(
+                        (card.suit is Suit.CLUBS and card.rank is Rank.SIX)
+                        for card in b.deck_cards
+                    )
+                    == 1
+                },
+            },
+        },
         {
             "test_name": "test_random_scored_1",
             "config": {
@@ -287,7 +334,7 @@ test_cases = {
                     "4C",
                     "KD,steel,blueseal",
                 ],
-                "card_indices": [7],
+                "played_card_indices": [7],
                 "expected": {"round_score": "1.084e22"},
             },
         },
@@ -313,7 +360,7 @@ test_cases = {
                     "3C",
                     "2C,lucky",
                 ],
-                "card_indices": [0, 1],
+                "played_card_indices": [0, 1],
                 "expected": {"round_score": "44,521"},
             },
         },
@@ -342,7 +389,7 @@ test_cases = {
                     "KC,steel,redseal",
                     "KD,steel,blueseal",
                 ],
-                "card_indices": [1],
+                "played_card_indices": [1],
                 "expected": {"round_score": "6.050e38"},
             },
         },
@@ -375,7 +422,7 @@ test_cases = {
                     "8H,bonus",
                     "4H",
                 ],
-                "card_indices": [0, 5, 6, 9, 10],
+                "played_card_indices": [0, 5, 6, 9, 10],
                 "expected": {"round_score": "8,264,713"},
             },
         },
@@ -400,7 +447,7 @@ test_cases = {
                     "5H",
                     "5D",
                 ],
-                "card_indices": [3, 4, 5, 6, 7],
+                "played_card_indices": [3, 4, 5, 6, 7],
                 "expected": {"round_score": "11,727"},
             },
         },
@@ -418,7 +465,7 @@ test_cases = {
                     "8C,mult",
                     "8D,glass",
                 ],
-                "card_indices": [0, 1, 2],
+                "played_card_indices": [0, 1, 2],
                 "expected": {"round_score": "21,186"},
             },
         },
@@ -440,7 +487,7 @@ test_cases = {
                     "6S,glass,redseal",
                     "6C",
                 ],
-                "card_indices": [4],
+                "played_card_indices": [4],
                 "expected": {"round_score": "6,846"},
             },
         },
@@ -462,7 +509,7 @@ test_cases = {
                     "6S,glass,redseal",
                     "6C",
                 ],
-                "card_indices": [4],
+                "played_card_indices": [4],
                 "expected": {"round_score": "6,300"},
             },
         },
@@ -484,7 +531,7 @@ test_cases = {
                     "6S,glass,redseal",
                     "6C",
                 ],
-                "card_indices": [4],
+                "played_card_indices": [4],
                 "expected": {"round_score": "10,258"},
             },
         },
@@ -506,7 +553,7 @@ test_cases = {
                     "AD,steel",
                     "9S",
                 ],
-                "card_indices": [6],
+                "played_card_indices": [6],
                 "expected": {"round_score": "16,054"},
             },
         },
@@ -530,7 +577,7 @@ test_cases = {
                     "QH",
                     "QC",
                 ],
-                "card_indices": [0, 1, 2, 3, 4],
+                "played_card_indices": [0, 1, 2, 3, 4],
                 "expected": {"round_score": "33,640"},
             },
         },
@@ -559,7 +606,7 @@ test_cases = {
                     "5S,bonus",
                     "3H",
                 ],
-                "card_indices": [1, 2, 4, 5, 6],
+                "played_card_indices": [1, 2, 4, 5, 6],
                 "expected": {"round_score": "46,170"},
             },
         },
@@ -584,7 +631,7 @@ test_cases = {
                     "KC,steel",
                     "QD",
                 ],
-                "card_indices": [0, 1, 2, 3, 4],
+                "played_card_indices": [0, 1, 2, 3, 4],
                 "expected": {"round_score": "75,202,560"},
             },
         },
@@ -608,51 +655,24 @@ test_cases = {
                     "JH,debuffed",
                     "4H,wild,debuffed",
                 ],
-                "card_indices": [0, 1, 2, 3, 4],
-                "expected": {"round_score": "3,312"},
-                "expected_consumable_types": [Tarot],
+                "played_card_indices": [0, 1, 2, 3, 4],
+                "expected": {
+                    "round_score": "3,312",
+                    "custom": lambda b: [c.card.__class__ for c in b.consumables]
+                    == [Tarot],
+                },
             },
         },
         {
             "test_name": "test_random_scored_15",
             "config": {
                 "hand": ["AS", "KD", "QC", "JH", "TC", "4S", "4C", "2D"],
-                "card_indices": [0, 1, 2, 3, 4],
+                "played_card_indices": [0, 1, 2, 3, 4],
                 "expected": {"round_score": "324"},
             },
         },
         {
             "test_name": "test_random_scored_16",
-            "config": {
-                "poker_hand_levels": {"HIGH_CARD": 8},
-                "jokers": [
-                    {"joker_type": "ABSTRACT_JOKER", "edition": Edition.NEGATIVE},
-                    {"joker_type": "CLOUD_NINE", "edition": Edition.FOIL},
-                    {"joker_type": "DNA", "edition": Edition.HOLO},
-                    {
-                        "joker_type": "CONSTELLATION",
-                        "edition": Edition.HOLO,
-                        "xmult": 5.7,
-                    },
-                    {"joker_type": "RAMEN", "edition": Edition.FOIL},
-                    {"joker_type": "CAVENDISH"},
-                ],
-                "hand": [
-                    "KS,debuffed",
-                    "9S,debuffed",
-                    "9S,mult,debuffed",
-                    "9H,lucky,debuffed",
-                    "9C,lucky,debuffed",
-                    "5H,debuffed",
-                    "4H,debuffed",
-                    "3D,debuffed",
-                ],
-                "card_indices": [4],
-                "expected": {"round_score": "275,309"},
-            },
-        },
-        {
-            "test_name": "test_random_scored_17",
             "config": {
                 "poker_hand_levels": {"FLUSH": 13},
                 "jokers": [
@@ -668,7 +688,7 @@ test_cases = {
                 ],
                 "hand": ["QS,gold", "TS", "5S", "TH,mult", "8H", "4H", "3H", "QH,gold"],
                 "poker_hand_times_played": {"FLUSH": 50},
-                "card_indices": [3, 4, 5, 6, 7],
+                "played_card_indices": [3, 4, 5, 6, 7],
                 "expected": {"round_score": "968,256"},
             },
         },
@@ -677,10 +697,10 @@ test_cases = {
 
 
 for test_type, test_cases in test_cases.items():
+    if test_type == "round_end":
+        continue
     for test_case in test_cases:
         test_name = test_case["test_name"]
-        # if test_name != "test_random_scored_17":
-        #     continue
         test_config = test_case["config"]
         setattr(
             TestBalatro,

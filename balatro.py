@@ -516,8 +516,7 @@ class Balatro:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
-        return None  # TODO: remove
-        raise NotImplementedError
+        self.deck_cards.append(card)
         for joker in self.jokers:
             joker.on_card_added(card)
 
@@ -546,7 +545,7 @@ class Balatro:
                 base_cost = Balatro.JOKER_BASE_COSTS[item.joker_type]
                 edition_cost = Balatro.EDITION_COSTS[item.edition]
             case Consumable():
-                match item.consumable_type:
+                match item.card:
                     case Tarot():
                         base_cost = 3
                     case Planet():
@@ -612,7 +611,34 @@ class Balatro:
 
         self._sort_hand()
 
-    def _end_round(self) -> None:
+    def _destroy_card(self, card: Card) -> None:
+        try:
+            self.deck_cards.remove(card)
+        except ValueError:
+            pass
+        for joker in self.jokers:
+            joker.on_card_destroyed(card)
+
+    def _destroy_joker(self, joker: Joker) -> None:
+        try:
+            self.jokers.remove(joker)
+        except ValueError:
+            pass
+
+    def _end_round(
+        self, last_poker_hand_played: PokerHand, saved: bool = False
+    ) -> None:
+        for held_card in self.hand:
+            self._trigger_held_card_round_end(held_card, last_poker_hand_played)
+
+            match held_card:
+                case Seal.RED:
+                    self._trigger_held_card_round_end(held_card, last_poker_hand_played)
+
+            for joker in self.jokers:
+                for _ in range(joker.on_card_held_retriggers(held_card)):
+                    self._trigger_held_card_round_end(held_card, last_poker_hand_played)
+
         interest_amt = (
             0
             if self.deck is Deck.GREEN
@@ -622,6 +648,14 @@ class Balatro:
 
         for joker in self.jokers:
             joker.on_round_ended()
+
+        cash_out = (
+            (0 if saved else self.BLIND_INFO[self.blind][2])
+            + self.remaining_hand_reward * self.hands
+            + self.remaining_discard_reward * self.discards
+            + interest
+        )
+        self.money += cash_out
 
         self.round_score = None
         self.round_goal = None
@@ -636,14 +670,6 @@ class Balatro:
         self.first_hand = None
         self.first_discard = None
         self.round_poker_hands = None
-
-        cash_out = (
-            self.BLIND_INFO[self.blind][2]
-            + self.remaining_hand_reward * self.hands
-            + self.remaining_discard_reward * self.discards
-            + interest
-        )
-        self.money += cash_out
 
         self._populate_shop()
         self.state = State.IN_SHOP
@@ -780,6 +806,32 @@ class Balatro:
 
         return card
 
+    def _get_random_consumable(
+        self,
+        consumable_type: type,
+        existing: list[Tarot | Planet | Spectral] | None = None,
+    ) -> Consumable:
+        match consumable_type.__name__:
+            case Tarot.__name__:
+                card_pool = list(Tarot)
+            case Planet.__name__:
+                card_pool = [
+                    unlocked_poker_hand.planet
+                    for unlocked_poker_hand in self.unlocked_poker_hands
+                ]
+            case Spectral.__name__:
+                card_pool = list(Spectral)[:-2]
+        card = None
+        while card is None or (
+            JokerType.SHOWMAN not in self.active_jokers
+            and (
+                card in self.consumables or (existing is not None and card in existing)
+            )
+        ):
+            card = r.choice(card_pool)
+
+        return Consumable(card)
+
     def _get_random_joker(
         self,
         rarity: Rarity | None = None,
@@ -854,15 +906,6 @@ class Balatro:
             raise NotImplementedError
 
         return self._create_joker(joker_type, edition=edition)
-
-    def _get_random_tarot(self) -> Consumable:
-        tarot = None
-        while tarot is None or (
-            tarot in self.consumables and JokerType.SHOWMAN not in self.active_jokers
-        ):
-            tarot = r.choice(list(Tarot))
-
-        return Consumable(tarot)
 
     def _is_face_card(self, card: Card) -> bool:
         return (
@@ -1037,43 +1080,15 @@ class Balatro:
                     if buy_cost is None:
                         buy_cost = self._calculate_buy_cost(joker, coupon=coupon)
                     self.shop_cards[i] = (joker, buy_cost)
-                case Tarot.__name__:
-                    tarot = None
-                    while tarot is None or (
-                        (
-                            tarot in self.consumables
-                            or tarot in [card for card, _ in self.shop_cards[:i]]
-                        )
-                        and JokerType.SHOWMAN not in self.active_jokers
-                    ):
-                        tarot = r.choice(list(Tarot))
-                    consumable = Consumable(tarot)
-                    buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
-                    self.shop_cards[i] = (consumable, buy_cost)
-                case Planet.__name__:
-                    planet = None
-                    while planet is None or (
-                        (
-                            planet in self.consumables
-                            or planet in [card for card, _ in self.shop_cards[:i]]
-                        )
-                        and JokerType.SHOWMAN not in self.active_jokers
-                    ):
-                        planet = r.choice(self.unlocked_poker_hands).planet
-                    consumable = Consumable(planet)
-                    buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
-                    self.shop_cards[i] = (consumable, buy_cost)
-                case Spectral.__name__:
-                    spectral = None
-                    while spectral is None or (
-                        (
-                            spectral in self.consumables
-                            or spectral in [card for card, _ in self.shop_cards[:i]]
-                        )
-                        and JokerType.SHOWMAN not in self.active_jokers
-                    ):
-                        spectral = r.choice(list(Spectral)[:-2])
-                    consumable = Consumable(spectral)
+                case Tarot.__name__ | Planet.__name__ | Spectral.__name__:
+                    consumable = self._get_random_consumable(
+                        self.shop_cards[i],
+                        existing=[
+                            card.card
+                            for card, _ in self.shop_cards[:i]
+                            if isinstance(card, Consumable)
+                        ],
+                    )
                     buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
                     self.shop_cards[i] = (consumable, buy_cost)
                 case Card.__name__:
@@ -1093,9 +1108,6 @@ class Balatro:
                 or Balatro.BLIND_INFO[self.final_blind][0] > self.ante
             ):
                 self.final_blind = r.choice(list(Balatro.BLIND_INFO)[2:-5])
-
-    def _remove_joker(self, joker: Joker) -> None:
-        raise NotImplementedError
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1248,7 +1260,7 @@ class Balatro:
             joker.on_card_held(held_card)
 
     def _trigger_held_card_round_end(
-        self, held_card: Card, poker_hand_played: PokerHand
+        self, held_card: Card, last_poker_hand_played: PokerHand
     ) -> None:
         match held_card:
             case Enhancement.GOLD:
@@ -1257,7 +1269,7 @@ class Balatro:
         match held_card:
             case Seal.BLUE:
                 if self.effective_consumable_slots > len(self.consumables):
-                    self.consumables.append(Consumable(poker_hand_played.planet))
+                    self.consumables.append(Consumable(last_poker_hand_played.planet))
 
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
         assert section_index in [0, 1, 2]
@@ -1285,7 +1297,7 @@ class Balatro:
 
                 self.consumables.append(item)
             case Card():
-                raise NotImplementedError
+                self._add_card(item)
             case Pack():
                 self.state = State.OPENING_PACK_SHOP
                 self._open_pack(item)
@@ -1431,9 +1443,10 @@ class Balatro:
 
         if Voucher.OBSERVATORY in self.vouchers:
             for consumable in self.consumables:
-                if consumable.consumable_type is poker_hands_played[0].planet:
+                if consumable.card is poker_hands_played[0].planet:
                     self.mult *= 1.5
 
+        self.mult = round(self.mult, 9)  # floating-point imprecision
         score = int(
             ((self.chips + self.mult) // 2) ** 2
             if self.deck is Deck.PLASMA
@@ -1441,7 +1454,7 @@ class Balatro:
         )
         self.round_score += score
 
-        # un-debuff cards
+        # TODO: un-debuff cards
 
         if (
             JokerType.SIXTH_SENSE in self.active_jokers
@@ -1451,30 +1464,38 @@ class Balatro:
         ):
             self._destroy_card(played_cards[0])
             if self.effective_consumable_slots > len(self.consumables):
-                self.consumables.append(self._get_random_spectral())
+                self.consumables.append(self._get_random_consumable(Spectral))
+
+        for i in scored_card_indices:
+            scored_card = played_cards[i]
+            match scored_card:
+                case Enhancement.GLASS:
+                    if self._chance(1, 4):
+                        self._destroy_card(scored_card)
 
         self.round_poker_hands.add(poker_hands_played[0])
         self.first_hand = False
 
-        return
+        for joker in self.jokers:
+            joker.on_end_hand()
 
-        # TODO: check glass
+        # return  # leave in when testing
 
         if self.round_score >= self.round_goal:
-            self._end_round()
+            self._end_round(poker_hands_played[0])
             return
 
         if self.hands == 0:
             if self.chips >= self.round_goal // 4:
                 for joker in self.active_jokers:
                     if joker.joker_type is JokerType.MR_BONES:
-                        raise NotImplementedError
-            return  # game over
-
-        for joker in self.jokers:
-            joker.on_end_hand()
-
-        self._deal()
+                        self._destroy_joker(joker)
+                        self._end_round(poker_hands_played[0], saved=True)
+                        return
+            # TODO
+            self.state = State.GAME_OVER
+        else:
+            self._deal()
 
     def reroll(self) -> None:
         assert self.state is State.IN_SHOP
@@ -1524,11 +1545,6 @@ class Balatro:
                     self.hand_size -= 2
         if self.hand_size <= 0 or self.hands <= 0:
             raise NotImplementedError
-        self.hand = []
-        self.deck_cards_left = self.deck_cards.copy()
-        self.round_poker_hands = set()
-        self.first_hand = True
-        self.first_discard = True
 
         for joker in self.jokers:
             joker.on_blind_selected()
@@ -1536,6 +1552,12 @@ class Balatro:
         while Tag.JUGGLE in self.tags:
             self.tags.remove(Tag.JUGGLE)
             self.hands += 3
+
+        self.hand = []
+        self.deck_cards_left = self.deck_cards.copy()
+        self.round_poker_hands = set()
+        self.first_hand = True
+        self.first_discard = True
 
         self._deal()
 
@@ -1559,8 +1581,8 @@ class Balatro:
                 case Tag.BOSS:
                     self._random_final_blind()
                 case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
+                    self.state = State.OPENING_PACK_TAG
                     self._open_pack(Balatro.TAG_PACKS[tag])
-                    raise NotImplementedError
                 case Tag.HANDY:
                     self.money += 1 * self.played_hands
                 case Tag.GARBAGE:
