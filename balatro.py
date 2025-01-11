@@ -516,8 +516,7 @@ class Balatro:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
-        if True:
-            return None  # TODO: remove
+        return None  # TODO: remove
         raise NotImplementedError
         for joker in self.jokers:
             joker.on_card_added(card)
@@ -1211,8 +1210,6 @@ class Balatro:
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        state_before = (self.chips, self.mult)
-
         self.chips += scored_card.base_chips
 
         match scored_card:
@@ -1239,43 +1236,18 @@ class Balatro:
             case Edition.POLYCHROME:
                 self.mult *= 1.5
 
-        if state_before != (self.chips, self.mult):
-            print(f"Scored {scored_card}")
-            print(
-                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-            )
-
         for joker in self.jokers:
-            state_before = (self.chips, self.mult)
             joker.on_card_scored(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
-            if state_before != (self.chips, self.mult):
-                print(f"On-card-scored {joker}")
-                print(
-                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-                )
 
     def _trigger_held_card(self, held_card: Card) -> None:
-        state_before = (self.chips, self.mult)
         match held_card:
             case Enhancement.STEEL:
                 self.mult *= 1.5
 
-        if state_before != (self.chips, self.mult):
-            print(f"Held {held_card}")
-            print(
-                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-            )
-
         for joker in self.jokers:
-            state_before = (self.chips, self.mult)
             joker.on_card_held(held_card)
-            if state_before != (self.chips, self.mult):
-                print(f"On-card-held {joker}")
-                print(
-                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-                )
 
     def _trigger_held_card_round_end(
         self, held_card: Card, poker_hand_played: PokerHand
@@ -1398,12 +1370,6 @@ class Balatro:
         self.chips = poker_hand_chips
         self.mult = poker_hand_mult
 
-        if True:
-            print(f"Scored hand {poker_hands_played[0]}")
-            print(
-                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-            )
-
         for i in scored_card_indices:
             scored_card = played_cards[i]
 
@@ -1413,9 +1379,6 @@ class Balatro:
 
             match scored_card:
                 case Seal.RED_SEAL:
-                    if True:
-                        print(f"Retriggered by Red Seal")
-
                     self._trigger_scored_card(
                         scored_card,
                         played_cards,
@@ -1432,9 +1395,6 @@ class Balatro:
                         poker_hands_played,
                     )
                 ):
-                    if True:
-                        print(f"Retriggered by {joker}")
-
                     self._trigger_scored_card(
                         scored_card,
                         played_cards,
@@ -1447,16 +1407,10 @@ class Balatro:
 
             match held_card:
                 case Seal.RED_SEAL:
-                    if True:
-                        print(f"Retriggered by Red Seal")
-
                     self._trigger_held_card(held_card)
 
             for joker in self.jokers:
                 for _ in range(joker.on_card_held_retriggers(held_card)):
-                    if True:
-                        print(f"Retriggered by {joker}")
-
                     self._trigger_held_card(held_card)
 
         for joker in self.jokers:
@@ -1466,22 +1420,10 @@ class Balatro:
                 case Edition.HOLO:
                     self.mult += 10
 
-            state_before = (self.chips, self.mult)
             joker.on_independent(played_cards, scored_card_indices, poker_hands_played)
-            if state_before != (self.chips, self.mult):
-                print(f"Independent {joker}")
-                print(
-                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-                )
 
             for other_joker in self.jokers:
-                state_before = (self.chips, self.mult)
                 other_joker.on_dependent(joker)
-                if state_before != (self.chips, self.mult):
-                    print(f"Dependent {joker}")
-                    print(
-                        f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-                    )
 
             match joker:
                 case Edition.POLYCHROME:
@@ -1497,12 +1439,6 @@ class Balatro:
             if self.deck is Deck.PLASMA
             else self.chips * self.mult
         )
-        if True:
-            print(f"Final score")
-            print(
-                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
-            )
-            print(f"={Balatro.format_number(score)}")
         self.round_score += score
 
         # un-debuff cards
