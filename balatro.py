@@ -53,36 +53,36 @@ class Balatro:
         4.8e309,
     ]
     BLIND_INFO = {
-        Blind.SMALL: [1, 1, 3],
-        Blind.BIG: [1, 1.5, 4],
-        Blind.HOOK: [1, 2, 5],
-        Blind.CLUB: [1, 2, 5],
-        Blind.PSYCHIC: [1, 2, 5],
-        Blind.GOAD: [1, 2, 5],
-        Blind.WINDOW: [1, 2, 5],
-        Blind.MANACLE: [1, 2, 5],
-        Blind.PILLAR: [1, 2, 5],
-        Blind.HEAD: [1, 2, 5],
-        Blind.HOUSE: [2, 2, 5],
-        Blind.WALL: [2, 4, 5],
-        Blind.WHEEL: [2, 2, 5],
-        Blind.ARM: [2, 2, 5],
-        Blind.FISH: [2, 2, 5],
-        Blind.WATER: [2, 2, 5],
-        Blind.MOUTH: [2, 2, 5],
-        Blind.NEEDLE: [2, 1, 5],
-        Blind.FLINT: [2, 2, 5],
-        Blind.MARK: [2, 2, 5],
-        Blind.EYE: [3, 2, 5],
-        Blind.TOOTH: [3, 2, 5],
-        Blind.PLANT: [4, 2, 5],
-        Blind.SERPENT: [5, 2, 5],
-        Blind.OX: [6, 2, 5],
-        Blind.FINAL_ACORN: [8, 2, 8],
-        Blind.FINAL_LEAF: [8, 2, 8],
-        Blind.FINAL_VESSEL: [8, 6, 8],
-        Blind.FINAL_HEART: [8, 2, 8],
-        Blind.FINAL_BELL: [8, 2, 8],
+        Blind.SMALL_BLIND: [1, 1, 3],
+        Blind.BIG_BLIND: [1, 1.5, 4],
+        Blind.THE_HOOK: [1, 2, 5],
+        Blind.THE_CLUB: [1, 2, 5],
+        Blind.THE_PSYCHIC: [1, 2, 5],
+        Blind.THE_GOAD: [1, 2, 5],
+        Blind.THE_WINDOW: [1, 2, 5],
+        Blind.THE_MANACLE: [1, 2, 5],
+        Blind.THE_PILLAR: [1, 2, 5],
+        Blind.THE_HEAD: [1, 2, 5],
+        Blind.THE_HOUSE: [2, 2, 5],
+        Blind.THE_WALL: [2, 4, 5],
+        Blind.THE_WHEEL: [2, 2, 5],
+        Blind.THE_ARM: [2, 2, 5],
+        Blind.THE_FISH: [2, 2, 5],
+        Blind.THE_WATER: [2, 2, 5],
+        Blind.THE_MOUTH: [2, 2, 5],
+        Blind.THE_NEEDLE: [2, 1, 5],
+        Blind.THE_FLINT: [2, 2, 5],
+        Blind.THE_MARK: [2, 2, 5],
+        Blind.THE_EYE: [3, 2, 5],
+        Blind.THE_TOOTH: [3, 2, 5],
+        Blind.THE_PLANT: [4, 2, 5],
+        Blind.THE_SERPENT: [5, 2, 5],
+        Blind.THE_OX: [6, 2, 5],
+        Blind.AMBER_ACORN: [8, 2, 8],
+        Blind.VERDANT_LEAF: [8, 2, 8],
+        Blind.VIOLET_VESSEL: [8, 6, 8],
+        Blind.CRIMSON_HEART: [8, 2, 8],
+        Blind.CERULEAN_BELL: [8, 2, 8],
     }
     EDITION_COSTS = {
         Edition.BASE: 0,
@@ -124,33 +124,33 @@ class Balatro:
         JokerType.GREEDY_JOKER: 5,
         JokerType.LUSTY_JOKER: 5,
         JokerType.WRATHFUL_JOKER: 5,
-        JokerType.GLUTTENOUS_JOKER: 5,
-        JokerType.JOLLY: 3,
-        JokerType.ZANY: 4,
-        JokerType.MAD: 4,
-        JokerType.CRAZY: 4,
-        JokerType.DROLL: 4,
-        JokerType.SLY: 3,
-        JokerType.WILY: 4,
-        JokerType.CLEVER: 4,
-        JokerType.DEVIOUS: 4,
-        JokerType.CRAFTY: 4,
-        JokerType.HALF: 5,
+        JokerType.GLUTTONOUS_JOKER: 5,
+        JokerType.JOLLY_JOKER: 3,
+        JokerType.ZANY_JOKER: 4,
+        JokerType.MAD_JOKER: 4,
+        JokerType.CRAZY_JOKER: 4,
+        JokerType.DROLL_JOKER: 4,
+        JokerType.SLY_JOKER: 3,
+        JokerType.WILY_JOKER: 4,
+        JokerType.CLEVER_JOKER: 4,
+        JokerType.DEVIOUS_JOKER: 4,
+        JokerType.CRAFTY_JOKER: 4,
+        JokerType.HALF_JOKER: 5,
         JokerType.CREDIT_CARD: 1,
         JokerType.BANNER: 5,
         JokerType.MYSTIC_SUMMIT: 5,
         JokerType.EIGHT_BALL: 5,
         JokerType.MISPRINT: 4,
         JokerType.RAISED_FIST: 5,
-        JokerType.CHAOS: 4,
+        JokerType.CHAOS_THE_CLOWN: 4,
         JokerType.SCARY_FACE: 4,
-        JokerType.ABSTRACT: 4,
-        JokerType.DELAYED_GRAT: 4,
+        JokerType.ABSTRACT_JOKER: 4,
+        JokerType.DELAYED_GRATIFICATION: 4,
         JokerType.GROS_MICHEL: 5,
         JokerType.EVEN_STEVEN: 4,
         JokerType.ODD_TODD: 4,
         JokerType.SCHOLAR: 4,
-        JokerType.BUSINESS: 4,
+        JokerType.BUSINESS_CARD: 4,
         JokerType.SUPERNOVA: 5,
         JokerType.RIDE_THE_BUS: 6,
         JokerType.EGG: 4,
@@ -158,34 +158,34 @@ class Balatro:
         JokerType.ICE_CREAM: 5,
         JokerType.SPLASH: 3,
         JokerType.BLUE_JOKER: 5,
-        JokerType.FACELESS: 4,
+        JokerType.FACELESS_JOKER: 4,
         JokerType.GREEN_JOKER: 4,
         JokerType.SUPERPOSITION: 4,
         JokerType.TODO_LIST: 4,
         JokerType.CAVENDISH: 4,
         JokerType.RED_CARD: 5,
-        JokerType.SQUARE: 4,
+        JokerType.SQUARE_JOKER: 4,
         JokerType.RIFF_RAFF: 6,
         JokerType.PHOTOGRAPH: 5,
         JokerType.RESERVED_PARKING: 6,
-        JokerType.MAIL: 4,
+        JokerType.MAIL_IN_REBATE: 4,
         JokerType.HALLUCINATION: 4,
         JokerType.FORTUNE_TELLER: 6,
         JokerType.JUGGLER: 4,
         JokerType.DRUNKARD: 4,
-        JokerType.GOLDEN: 6,
+        JokerType.GOLDEN_JOKER: 6,
         JokerType.POPCORN: 5,
         JokerType.WALKIE_TALKIE: 4,
-        JokerType.SMILEY: 4,
-        JokerType.TICKET: 5,
+        JokerType.SMILEY_FACE: 4,
+        JokerType.GOLDEN_TICKET: 5,
         JokerType.SWASHBUCKLER: 4,
         JokerType.HANGING_CHAD: 4,
         JokerType.SHOOT_THE_MOON: 5,
-        JokerType.STENCIL: 8,
+        JokerType.JOKER_STENCIL: 8,
         JokerType.FOUR_FINGERS: 7,
         JokerType.MIME: 5,
-        JokerType.CEREMONIAL: 6,
-        JokerType.MARBLE: 6,
+        JokerType.CEREMONIAL_DAGGER: 6,
+        JokerType.MARBLE_JOKER: 6,
         JokerType.LOYALTY_CARD: 5,
         JokerType.DUSK: 5,
         JokerType.FIBONACCI: 8,
@@ -204,11 +204,11 @@ class Balatro:
         JokerType.VAMPIRE: 7,
         JokerType.SHORTCUT: 7,
         JokerType.HOLOGRAM: 7,
-        JokerType.CLOUD_9: 7,
+        JokerType.CLOUD_NINE: 7,
         JokerType.ROCKET: 6,
         JokerType.MIDAS_MASK: 7,
         JokerType.LUCHADOR: 5,
-        JokerType.GIFT: 6,
+        JokerType.GIFT_CARD: 6,
         JokerType.TURTLE_BEAN: 6,
         JokerType.EROSION: 6,
         JokerType.TO_THE_MOON: 5,
@@ -216,9 +216,9 @@ class Balatro:
         JokerType.LUCKY_CAT: 6,
         JokerType.BULL: 6,
         JokerType.DIET_COLA: 6,
-        JokerType.TRADING: 6,
-        JokerType.FLASH: 5,
-        JokerType.TROUSERS: 6,
+        JokerType.TRADING_CARD: 6,
+        JokerType.FLASH_CARD: 5,
+        JokerType.SPARE_TROUSERS: 6,
         JokerType.RAMEN: 6,
         JokerType.SELTZER: 6,
         JokerType.CASTLE: 6,
@@ -227,18 +227,18 @@ class Balatro:
         JokerType.SOCK_AND_BUSKIN: 6,
         JokerType.TROUBADOUR: 6,
         JokerType.CERTIFICATE: 6,
-        JokerType.SMEARED: 7,
+        JokerType.SMEARED_JOKER: 7,
         JokerType.THROWBACK: 6,
         JokerType.ROUGH_GEM: 7,
         JokerType.BLOODSTONE: 7,
         JokerType.ARROWHEAD: 7,
         JokerType.ONYX_AGATE: 7,
-        JokerType.GLASS: 6,
-        JokerType.RING_MASTER: 5,
+        JokerType.GLASS_JOKER: 6,
+        JokerType.SHOWMAN: 5,
         JokerType.FLOWER_POT: 6,
         JokerType.MERRY_ANDY: 7,
-        JokerType.OOPS: 4,
-        JokerType.IDOL: 6,
+        JokerType.OOPS_ALL_SIXES: 4,
+        JokerType.THE_IDOL: 6,
         JokerType.SEEING_DOUBLE: 6,
         JokerType.MATADOR: 7,
         JokerType.SATELLITE: 6,
@@ -249,22 +249,22 @@ class Balatro:
         JokerType.VAGABOND: 8,
         JokerType.BARON: 8,
         JokerType.OBELISK: 8,
-        JokerType.BASEBALL: 8,
-        JokerType.ANCIENT: 8,
+        JokerType.BASEBALL_CARD: 8,
+        JokerType.ANCIENT_JOKER: 8,
         JokerType.CAMPFIRE: 9,
         JokerType.BLUEPRINT: 10,
-        JokerType.WEE: 8,
+        JokerType.WEE_JOKER: 8,
         JokerType.HIT_THE_ROAD: 8,
-        JokerType.DUO: 8,
-        JokerType.TRIO: 8,
-        JokerType.FAMILY: 8,
-        JokerType.ORDER: 8,
-        JokerType.TRIBE: 8,
+        JokerType.THE_DUO: 8,
+        JokerType.THE_TRIO: 8,
+        JokerType.THE_FAMILY: 8,
+        JokerType.THE_ORDER: 8,
+        JokerType.THE_TRIBE: 8,
         JokerType.STUNTMAN: 7,
-        JokerType.INVISIBLE: 8,
+        JokerType.INVISIBLE_JOKER: 8,
         JokerType.BRAINSTORM: 10,
         JokerType.DRIVERS_LICENSE: 7,
-        JokerType.BURNT: 8,
+        JokerType.BURNT_JOKER: 8,
         JokerType.CANIO: 20,
         JokerType.TRIBOULET: 20,
         JokerType.YORICK: 20,
@@ -304,27 +304,27 @@ class Balatro:
         JokerType.RAMEN,
         JokerType.SELTZER,
         JokerType.MR_BONES,
-        JokerType.INVISIBLE,
+        JokerType.INVISIBLE_JOKER,
     }
     NON_PERISHABLE_JOKERS = {
         JokerType.RIDE_THE_BUS,
         JokerType.RUNNER,
         JokerType.GREEN_JOKER,
         JokerType.RED_CARD,
-        JokerType.SQUARE,
-        JokerType.CEREMONIAL,
+        JokerType.SQUARE_JOKER,
+        JokerType.CEREMONIAL_DAGGER,
         JokerType.CONSTELLATION,
         JokerType.MADNESS,
         JokerType.VAMPIRE,
         JokerType.HOLOGRAM,
         JokerType.ROCKET,
         JokerType.LUCKY_CAT,
-        JokerType.FLASH,
-        JokerType.TROUSERS,
+        JokerType.FLASH_CARD,
+        JokerType.SPARE_TROUSERS,
         JokerType.CASTLE,
-        JokerType.GLASS,
+        JokerType.GLASS_JOKER,
         JokerType.OBELISK,
-        JokerType.WEE,
+        JokerType.WEE_JOKER,
     }
     PROHIBITED_ANTE_1_TAGS = {
         Tag.NEGATIVE,
@@ -354,28 +354,28 @@ class Balatro:
     }
     SHOP_BASE_CARD_WEIGHTS = {Joker: 20, Tarot: 4, Planet: 4}
     SHOP_BASE_PACK_WEIGHTS = {
-        Pack.ARCANA_NORMAL: 4,
-        Pack.ARCANA_JUMBO: 2,
-        Pack.ARCANA_MEGA: 0.5,
-        Pack.CELESTIAL_NORMAL: 4,
-        Pack.CELESTIAL_JUMBO: 2,
-        Pack.CELESTIAL_MEGA: 0.5,
-        Pack.SPECTRAL_NORMAL: 0.6,
-        Pack.SPECTRAL_JUMBO: 0.3,
-        Pack.SPECTRAL_MEGA: 0.07,
-        Pack.STANDARD_NORMAL: 4,
-        Pack.STANDARD_JUMBO: 2,
-        Pack.STANDARD_MEGA: 0.5,
-        Pack.BUFFOON_NORMAL: 1.2,
-        Pack.BUFFOON_JUMBO: 0.6,
-        Pack.BUFFOON_MEGA: 0.5,
+        Pack.ARCANA: 4,
+        Pack.JUMBO_ARCANA: 2,
+        Pack.MEGA_ARCANA: 0.5,
+        Pack.CELESTIAL: 4,
+        Pack.JUMBO_CELESTIAL: 2,
+        Pack.MEGA_CELESTIAL: 0.5,
+        Pack.SPECTRAL: 0.6,
+        Pack.JUMBO_SPECTRAL: 0.3,
+        Pack.MEGA_SPECTRAL: 0.07,
+        Pack.STANDARD: 4,
+        Pack.JUMBO_STANDARD: 2,
+        Pack.MEGA_STANDARD: 0.5,
+        Pack.BUFFOON: 1.2,
+        Pack.JUMBO_BUFFOON: 0.6,
+        Pack.MEGA_BUFFOON: 0.5,
     }
     TAG_PACKS = {
-        Tag.BUFFOON: Pack.BUFFOON_MEGA,
-        Tag.CHARM: Pack.ARCANA_MEGA,
-        Tag.METEOR: Pack.CELESTIAL_MEGA,
-        Tag.ETHEREAL: Pack.SPECTRAL_NORMAL,
-        Tag.STANDARD: Pack.STANDARD_MEGA,
+        Tag.BUFFOON: Pack.MEGA_BUFFOON,
+        Tag.CHARM: Pack.MEGA_ARCANA,
+        Tag.METEOR: Pack.MEGA_CELESTIAL,
+        Tag.ETHEREAL: Pack.SPECTRAL,
+        Tag.STANDARD: Pack.MEGA_STANDARD,
     }
 
     def __init__(
@@ -429,7 +429,7 @@ class Balatro:
                 self.vouchers.add(Voucher.CRYSTAL_BALL)
                 self.consumable_slots += 1
                 self.consumables.extend(
-                    [Consumable(Tarot.FOOL), Consumable(Tarot.FOOL)]
+                    [Consumable(Tarot.THE_FOOL), Consumable(Tarot.THE_FOOL)]
                 )
             case Deck.NEBULA:
                 self.vouchers.add(Voucher.TELESCOPE)
@@ -447,7 +447,7 @@ class Balatro:
                     [
                         Voucher.TAROT_MERCHANT,
                         Voucher.PLANET_MERCHANT,
-                        Voucher.OVERSTOCK_NORM,
+                        Voucher.OVERSTOCK,
                     ]
                 )
             case Deck.PAINTED:
@@ -479,7 +479,7 @@ class Balatro:
 
         self._random_final_blind()
 
-        self.blind: Blind = Blind.SMALL
+        self.blind: Blind = Blind.SMALL_BLIND
 
         self.played_hands: int = 0
         self.first_hand: bool | None = None
@@ -566,24 +566,23 @@ class Balatro:
                 discount_percent = 1.0
             case Pack():
                 if (
-                    item.name.startswith("CELESTIAL")
+                    item.name.endswith("CELESTIAL")
                     and JokerType.ASTRONOMER in self.active_jokers
                 ):
                     return 0
-                if item.name.endswith("MEGA"):
+                if item.name.startswith("MEGA"):
                     base_cost = 8
-                elif item.name.endswith("JUMBO"):
+                elif item.name.startswith("JUMBO"):
                     base_cost = 6
-                elif item.name.endswith("NORMAL"):
+                else:
                     base_cost = 4
 
         buy_cost = (base_cost + edition_cost) * discount_percent
         return max(round(buy_cost - 0.001), 1)
 
     def _chance(self, hit: int, pool: int) -> bool:
-        for _ in range(self.active_jokers.count(JokerType.OOPS)):
-            hit *= 2
-        return hit >= pool or (r.randint(hit, pool) == 1)
+        hit *= 2 ** self.active_jokers.count(JokerType.OOPS_ALL_SIXES)
+        return hit >= pool or (r.randint(1, pool) <= hit)
 
     def _create_joker(
         self,
@@ -654,7 +653,7 @@ class Balatro:
             return []
         if card == Enhancement.WILD:
             return list(Suit)
-        if JokerType.SMEARED in self.active_jokers:
+        if JokerType.SMEARED_JOKER in self.active_jokers:
             red_suits, black_suits = [Suit.HEARTS, Suit.DIAMONDS], [
                 Suit.SPADES,
                 Suit.CLUBS,
@@ -798,7 +797,7 @@ class Balatro:
         while (
             joker_type is None
             or (
-                JokerType.RING_MASTER not in self.active_jokers
+                JokerType.SHOWMAN not in self.active_jokers
                 and (
                     joker_type in self.jokers
                     or (existing is not None and joker_type in existing)
@@ -806,7 +805,7 @@ class Balatro:
             )
             or (joker_type is JokerType.CAVENDISH and not self.gros_michel_destroyed)
             or (
-                joker_type is JokerType.TICKET
+                joker_type is JokerType.GOLDEN_TICKET
                 and not any(
                     card.enhancement is Enhancement.GOLD for card in self.deck_cards
                 )
@@ -830,7 +829,7 @@ class Balatro:
                 )
             )
             or (
-                joker_type is JokerType.GLASS
+                joker_type is JokerType.GLASS_JOKER
                 and not any(
                     card.enhancement is Enhancement.GLASS for card in self.deck_cards
                 )
@@ -859,8 +858,7 @@ class Balatro:
     def _get_random_tarot(self) -> Consumable:
         tarot = None
         while tarot is None or (
-            tarot in self.consumables
-            and JokerType.RING_MASTER not in self.active_jokers
+            tarot in self.consumables and JokerType.SHOWMAN not in self.active_jokers
         ):
             tarot = r.choice(list(Tarot))
 
@@ -889,33 +887,33 @@ class Balatro:
 
     def _next_blind(self) -> None:
         match self.blind:
-            case Blind.SMALL:
-                self.blind = Blind.BIG
-            case Blind.BIG:
+            case Blind.SMALL_BLIND:
+                self.blind = Blind.BIG_BLIND
+            case Blind.BIG_BLIND:
                 self.blind = self.final_blind
             case _:
                 raise NotImplementedError
 
     def _open_pack(self, pack: Pack) -> None:
-        if pack.name.endswith("MEGA"):
+        if pack.name.startswith("MEGA"):
             choose = [2, 5]
-        elif pack.name.endswith("JUMBO"):
+        elif pack.name.startswith("JUMBO"):
             choose = [1, 5]
-        elif pack.name.endswith("NORMAL"):
+        else:
             choose = [1, 3]
 
         match pack:
-            case Pack.BUFFOON_NORMAL | Pack.BUFFOON_JUMBO | Pack.BUFFOON_MEGA:
+            case Pack.BUFFOON | Pack.JUMBO_BUFFOON | Pack.MEGA_BUFFOON:
                 choose[1] -= 1
                 raise NotImplementedError
-            case Pack.ARCANA_NORMAL | Pack.ARCANA_JUMBO | Pack.ARCANA_MEGA:
+            case Pack.ARCANA | Pack.JUMBO_ARCANA | Pack.MEGA_ARCANA:
                 raise NotImplementedError
-            case Pack.CELESTIAL_NORMAL | Pack.CELESTIAL_JUMBO | Pack.CELESTIAL_MEGA:
+            case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
                 raise NotImplementedError
-            case Pack.SPECTRAL_NORMAL | Pack.SPECTRAL_JUMBO | Pack.SPECTRAL_MEGA:
+            case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
                 choose[1] -= 1
                 raise NotImplementedError
-            case Pack.STANDARD_NORMAL | Pack.STANDARD_JUMBO | Pack.STANDARD_MEGA:
+            case Pack.STANDARD | Pack.JUMBO_STANDARD | Pack.MEGA_STANDARD:
                 raise NotImplementedError
 
     def _populate_shop(self) -> None:
@@ -925,8 +923,8 @@ class Balatro:
             self.tags.remove(Tag.COUPON)
 
         self.reroll_cost = 5
-        if Tag.D_SIX in self.tags:
-            self.tags.remove(Tag.D_SIX)
+        if Tag.DSIX in self.tags:
+            self.tags.remove(Tag.DSIX)
             self.reroll_cost = 0
 
         self.used_chaos = False
@@ -968,7 +966,7 @@ class Balatro:
             k=2,
         )
         if self.round == 1:
-            self.shop_packs[0] = Pack.BUFFOON_NORMAL
+            self.shop_packs[0] = Pack.BUFFOON
         for i, pack in enumerate(self.shop_packs):
             buy_cost = self._calculate_buy_cost(pack, coupon=coupon)
             self.shop_packs[i] = (pack, buy_cost)
@@ -994,7 +992,7 @@ class Balatro:
             k=(
                 4
                 if Voucher.OVERSTOCK_PLUS in self.vouchers
-                else 3 if Voucher.OVERSTOCK_NORM in self.vouchers else 2
+                else 3 if Voucher.OVERSTOCK in self.vouchers else 2
             ),
         )
         joker_tags_used = 0
@@ -1046,7 +1044,7 @@ class Balatro:
                             tarot in self.consumables
                             or tarot in [card for card, _ in self.shop_cards[:i]]
                         )
-                        and JokerType.RING_MASTER not in self.active_jokers
+                        and JokerType.SHOWMAN not in self.active_jokers
                     ):
                         tarot = r.choice(list(Tarot))
                     consumable = Consumable(tarot)
@@ -1059,7 +1057,7 @@ class Balatro:
                             planet in self.consumables
                             or planet in [card for card, _ in self.shop_cards[:i]]
                         )
-                        and JokerType.RING_MASTER not in self.active_jokers
+                        and JokerType.SHOWMAN not in self.active_jokers
                     ):
                         planet = r.choice(self.unlocked_poker_hands).planet
                     consumable = Consumable(planet)
@@ -1072,7 +1070,7 @@ class Balatro:
                             spectral in self.consumables
                             or spectral in [card for card, _ in self.shop_cards[:i]]
                         )
-                        and JokerType.RING_MASTER not in self.active_jokers
+                        and JokerType.SHOWMAN not in self.active_jokers
                     ):
                         spectral = r.choice(list(Spectral)[:-2])
                     consumable = Consumable(spectral)
@@ -1225,7 +1223,7 @@ class Balatro:
                         joker.on_lucky_card_triggered()
 
         match scored_card:
-            case Seal.GOLD_SEAL:
+            case Seal.GOLD:
                 self.money += 3
 
         match scored_card:
@@ -1257,7 +1255,7 @@ class Balatro:
                 self.money += 3
 
         match held_card:
-            case Seal.BLUE_SEAL:
+            case Seal.BLUE:
                 if self.effective_consumable_slots > len(self.consumables):
                     self.consumables.append(Consumable(poker_hand_played.planet))
 
@@ -1325,7 +1323,7 @@ class Balatro:
         self.state = State.SELECTING_BLIND
         self._next_blind()
 
-    def play_hand(self, card_indices: list[int], debug_score: bool = False) -> None:
+    def play_hand(self, card_indices: list[int]) -> None:
         assert self.state is State.PLAYING_BLIND
 
         assert 1 <= len(card_indices) <= 5
@@ -1378,7 +1376,7 @@ class Balatro:
             )
 
             match scored_card:
-                case Seal.RED_SEAL:
+                case Seal.RED:
                     self._trigger_scored_card(
                         scored_card,
                         played_cards,
@@ -1406,7 +1404,7 @@ class Balatro:
             self._trigger_held_card(held_card)
 
             match held_card:
-                case Seal.RED_SEAL:
+                case Seal.RED:
                     self._trigger_held_card(held_card)
 
             for joker in self.jokers:
@@ -1544,11 +1542,11 @@ class Balatro:
 
     def skip_blind(self) -> None:
         assert self.state is State.SELECTING_BLIND
-        assert self.blind in [Blind.SMALL, Blind.BIG]
+        assert self.blind in [Blind.SMALL_BLIND, Blind.BIG_BLIND]
 
         self.blinds_skipped += 1
 
-        tag, extra = self.ante_tags[self.blind is Blind.BIG]
+        tag, extra = self.ante_tags[self.blind is Blind.BIG_BLIND]
 
         num_tags = 1
         while tag is not Tag.DOUBLE and Tag.DOUBLE in self.tags:
@@ -1571,7 +1569,7 @@ class Balatro:
                         min(2, self.effective_joker_slots - len(self.jokers))
                     ):
                         self._add_joker(self._get_random_joker(Rarity.COMMON))
-                case Tag.SKIP:
+                case Tag.SPEED:
                     self.money += 5 * self.blinds_skipped
                 case Tag.ORBITAL:
                     self.poker_hand_info[extra][0] += 3
@@ -1613,7 +1611,7 @@ class Balatro:
     def next_reroll(self) -> tuple[int, bool] | None:
         if self.reroll_cost is None:
             return None
-        if not self.used_chaos and JokerType.CHAOS in self.active_jokers:
+        if not self.used_chaos and JokerType.CHAOS_THE_CLOWN in self.active_jokers:
             return 0, True
         return self.reroll_cost, False
 
@@ -1630,8 +1628,6 @@ class Balatro:
         assert number >= 0
         if number >= 1e11:
             return f"{number:.3e}".replace("+", "")
-        if number >= 100:
+        if number >= 100 or number.is_integer():
             return f"{number:,.0f}"
-        if number >= 10:
-            return f"{number:,.0f}" if number.is_integer() else f"{number:,.1f}"
-        return f"{number:,.0f}" if number.is_integer() else f"{number:,.2f}"
+        return f"{number:,.1f}" if number >= 10 else f"{number:,.2f}"

@@ -193,7 +193,7 @@ class GluttonousJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.GLUTTENOUS_JOKER
+        return JokerType.GLUTTONOUS_JOKER
 
 
 @dataclass(eq=False)
@@ -376,7 +376,7 @@ class BusinessCard(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.BUSINESS
+        return JokerType.BUSINESS_CARD
 
 
 @dataclass(eq=False)
@@ -447,7 +447,7 @@ class AncientJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.ANCIENT
+        return JokerType.ANCIENT_JOKER
 
 
 @dataclass(eq=False)
@@ -503,7 +503,7 @@ class SmileyFace(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SMILEY
+        return JokerType.SMILEY_FACE
 
 
 @dataclass(eq=False)
@@ -520,7 +520,7 @@ class GoldenTicket(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.TICKET
+        return JokerType.GOLDEN_TICKET
 
 
 @dataclass(eq=False)
@@ -662,7 +662,7 @@ class TheIdol(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.IDOL
+        return JokerType.THE_IDOL
 
 
 @dataclass(eq=False)
@@ -777,7 +777,7 @@ class JollyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.JOLLY
+        return JokerType.JOLLY_JOKER
 
 
 @dataclass(eq=False)
@@ -793,7 +793,7 @@ class ZanyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.ZANY
+        return JokerType.ZANY_JOKER
 
 
 @dataclass(eq=False)
@@ -809,7 +809,7 @@ class MadJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.MAD
+        return JokerType.MAD_JOKER
 
 
 @dataclass(eq=False)
@@ -825,7 +825,7 @@ class CrazyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CRAZY
+        return JokerType.CRAZY_JOKER
 
 
 @dataclass(eq=False)
@@ -841,7 +841,7 @@ class DrollJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.DROLL
+        return JokerType.DROLL_JOKER
 
 
 @dataclass(eq=False)
@@ -857,7 +857,7 @@ class SlyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SLY
+        return JokerType.SLY_JOKER
 
 
 @dataclass(eq=False)
@@ -873,7 +873,7 @@ class WilyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.WILY
+        return JokerType.WILY_JOKER
 
 
 @dataclass(eq=False)
@@ -889,7 +889,7 @@ class CleverJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CLEVER
+        return JokerType.CLEVER_JOKER
 
 
 @dataclass(eq=False)
@@ -905,7 +905,7 @@ class DeviousJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.DEVIOUS
+        return JokerType.DEVIOUS_JOKER
 
 
 @dataclass(eq=False)
@@ -921,7 +921,7 @@ class CraftyJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CRAFTY
+        return JokerType.CRAFTY_JOKER
 
 
 @dataclass(eq=False)
@@ -937,7 +937,7 @@ class HalfJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.HALF
+        return JokerType.HALF_JOKER
 
 
 @dataclass(eq=False)
@@ -950,11 +950,11 @@ class JokerStencil(Joker):
     ) -> None:
         self._balatro.mult *= (
             self._balatro.effective_joker_slots - len(self._balatro.jokers)
-        ) + self._balatro.jokers.count(JokerType.STENCIL)
+        ) + self._balatro.jokers.count(JokerType.JOKER_STENCIL)
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.STENCIL
+        return JokerType.JOKER_STENCIL
 
 
 @dataclass(eq=False)
@@ -980,7 +980,7 @@ class CeremonialDagger(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CEREMONIAL
+        return JokerType.CEREMONIAL_DAGGER
 
 
 @dataclass(eq=False)
@@ -1086,7 +1086,7 @@ class AbstractJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.ABSTRACT
+        return JokerType.ABSTRACT_JOKER
 
 
 @dataclass(eq=False)
@@ -1456,7 +1456,7 @@ class FlashCard(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.FLASH
+        return JokerType.FLASH_CARD
 
 
 @dataclass(eq=False)
@@ -1571,7 +1571,7 @@ class GlassJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.GLASS
+        return JokerType.GLASS_JOKER
 
 
 @dataclass(eq=False)
@@ -1669,7 +1669,7 @@ class TheDuo(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.DUO
+        return JokerType.THE_DUO
 
 
 @dataclass(eq=False)
@@ -1685,7 +1685,7 @@ class TheTrio(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.TRIO
+        return JokerType.THE_TRIO
 
 
 @dataclass(eq=False)
@@ -1701,7 +1701,7 @@ class TheFamily(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.FAMILY
+        return JokerType.THE_FAMILY
 
 
 @dataclass(eq=False)
@@ -1717,7 +1717,7 @@ class TheOrder(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.ORDER
+        return JokerType.THE_ORDER
 
 
 @dataclass(eq=False)
@@ -1733,7 +1733,7 @@ class TheTribe(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.TRIBE
+        return JokerType.THE_TRIBE
 
 
 @dataclass(eq=False)
@@ -1921,7 +1921,7 @@ class SquareJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SQUARE
+        return JokerType.SQUARE_JOKER
 
 
 @dataclass(eq=False)
@@ -2026,7 +2026,7 @@ class SpareTrousers(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.TROUSERS
+        return JokerType.SPARE_TROUSERS
 
 
 @dataclass(eq=False)
@@ -2112,7 +2112,7 @@ class WeeJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.WEE
+        return JokerType.WEE_JOKER
 
 
 @dataclass(eq=False)
@@ -2179,7 +2179,7 @@ class BaseballCard(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.BASEBALL
+        return JokerType.BASEBALL_CARD
 
 
 # ---- /on-other-jokers ---- #
@@ -2201,7 +2201,7 @@ class FacelessJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.FACELESS
+        return JokerType.FACELESS_JOKER
 
 
 @dataclass(eq=False)
@@ -2229,7 +2229,7 @@ class MailInRebate(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.MAIL
+        return JokerType.MAIL_IN_REBATE
 
 
 @dataclass(eq=False)
@@ -2241,7 +2241,7 @@ class TradingCard(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.TRADING
+        return JokerType.TRADING_CARD
 
 
 @dataclass(eq=False)
@@ -2254,7 +2254,7 @@ class BurntJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.BURNT
+        return JokerType.BURNT_JOKER
 
 
 # ---- /on-discard ---- #
@@ -2285,14 +2285,14 @@ class MarbleJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.MARBLE
+        return JokerType.MARBLE_JOKER
 
 
 @dataclass(eq=False)
 class ChaosTheClown(Joker):
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CHAOS
+        return JokerType.CHAOS_THE_CLOWN
 
 
 @dataclass(eq=False)
@@ -2303,7 +2303,7 @@ class DelayedGratification(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.DELAYED_GRAT
+        return JokerType.DELAYED_GRATIFICATION
 
 
 @dataclass(eq=False)
@@ -2375,7 +2375,7 @@ class CloudNine(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.CLOUD_9
+        return JokerType.CLOUD_NINE
 
 
 @dataclass(eq=False)
@@ -2413,7 +2413,7 @@ class GiftCard(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.GIFT
+        return JokerType.GIFT_CARD
 
 
 @dataclass(eq=False)
@@ -2471,7 +2471,7 @@ class GoldenJoker(Joker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.GOLDEN
+        return JokerType.GOLDEN_JOKER
 
 
 @dataclass(eq=False)
@@ -2515,14 +2515,14 @@ class Certificate(Joker):
 class SmearedJoker(Joker):
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SMEARED
+        return JokerType.SMEARED_JOKER
 
 
 @dataclass(eq=False)
 class Showman(Joker):
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.RING_MASTER
+        return JokerType.SHOWMAN
 
 
 @dataclass(eq=False)
@@ -2536,7 +2536,7 @@ class MerryAndy(Joker):
 class OopsAllSixes(Joker):
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.OOPS
+        return JokerType.OOPS_ALL_SIXES
 
 
 @dataclass(eq=False)
@@ -2557,13 +2557,13 @@ class InvisibleJoker(Joker):
             )
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
-                if duplicated_joker.joker_type is JokerType.INVISIBLE:
+                if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:
                     duplicated_joker.rounds_remaining = 2
             self._balatro._add_joker(duplicated_joker)
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.INVISIBLE
+        return JokerType.INVISIBLE_JOKER
 
 
 @dataclass(eq=False)
