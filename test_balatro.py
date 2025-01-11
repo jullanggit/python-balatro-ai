@@ -621,6 +621,57 @@ test_cases = {
                 "expected": {"round_score": "324"},
             },
         },
+        {
+            "test_name": "test_random_scored_16",
+            "config": {
+                "poker_hand_levels": {"HIGH_CARD": 8},
+                "jokers": [
+                    {"joker_type": "ABSTRACT_JOKER", "edition": Edition.NEGATIVE},
+                    {"joker_type": "CLOUD_NINE", "edition": Edition.FOIL},
+                    {"joker_type": "DNA", "edition": Edition.HOLO},
+                    {
+                        "joker_type": "CONSTELLATION",
+                        "edition": Edition.HOLO,
+                        "xmult": 5.7,
+                    },
+                    {"joker_type": "RAMEN", "edition": Edition.FOIL},
+                    {"joker_type": "CAVENDISH"},
+                ],
+                "hand": [
+                    "KS,debuffed",
+                    "9S,debuffed",
+                    "9S,mult,debuffed",
+                    "9H,lucky,debuffed",
+                    "9C,lucky,debuffed",
+                    "5H,debuffed",
+                    "4H,debuffed",
+                    "3D,debuffed",
+                ],
+                "card_indices": [4],
+                "expected": {"round_score": "275,309"},
+            },
+        },
+        {
+            "test_name": "test_random_scored_17",
+            "config": {
+                "poker_hand_levels": {"FLUSH": 13},
+                "jokers": [
+                    {"joker_type": "PHOTOGRAPH", "edition": Edition.FOIL},
+                    {"joker_type": "SUPERNOVA"},
+                    {"joker_type": "WALKIE_TALKIE", "edition": Edition.NEGATIVE},
+                    {
+                        "joker_type": "VAMPIRE",
+                        "xmult": 8.0,
+                    },
+                    {"joker_type": "MIDAS_MASK", "eternal": True},
+                    {"joker_type": "CONSTELLATION", "xmult": 3.0},
+                ],
+                "hand": ["QS,gold", "TS", "5S", "TH,mult", "8H", "4H", "3H", "QH,gold"],
+                "poker_hand_times_played": {"FLUSH": 50},
+                "card_indices": [3, 4, 5, 6, 7],
+                "expected": {"round_score": "968,256"},
+            },
+        },
     ],
 }
 
@@ -628,6 +679,8 @@ test_cases = {
 for test_type, test_cases in test_cases.items():
     for test_case in test_cases:
         test_name = test_case["test_name"]
+        # if test_name != "test_random_scored_17":
+        #     continue
         test_config = test_case["config"]
         setattr(
             TestBalatro,

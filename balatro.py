@@ -1208,7 +1208,7 @@ class Balatro:
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self.chips += scored_card.base_chips
+        self.chips += scored_card.chips
 
         match scored_card:
             case Enhancement.BONUS:
@@ -1354,6 +1354,8 @@ class Balatro:
         for joker in self.jokers:
             joker.on_hand_played(played_cards, scored_card_indices, poker_hands_played)
 
+        self.poker_hand_info[poker_hands_played[0]][1] += 1
+
         poker_hand_level = self.poker_hand_info[poker_hands_played[0]][0]
         poker_hand_base_chips, poker_hand_base_mult = Balatro.HAND_BASE_SCORE[
             poker_hands_played[0]
@@ -1451,7 +1453,6 @@ class Balatro:
             if self.effective_consumable_slots > len(self.consumables):
                 self.consumables.append(self._get_random_spectral())
 
-        self.poker_hand_info[poker_hands_played[0]][1] += 1
         self.round_poker_hands.add(poker_hands_played[0])
         self.first_hand = False
 

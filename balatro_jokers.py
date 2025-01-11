@@ -704,7 +704,7 @@ class RaisedFist(Joker):
             hand_card for hand_card in self._balatro.hand if not hand_card.is_stone_card
         ]
         if valid_hand_cards and held_card is min(reversed(valid_hand_cards)):
-            self._balatro.mult += held_card.base_chips * 2
+            self._balatro.mult += held_card.chips * 2
 
     @property
     def joker_type(self) -> JokerType:

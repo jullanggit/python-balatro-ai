@@ -476,7 +476,7 @@ class Card:
         return get_sprite(self, False)
 
     @property
-    def base_chips(self) -> int:
+    def chips(self) -> int:
         if self.debuffed:
             return 0
         return (50 if self.is_stone_card else self.rank.chips) + self.bonus_chips
