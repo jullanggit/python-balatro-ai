@@ -35,6 +35,9 @@ class Joker(Sellable, ABC):
                 return not self.debuffed and self.edition is other
         return NotImplemented
 
+    def __str__(self) -> str:
+        return f"{self.joker_type}"
+
     def _repr_png_(self) -> bytes:
         from balatro_resources import get_sprite
 
@@ -310,31 +313,22 @@ class CopyJoker(Joker):
                 return self.copied_joker == other
         return NotImplemented
 
-    def on_blind_selected(self) -> None:
+    def _blind_selected_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._blind_selected_ability()
 
-    def on_boss_defeated(self) -> None:
-        pass
-
-    def on_card_added(self, added_card: Card) -> None:
-        pass
-
-    def on_card_destroyed(self, destroyed_card: Card) -> None:
-        pass
-
-    def on_card_held(self, held_card: Card) -> None:
+    def _card_held_ability(self, held_card: Card) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._card_held_ability(held_card)
 
-    def on_card_held_retriggers(self, held_card: Card) -> int:
+    def _card_held_retriggers(self, held_card: Card) -> int:
         return (
             0
             if self.debuffed or self.copied_joker is None
             else self.copied_joker._card_held_retriggers(held_card)
         )
 
-    def on_card_scored(
+    def _card_scored_ability(
         self,
         scored_card: Card,
         played_cards: list[Card],
@@ -346,7 +340,7 @@ class CopyJoker(Joker):
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
 
-    def on_card_scored_retriggers(
+    def _card_scored_retriggers(
         self,
         scored_card: Card,
         played_cards: list[Card],
@@ -361,21 +355,15 @@ class CopyJoker(Joker):
             )
         )
 
-    def on_dependent(self, other_joker: Joker) -> None:
+    def _dependent_ability(self, other_joker: Joker) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._dependent_ability(other_joker)
 
-    def on_discard(self, discarded_cards: list[Card]) -> None:
+    def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._discard_ability(discarded_cards)
 
-    def on_end_hand(self) -> None:
-        pass
-
-    def on_glass_card_destroyed(self) -> None:
-        pass
-
-    def on_hand_played(
+    def _hand_played_ability(
         self,
         played_cards: list[Card],
         scored_card_indices: list[int],
@@ -386,7 +374,7 @@ class CopyJoker(Joker):
                 played_cards, scored_card_indices, poker_hands_played
             )
 
-    def on_independent(
+    def _independent_ability(
         self,
         played_cards: list[Card],
         scored_card_indices: list[int],
@@ -397,36 +385,21 @@ class CopyJoker(Joker):
                 played_cards, scored_card_indices, poker_hands_played
             )
 
-    def on_item_sold(self) -> None:
-        pass
-
-    def on_lucky_card_triggered(self) -> None:
-        pass
-
-    def on_pack_opened(self) -> None:
+    def _pack_opened_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._pack_opened_ability()
 
-    def on_pack_skipped(self) -> None:
-        pass
-
-    def on_planet_used(self) -> None:
-        pass
-
-    def on_round_ended(self) -> None:
+    def _round_ended_ability(self) -> None:
         # by design - end of round economy jokers aren't copyable
         # if not self.debuffed and self.copied_joker is not None:
         #     self.copied_joker._round_ended_ability()
         pass
 
-    def on_shop_exited(self) -> None:
+    def _shop_exited_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._shop_exited_ability()
 
-    def on_shop_rerolled(self) -> None:
-        pass
-
-    def on_sold(self) -> None:
+    def _sold_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._sold_ability()
 
@@ -494,6 +467,9 @@ class Card:
                 return self.rank < other.rank
         return NotImplemented
 
+    def __str__(self) -> str:
+        return f"{self.rank} of {self.suit}"
+
     def _repr_png_(self) -> bytes:
         from balatro_resources import get_sprite
 
@@ -501,6 +477,8 @@ class Card:
 
     @property
     def base_chips(self) -> int:
+        if self.debuffed:
+            return 0
         return (50 if self.is_stone_card else self.rank.chips) + self.bonus_chips
 
     @property

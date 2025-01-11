@@ -92,32 +92,32 @@ class Balatro:
         Edition.NEGATIVE: 5,
     }
     HAND_BASE_SCORE = {
-        PokerHand.FLUSH_FIVE: [160, 16],
-        PokerHand.FLUSH_HOUSE: [140, 14],
-        PokerHand.FIVE_OF_A_KIND: [120, 12],
-        PokerHand.STRAIGHT_FLUSH: [100, 8],
-        PokerHand.FOUR_OF_A_KIND: [60, 7],
-        PokerHand.FULL_HOUSE: [40, 4],
-        PokerHand.FLUSH: [35, 4],
-        PokerHand.STRAIGHT: [30, 4],
-        PokerHand.THREE_OF_A_KIND: [30, 3],
-        PokerHand.TWO_PAIR: [20, 2],
-        PokerHand.PAIR: [10, 2],
-        PokerHand.HIGH_CARD: [5, 1],
+        PokerHand.FLUSH_FIVE: [160, 16.0],
+        PokerHand.FLUSH_HOUSE: [140, 14.0],
+        PokerHand.FIVE_OF_A_KIND: [120, 12.0],
+        PokerHand.STRAIGHT_FLUSH: [100, 8.0],
+        PokerHand.FOUR_OF_A_KIND: [60, 7.0],
+        PokerHand.FULL_HOUSE: [40, 4.0],
+        PokerHand.FLUSH: [35, 4.0],
+        PokerHand.STRAIGHT: [30, 4.0],
+        PokerHand.THREE_OF_A_KIND: [30, 3.0],
+        PokerHand.TWO_PAIR: [20, 2.0],
+        PokerHand.PAIR: [10, 2.0],
+        PokerHand.HIGH_CARD: [5, 1.0],
     }
     HAND_SCALING = {
-        PokerHand.FLUSH_FIVE: [50, 3],
-        PokerHand.FLUSH_HOUSE: [40, 4],
-        PokerHand.FIVE_OF_A_KIND: [35, 3],
-        PokerHand.STRAIGHT_FLUSH: [40, 4],
-        PokerHand.FOUR_OF_A_KIND: [30, 3],
-        PokerHand.FULL_HOUSE: [25, 2],
-        PokerHand.FLUSH: [15, 2],
-        PokerHand.STRAIGHT: [30, 3],
-        PokerHand.THREE_OF_A_KIND: [20, 2],
-        PokerHand.TWO_PAIR: [20, 1],
-        PokerHand.PAIR: [15, 1],
-        PokerHand.HIGH_CARD: [10, 1],
+        PokerHand.FLUSH_FIVE: [50, 3.0],
+        PokerHand.FLUSH_HOUSE: [40, 4.0],
+        PokerHand.FIVE_OF_A_KIND: [35, 3.0],
+        PokerHand.STRAIGHT_FLUSH: [40, 4.0],
+        PokerHand.FOUR_OF_A_KIND: [30, 3.0],
+        PokerHand.FULL_HOUSE: [25, 2.0],
+        PokerHand.FLUSH: [15, 2.0],
+        PokerHand.STRAIGHT: [30, 3.0],
+        PokerHand.THREE_OF_A_KIND: [20, 2.0],
+        PokerHand.TWO_PAIR: [20, 1.0],
+        PokerHand.PAIR: [15, 1.0],
+        PokerHand.HIGH_CARD: [10, 1.0],
     }
     JOKER_BASE_COSTS = {
         JokerType.JOKER: 2,
@@ -516,7 +516,8 @@ class Balatro:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
-        return None  # TODO: remove
+        if True:
+            return None  # TODO: remove
         raise NotImplementedError
         for joker in self.jokers:
             joker.on_card_added(card)
@@ -738,7 +739,8 @@ class Balatro:
             if n >= 2:  # pair
                 if (
                     PokerHand.THREE_OF_A_KIND in poker_hands
-                    and played_cards[poker_hands[PokerHand.THREE_OF_A_KIND][0]] != rank
+                    and played_cards[poker_hands[PokerHand.THREE_OF_A_KIND][0]].rank
+                    is not rank
                 ):  # full house
                     poker_hands[PokerHand.FULL_HOUSE] = [0, 1, 2, 3, 4]
                     if PokerHand.FLUSH in poker_hands:  # flush house
@@ -1209,9 +1211,11 @@ class Balatro:
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
+        state_before = (self.chips, self.mult)
+
         self.chips += scored_card.base_chips
 
-        match scored_card.enhancement:
+        match scored_card:
             case Enhancement.BONUS:
                 self.chips += 30
             case Enhancement.MULT:
@@ -1223,11 +1227,11 @@ class Balatro:
                     for joker in self.jokers:
                         joker.on_lucky_card_triggered()
 
-        match scored_card.seal:
+        match scored_card:
             case Seal.GOLD_SEAL:
                 self.money += 3
 
-        match scored_card.edition:
+        match scored_card:
             case Edition.FOIL:
                 self.chips += 50
             case Edition.HOLO:
@@ -1235,29 +1239,52 @@ class Balatro:
             case Edition.POLYCHROME:
                 self.mult *= 1.5
 
-        print(self.chips, self.mult)
+        if state_before != (self.chips, self.mult):
+            print(f"Scored {scored_card}")
+            print(
+                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+            )
+
         for joker in self.jokers:
+            state_before = (self.chips, self.mult)
             joker.on_card_scored(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
-        print(self.chips, self.mult)
+            if state_before != (self.chips, self.mult):
+                print(f"On-card-scored {joker}")
+                print(
+                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+                )
 
     def _trigger_held_card(self, held_card: Card) -> None:
-        match held_card.enhancement:
-            case Enhancement.GOLD:
+        state_before = (self.chips, self.mult)
+        match held_card:
+            case Enhancement.STEEL:
                 self.mult *= 1.5
 
+        if state_before != (self.chips, self.mult):
+            print(f"Held {held_card}")
+            print(
+                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+            )
+
         for joker in self.jokers:
+            state_before = (self.chips, self.mult)
             joker.on_card_held(held_card)
+            if state_before != (self.chips, self.mult):
+                print(f"On-card-held {joker}")
+                print(
+                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+                )
 
     def _trigger_held_card_round_end(
         self, held_card: Card, poker_hand_played: PokerHand
     ) -> None:
-        match held_card.enhancement:
+        match held_card:
             case Enhancement.GOLD:
                 self.money += 3
 
-        match held_card.seal:
+        match held_card:
             case Seal.BLUE_SEAL:
                 if self.effective_consumable_slots > len(self.consumables):
                     self.consumables.append(Consumable(poker_hand_played.planet))
@@ -1326,7 +1353,7 @@ class Balatro:
         self.state = State.SELECTING_BLIND
         self._next_blind()
 
-    def play_hand(self, card_indices: list[int]) -> None:
+    def play_hand(self, card_indices: list[int], debug_score: bool = False) -> None:
         assert self.state is State.PLAYING_BLIND
 
         assert 1 <= len(card_indices) <= 5
@@ -1370,7 +1397,12 @@ class Balatro:
         )
         self.chips = poker_hand_chips
         self.mult = poker_hand_mult
-        print(self.chips, self.mult)
+
+        if True:
+            print(f"Scored hand {poker_hands_played[0]}")
+            print(
+                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+            )
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
@@ -1379,8 +1411,11 @@ class Balatro:
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
 
-            match scored_card.seal:
+            match scored_card:
                 case Seal.RED_SEAL:
+                    if True:
+                        print(f"Retriggered by Red Seal")
+
                     self._trigger_scored_card(
                         scored_card,
                         played_cards,
@@ -1397,6 +1432,9 @@ class Balatro:
                         poker_hands_played,
                     )
                 ):
+                    if True:
+                        print(f"Retriggered by {joker}")
+
                     self._trigger_scored_card(
                         scored_card,
                         played_cards,
@@ -1407,27 +1445,45 @@ class Balatro:
         for held_card in self.hand:
             self._trigger_held_card(held_card)
 
-            match held_card.seal:
+            match held_card:
                 case Seal.RED_SEAL:
+                    if True:
+                        print(f"Retriggered by Red Seal")
+
                     self._trigger_held_card(held_card)
 
             for joker in self.jokers:
                 for _ in range(joker.on_card_held_retriggers(held_card)):
+                    if True:
+                        print(f"Retriggered by {joker}")
+
                     self._trigger_held_card(held_card)
 
         for joker in self.jokers:
-            match joker.edition:
+            match joker:
                 case Edition.FOIL:
                     self.chips += 50
                 case Edition.HOLO:
                     self.mult += 10
 
+            state_before = (self.chips, self.mult)
             joker.on_independent(played_cards, scored_card_indices, poker_hands_played)
+            if state_before != (self.chips, self.mult):
+                print(f"Independent {joker}")
+                print(
+                    f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+                )
 
             for other_joker in self.jokers:
+                state_before = (self.chips, self.mult)
                 other_joker.on_dependent(joker)
+                if state_before != (self.chips, self.mult):
+                    print(f"Dependent {joker}")
+                    print(
+                        f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+                    )
 
-            match joker.edition:
+            match joker:
                 case Edition.POLYCHROME:
                     self.mult *= 1.5
 
@@ -1436,11 +1492,17 @@ class Balatro:
                 if consumable.consumable_type is poker_hands_played[0].planet:
                     self.mult *= 1.5
 
-        score = (
+        score = int(
             ((self.chips + self.mult) // 2) ** 2
             if self.deck is Deck.PLASMA
-            else int(self.chips * self.mult)
+            else self.chips * self.mult
         )
+        if True:
+            print(f"Final score")
+            print(
+                f"{Balatro.format_number(self.chips)} X {Balatro.format_number(self.mult)}"
+            )
+            print(f"={Balatro.format_number(score)}")
         self.round_score += score
 
         # un-debuff cards
@@ -1626,3 +1688,14 @@ class Balatro:
             for i, poker_hand in enumerate(PokerHand)
             if i > 2 or self.poker_hand_info[poker_hand][1] > 0
         ]
+
+    @staticmethod
+    def format_number(number: float) -> str:
+        assert number >= 0
+        if number >= 1e11:
+            return f"{number:.3e}".replace("+", "")
+        if number >= 100:
+            return f"{number:,.0f}"
+        if number >= 10:
+            return f"{number:,.0f}" if number.is_integer() else f"{number:,.1f}"
+        return f"{number:,.0f}" if number.is_integer() else f"{number:,.2f}"
