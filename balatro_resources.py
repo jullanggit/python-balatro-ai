@@ -64,6 +64,35 @@ CONSUMABLE_COORDINATES = {
     Spectral.MEDIUM: [5, 4],
     Spectral.CRYPTID: [5, 5],
 }
+ENHANCER_COORDINATES = {
+    Deck.RED: [0, 0],
+    Seal.GOLD: [0, 2],
+    Deck.NEBULA: [0, 3],
+    Enhancement.STONE: [0, 5],
+    Enhancement.GOLD: [0, 6],
+    Enhancement.BONUS: [1, 1],
+    Enhancement.MULT: [1, 2],
+    Enhancement.WILD: [1, 3],
+    Enhancement.LUCKY: [1, 4],
+    Enhancement.GLASS: [1, 5],
+    Enhancement.STEEL: [1, 6],
+    Deck.BLUE: [2, 0],
+    Deck.YELLOW: [2, 1],
+    Deck.GREEN: [2, 2],
+    Deck.BLACK: [2, 3],
+    Deck.PLASMA: [2, 4],
+    Deck.GHOST: [2, 6],
+    Deck.MAGIC: [3, 0],
+    Deck.CHECKERED: [3, 1],
+    Deck.ERRATIC: [3, 2],
+    Deck.ABANDONED: [3, 3],
+    Deck.PAINTED: [3, 4],
+    Deck.ANAGLYPH: [4, 2],
+    Deck.ZODIAC: [4, 3],
+    Seal.PURPLE: [4, 4],
+    Seal.RED: [4, 5],
+    Seal.BLUE: [4, 6],
+}
 JOKER_COORDINATES = {
     JokerType.JOKER: [0, 0],
     JokerType.CHAOS_THE_CLOWN: [0, 1],
@@ -232,6 +261,8 @@ PACK_COORDINATES = {
     Pack.JUMBO_BUFFOON: [[8, 2]],
     Pack.MEGA_BUFFOON: [[8, 3]],
 }
+RANK_COLUMNS = {rank: i for i, rank in enumerate(reversed(Rank))}
+SUIT_ROWS = {Suit.HEARTS: 0, Suit.CLUBS: 1, Suit.DIAMONDS: 2, Suit.SPADES: 3}
 VOUCHER_COORDINATES = {
     Voucher.OVERSTOCK: [0, 0],
     Voucher.TAROT_MERCHANT: [0, 1],
@@ -710,6 +741,9 @@ def get_sprite(
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     face_sprite = joker_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, face_sprite)
+
+            if item.debuffed:
+                raise NotImplementedError
         case Consumable():
             consumable_sheet = Image.open("resources/textures/Tarots.png")
 
@@ -723,6 +757,40 @@ def get_sprite(
             )
 
             if item.card is Spectral.THE_SOUL:
+                enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+                i, j = 1, 0
+                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                soul_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(sprite, soul_sprite)
+        case Card():
+            deck_sheet = Image.open("resources/textures/8BitDeck.png")
+            enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+
+            i, j = ENHANCER_COORDINATES.get(item.enhancement, (0, 1))
+            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            back_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
+
+            if not item.is_stone_card:
+                i, j = SUIT_ROWS[item.suit], RANK_COLUMNS[item.rank]
+                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                card_sprite = deck_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(back_sprite, card_sprite)
+            else:
+                sprite = back_sprite
+
+            sprite = _apply_edition(sprite, item.edition)
+
+            if item.seal is not None:
+                i, j = ENHANCER_COORDINATES[item.seal]
+                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                seal_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(sprite, seal_sprite)
+
+            if item.debuffed:
                 raise NotImplementedError
         case Voucher():
             voucher_sheet = Image.open("resources/textures/Vouchers.png")
@@ -731,10 +799,18 @@ def get_sprite(
             x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
             x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
             sprite = voucher_sheet.crop((x1, y1, x2, y2))
+        case Deck():
+            enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+
+            i, j = ENHANCER_COORDINATES[item]
+            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            sprite = enhancers_sheet.crop((x1, y1, x2, y2))
         case Pack():
             pack_sheet = Image.open("resources/textures/boosters.png")
 
-            i, j = r.choice(PACK_COORDINATES[item])
+            # i, j = r.choice(PACK_COORDINATES[item])
+            i, j = PACK_COORDINATES[item][0]
             x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
             x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
             sprite = pack_sheet.crop((x1, y1, x2, y2))

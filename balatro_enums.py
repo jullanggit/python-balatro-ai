@@ -371,6 +371,11 @@ class Deck(Enum):
     ERRATIC = "Erratic"
     CHALLENGE = "Challenge"
 
+    def _repr_png_(self) -> bytes:
+        from balatro_resources import get_sprite
+
+        return get_sprite(self, False)
+
     @property
     def starting_size(self) -> int:
         return 40 if self is Deck.ABANDONED else 52

@@ -460,27 +460,6 @@ class Balatro:
             case Deck.ERRATIC:
                 self.deck_cards = [self._get_random_card() for _ in range(52)]
 
-        self.ante_tags: list[
-            tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
-        ] = [None, None]
-        for i in range(2):
-            while (
-                self.ante_tags[i] is None
-                or self.ante == 1
-                and self.ante_tags[i][0] in Balatro.PROHIBITED_ANTE_1_TAGS
-            ):
-                tag = r.choice(list(Tag))
-                extra = None
-
-                if tag is Tag.ORBITAL:
-                    extra = r.choice(self.unlocked_poker_hands)
-
-                self.ante_tags[i] = (tag, extra)
-
-        self._random_final_blind()
-
-        self.blind: Blind = Blind.SMALL_BLIND
-
         self.played_hands: int = 0
         self.first_hand: bool | None = None
         self.first_discard: bool | None = None
@@ -505,6 +484,8 @@ class Balatro:
         self.shop_packs: list[Pack] | None = None
         self.planet_cards_used: set[Planet] = set()
         self.gros_michel_destroyed: bool = False
+
+        self._new_ante()
 
         self.state: State = State.SELECTING_BLIND
 
@@ -639,6 +620,9 @@ class Balatro:
                 for _ in range(joker.on_card_held_retriggers(held_card)):
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
+        for deck_card in self.deck_cards:
+            deck_card.debuffed = False
+
         interest_amt = (
             0
             if self.deck is Deck.GREEN
@@ -670,6 +654,8 @@ class Balatro:
         self.first_hand = None
         self.first_discard = None
         self.round_poker_hands = None
+
+        self._next_blind()
 
         self._populate_shop()
         self.state = State.IN_SHOP
@@ -928,6 +914,28 @@ class Balatro:
             triggered = True
         return triggered
 
+    def _new_ante(self) -> None:
+        self.ante_tags: list[
+            tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
+        ] = [None, None]
+        for i in range(2):
+            while (
+                self.ante_tags[i] is None
+                or self.ante == 1
+                and self.ante_tags[i][0] in Balatro.PROHIBITED_ANTE_1_TAGS
+            ):
+                tag = r.choice(list(Tag))
+                extra = None
+
+                if tag is Tag.ORBITAL:
+                    extra = r.choice(self.unlocked_poker_hands)
+
+                self.ante_tags[i] = (tag, extra)
+
+        self._random_final_blind()
+
+        self.blind: Blind = Blind.SMALL_BLIND
+
     def _next_blind(self) -> None:
         match self.blind:
             case Blind.SMALL_BLIND:
@@ -935,7 +943,7 @@ class Balatro:
             case Blind.BIG_BLIND:
                 self.blind = self.final_blind
             case _:
-                raise NotImplementedError
+                self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
         if pack.name.startswith("MEGA"):
@@ -1333,7 +1341,6 @@ class Balatro:
         self.shop_packs = None
 
         self.state = State.SELECTING_BLIND
-        self._next_blind()
 
     def play_hand(self, card_indices: list[int]) -> None:
         assert self.state is State.PLAYING_BLIND
@@ -1454,8 +1461,6 @@ class Balatro:
         )
         self.round_score += score
 
-        # TODO: un-debuff cards
-
         if (
             JokerType.SIXTH_SENSE in self.active_jokers
             and self.first_hand
@@ -1485,14 +1490,28 @@ class Balatro:
             self._end_round(poker_hands_played[0])
             return
 
-        if self.hands == 0:
+        if self.hands == 0:  # game over
             if self.chips >= self.round_goal // 4:
                 for joker in self.active_jokers:
-                    if joker.joker_type is JokerType.MR_BONES:
+                    if joker.joker_type is JokerType.MR_BONES:  # saved by mr. bones
                         self._destroy_joker(joker)
                         self._end_round(poker_hands_played[0], saved=True)
                         return
-            # TODO
+
+            self.round_score = None
+            self.round_goal = None
+            self.hands = None
+            self.unused_discards += self.discards
+            self.discards = None
+            self.hand_size = None
+            self.hand = None
+            self.deck_cards_left = None
+            self.chips = None
+            self.mult = None
+            self.first_hand = None
+            self.first_discard = None
+            self.round_poker_hands = None
+
             self.state = State.GAME_OVER
         else:
             self._deal()
