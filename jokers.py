@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field, replace
 import random as r
 
-from balatro_classes import *
-from balatro_enums import *
+from classes import *
+from enums import *
 
 
 # ---- copiers/ ---- #
@@ -753,7 +753,7 @@ class ShootTheMoon(BaseJoker):
 
 
 @dataclass(eq=False)
-class Jimbo(BaseJoker):
+class Joker(BaseJoker):
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -2171,7 +2171,7 @@ class Yorick(BaseJoker):
 @dataclass(eq=False)
 class BaseballCard(BaseJoker):
     def _dependent_ability(self, other_joker: BaseJoker) -> None:
-        from balatro_constants import JOKER_TYPE_RARITIES
+        from constants import JOKER_TYPE_RARITIES
 
         if other_joker in JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
             self._run.mult *= 1.5

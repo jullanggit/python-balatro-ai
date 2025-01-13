@@ -1,5 +1,5 @@
-from balatro_enums import *
-from balatro_jokers import *
+from enums import *
+from jokers import *
 
 JOKER_TYPE_RARITIES = {
     Rarity.COMMON: list(JokerType)[:61],
@@ -48,7 +48,7 @@ JOKER_CLASSES = {
     JokerType.BARON: Baron,
     JokerType.RESERVED_PARKING: ReservedParking,
     JokerType.SHOOT_THE_MOON: ShootTheMoon,
-    JokerType.JOKER: Jimbo,
+    JokerType.JOKER: Joker,
     JokerType.JOLLY_JOKER: JollyJoker,
     JokerType.ZANY_JOKER: ZanyJoker,
     JokerType.MAD_JOKER: MadJoker,

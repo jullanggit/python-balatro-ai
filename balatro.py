@@ -3,10 +3,10 @@ import base64
 from collections import Counter
 import random as r
 
-from balatro_constants import *
-from balatro_classes import *
-from balatro_enums import *
-from balatro_jokers import *
+from constants import *
+from classes import *
+from enums import *
+from jokers import *
 
 
 class Run:

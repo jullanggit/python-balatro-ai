@@ -197,7 +197,7 @@ class Voucher(Enum):
     PALETTE = "Palette"
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 
@@ -376,7 +376,7 @@ class Deck(Enum):
     CHALLENGE = "Challenge"
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 
@@ -410,7 +410,7 @@ class Pack(Enum):
     MEGA_BUFFOON = "Mega Buffoon"
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 

@@ -5,8 +5,8 @@ import math
 from PIL import Image
 import random as r
 
-from balatro_classes import *
-from balatro_enums import *
+from classes import *
+from enums import *
 
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 142, 190
 

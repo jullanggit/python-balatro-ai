@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from balatro import Run
 
-from balatro_enums import *
+from enums import *
 
 
 @dataclass
@@ -41,7 +41,7 @@ class BaseJoker(Sellable, ABC):
         return f"{self.joker_type}"
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 
@@ -425,7 +425,7 @@ class Consumable(Sellable):
         return NotImplemented
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 
@@ -473,7 +473,7 @@ class Card:
         return f"{self.rank} of {self.suit}"
 
     def _repr_png_(self) -> bytes:
-        from balatro_resources import get_sprite
+        from sprites import get_sprite
 
         return get_sprite(self, False)
 
