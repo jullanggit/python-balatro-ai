@@ -10,374 +10,6 @@ from jokers import *
 
 
 class Run:
-    ANTE_BASE_CHIPS = [
-        100,
-        300,
-        800,
-        2000,
-        5000,
-        11000,
-        20000,
-        35000,
-        50000,
-        110000,
-        560000,
-        7200000,
-        300000000,
-        47000000000,
-        2.9e13,
-        7.7e16,
-        8.6e20,
-        4.2e25,
-        9.2e30,
-        9.2e36,
-        4.3e43,
-        9.7e50,
-        1.0e59,
-        5.8e67,
-        1.6e77,
-        2.4e87,
-        1.9e98,
-        8.4e109,
-        2.0e122,
-        2.7e135,
-        2.1e149,
-        9.9e163,
-        2.7e179,
-        4.4e195,
-        4.4e212,
-        2.8e230,
-        1.1e249,
-        2.7e268,
-        4.5e288,
-        4.8e309,
-    ]
-    BLIND_INFO = {
-        Blind.SMALL_BLIND: [1, 1, 3],
-        Blind.BIG_BLIND: [1, 1.5, 4],
-        Blind.THE_HOOK: [1, 2, 5],
-        Blind.THE_CLUB: [1, 2, 5],
-        Blind.THE_PSYCHIC: [1, 2, 5],
-        Blind.THE_GOAD: [1, 2, 5],
-        Blind.THE_WINDOW: [1, 2, 5],
-        Blind.THE_MANACLE: [1, 2, 5],
-        Blind.THE_PILLAR: [1, 2, 5],
-        Blind.THE_HEAD: [1, 2, 5],
-        Blind.THE_HOUSE: [2, 2, 5],
-        Blind.THE_WALL: [2, 4, 5],
-        Blind.THE_WHEEL: [2, 2, 5],
-        Blind.THE_ARM: [2, 2, 5],
-        Blind.THE_FISH: [2, 2, 5],
-        Blind.THE_WATER: [2, 2, 5],
-        Blind.THE_MOUTH: [2, 2, 5],
-        Blind.THE_NEEDLE: [2, 1, 5],
-        Blind.THE_FLINT: [2, 2, 5],
-        Blind.THE_MARK: [2, 2, 5],
-        Blind.THE_EYE: [3, 2, 5],
-        Blind.THE_TOOTH: [3, 2, 5],
-        Blind.THE_PLANT: [4, 2, 5],
-        Blind.THE_SERPENT: [5, 2, 5],
-        Blind.THE_OX: [6, 2, 5],
-        Blind.AMBER_ACORN: [8, 2, 8],
-        Blind.VERDANT_LEAF: [8, 2, 8],
-        Blind.VIOLET_VESSEL: [8, 6, 8],
-        Blind.CRIMSON_HEART: [8, 2, 8],
-        Blind.CERULEAN_BELL: [8, 2, 8],
-    }
-    EDITION_COSTS = {
-        Edition.BASE: 0,
-        Edition.FOIL: 2,
-        Edition.HOLO: 3,
-        Edition.POLYCHROME: 5,
-        Edition.NEGATIVE: 5,
-    }
-    HAND_BASE_SCORE = {
-        PokerHand.FLUSH_FIVE: [160, 16.0],
-        PokerHand.FLUSH_HOUSE: [140, 14.0],
-        PokerHand.FIVE_OF_A_KIND: [120, 12.0],
-        PokerHand.STRAIGHT_FLUSH: [100, 8.0],
-        PokerHand.FOUR_OF_A_KIND: [60, 7.0],
-        PokerHand.FULL_HOUSE: [40, 4.0],
-        PokerHand.FLUSH: [35, 4.0],
-        PokerHand.STRAIGHT: [30, 4.0],
-        PokerHand.THREE_OF_A_KIND: [30, 3.0],
-        PokerHand.TWO_PAIR: [20, 2.0],
-        PokerHand.PAIR: [10, 2.0],
-        PokerHand.HIGH_CARD: [5, 1.0],
-    }
-    HAND_SCALING = {
-        PokerHand.FLUSH_FIVE: [50, 3.0],
-        PokerHand.FLUSH_HOUSE: [40, 4.0],
-        PokerHand.FIVE_OF_A_KIND: [35, 3.0],
-        PokerHand.STRAIGHT_FLUSH: [40, 4.0],
-        PokerHand.FOUR_OF_A_KIND: [30, 3.0],
-        PokerHand.FULL_HOUSE: [25, 2.0],
-        PokerHand.FLUSH: [15, 2.0],
-        PokerHand.STRAIGHT: [30, 3.0],
-        PokerHand.THREE_OF_A_KIND: [20, 2.0],
-        PokerHand.TWO_PAIR: [20, 1.0],
-        PokerHand.PAIR: [15, 1.0],
-        PokerHand.HIGH_CARD: [10, 1.0],
-    }
-    JOKER_BASE_COSTS = {
-        JokerType.JOKER: 2,
-        JokerType.GREEDY_JOKER: 5,
-        JokerType.LUSTY_JOKER: 5,
-        JokerType.WRATHFUL_JOKER: 5,
-        JokerType.GLUTTONOUS_JOKER: 5,
-        JokerType.JOLLY_JOKER: 3,
-        JokerType.ZANY_JOKER: 4,
-        JokerType.MAD_JOKER: 4,
-        JokerType.CRAZY_JOKER: 4,
-        JokerType.DROLL_JOKER: 4,
-        JokerType.SLY_JOKER: 3,
-        JokerType.WILY_JOKER: 4,
-        JokerType.CLEVER_JOKER: 4,
-        JokerType.DEVIOUS_JOKER: 4,
-        JokerType.CRAFTY_JOKER: 4,
-        JokerType.HALF_JOKER: 5,
-        JokerType.CREDIT_CARD: 1,
-        JokerType.BANNER: 5,
-        JokerType.MYSTIC_SUMMIT: 5,
-        JokerType.EIGHT_BALL: 5,
-        JokerType.MISPRINT: 4,
-        JokerType.RAISED_FIST: 5,
-        JokerType.CHAOS_THE_CLOWN: 4,
-        JokerType.SCARY_FACE: 4,
-        JokerType.ABSTRACT_JOKER: 4,
-        JokerType.DELAYED_GRATIFICATION: 4,
-        JokerType.GROS_MICHEL: 5,
-        JokerType.EVEN_STEVEN: 4,
-        JokerType.ODD_TODD: 4,
-        JokerType.SCHOLAR: 4,
-        JokerType.BUSINESS_CARD: 4,
-        JokerType.SUPERNOVA: 5,
-        JokerType.RIDE_THE_BUS: 6,
-        JokerType.EGG: 4,
-        JokerType.RUNNER: 5,
-        JokerType.ICE_CREAM: 5,
-        JokerType.SPLASH: 3,
-        JokerType.BLUE_JOKER: 5,
-        JokerType.FACELESS_JOKER: 4,
-        JokerType.GREEN_JOKER: 4,
-        JokerType.SUPERPOSITION: 4,
-        JokerType.TODO_LIST: 4,
-        JokerType.CAVENDISH: 4,
-        JokerType.RED_CARD: 5,
-        JokerType.SQUARE_JOKER: 4,
-        JokerType.RIFF_RAFF: 6,
-        JokerType.PHOTOGRAPH: 5,
-        JokerType.RESERVED_PARKING: 6,
-        JokerType.MAIL_IN_REBATE: 4,
-        JokerType.HALLUCINATION: 4,
-        JokerType.FORTUNE_TELLER: 6,
-        JokerType.JUGGLER: 4,
-        JokerType.DRUNKARD: 4,
-        JokerType.GOLDEN_JOKER: 6,
-        JokerType.POPCORN: 5,
-        JokerType.WALKIE_TALKIE: 4,
-        JokerType.SMILEY_FACE: 4,
-        JokerType.GOLDEN_TICKET: 5,
-        JokerType.SWASHBUCKLER: 4,
-        JokerType.HANGING_CHAD: 4,
-        JokerType.SHOOT_THE_MOON: 5,
-        JokerType.JOKER_STENCIL: 8,
-        JokerType.FOUR_FINGERS: 7,
-        JokerType.MIME: 5,
-        JokerType.CEREMONIAL_DAGGER: 6,
-        JokerType.MARBLE_JOKER: 6,
-        JokerType.LOYALTY_CARD: 5,
-        JokerType.DUSK: 5,
-        JokerType.FIBONACCI: 8,
-        JokerType.STEEL_JOKER: 7,
-        JokerType.HACK: 6,
-        JokerType.PAREIDOLIA: 5,
-        JokerType.SPACE: 5,
-        JokerType.BURGLAR: 6,
-        JokerType.BLACKBOARD: 6,
-        JokerType.SIXTH_SENSE: 6,
-        JokerType.CONSTELLATION: 6,
-        JokerType.HIKER: 5,
-        JokerType.CARD_SHARP: 6,
-        JokerType.MADNESS: 7,
-        JokerType.SEANCE: 6,
-        JokerType.VAMPIRE: 7,
-        JokerType.SHORTCUT: 7,
-        JokerType.HOLOGRAM: 7,
-        JokerType.CLOUD_NINE: 7,
-        JokerType.ROCKET: 6,
-        JokerType.MIDAS_MASK: 7,
-        JokerType.LUCHADOR: 5,
-        JokerType.GIFT_CARD: 6,
-        JokerType.TURTLE_BEAN: 6,
-        JokerType.EROSION: 6,
-        JokerType.TO_THE_MOON: 5,
-        JokerType.STONE: 6,
-        JokerType.LUCKY_CAT: 6,
-        JokerType.BULL: 6,
-        JokerType.DIET_COLA: 6,
-        JokerType.TRADING_CARD: 6,
-        JokerType.FLASH_CARD: 5,
-        JokerType.SPARE_TROUSERS: 6,
-        JokerType.RAMEN: 6,
-        JokerType.SELTZER: 6,
-        JokerType.CASTLE: 6,
-        JokerType.MR_BONES: 5,
-        JokerType.ACROBAT: 6,
-        JokerType.SOCK_AND_BUSKIN: 6,
-        JokerType.TROUBADOUR: 6,
-        JokerType.CERTIFICATE: 6,
-        JokerType.SMEARED_JOKER: 7,
-        JokerType.THROWBACK: 6,
-        JokerType.ROUGH_GEM: 7,
-        JokerType.BLOODSTONE: 7,
-        JokerType.ARROWHEAD: 7,
-        JokerType.ONYX_AGATE: 7,
-        JokerType.GLASS_JOKER: 6,
-        JokerType.SHOWMAN: 5,
-        JokerType.FLOWER_POT: 6,
-        JokerType.MERRY_ANDY: 7,
-        JokerType.OOPS_ALL_SIXES: 4,
-        JokerType.THE_IDOL: 6,
-        JokerType.SEEING_DOUBLE: 6,
-        JokerType.MATADOR: 7,
-        JokerType.SATELLITE: 6,
-        JokerType.CARTOMANCER: 6,
-        JokerType.ASTRONOMER: 8,
-        JokerType.BOOTSTRAPS: 7,
-        JokerType.DNA: 8,
-        JokerType.VAGABOND: 8,
-        JokerType.BARON: 8,
-        JokerType.OBELISK: 8,
-        JokerType.BASEBALL_CARD: 8,
-        JokerType.ANCIENT_JOKER: 8,
-        JokerType.CAMPFIRE: 9,
-        JokerType.BLUEPRINT: 10,
-        JokerType.WEE_JOKER: 8,
-        JokerType.HIT_THE_ROAD: 8,
-        JokerType.THE_DUO: 8,
-        JokerType.THE_TRIO: 8,
-        JokerType.THE_FAMILY: 8,
-        JokerType.THE_ORDER: 8,
-        JokerType.THE_TRIBE: 8,
-        JokerType.STUNTMAN: 7,
-        JokerType.INVISIBLE_JOKER: 8,
-        JokerType.BRAINSTORM: 10,
-        JokerType.DRIVERS_LICENSE: 7,
-        JokerType.BURNT_JOKER: 8,
-        JokerType.CANIO: 20,
-        JokerType.TRIBOULET: 20,
-        JokerType.YORICK: 20,
-        JokerType.CHICOT: 20,
-        JokerType.PERKEO: 20,
-    }
-    JOKER_BASE_EDITION_CHANCES = {
-        Edition.BASE: 96,
-        Edition.NEGATIVE: 0.3,
-        Edition.POLYCHROME: 0.3,
-        Edition.HOLO: 1.4,
-        Edition.FOIL: 2,
-    }
-    JOKER_BASE_EDITION_CHANCES_HONE = {
-        Edition.BASE: 92,
-        Edition.NEGATIVE: 0.3,
-        Edition.POLYCHROME: 0.9,
-        Edition.HOLO: 2.8,
-        Edition.FOIL: 4,
-    }
-    JOKER_BASE_EDITION_CHANCES_GLOW_UP = {
-        Edition.BASE: 84,
-        Edition.NEGATIVE: 0.3,
-        Edition.POLYCHROME: 2.1,
-        Edition.HOLO: 5.6,
-        Edition.FOIL: 8,
-    }
-    JOKER_BASE_RARITY_WEIGHTS = {Rarity.COMMON: 70, Rarity.UNCOMMON: 25, Rarity.RARE: 5}
-    NON_ETERNAL_JOKERS = {
-        JokerType.GROS_MICHEL,
-        JokerType.ICE_CREAM,
-        JokerType.CAVENDISH,
-        JokerType.POPCORN,
-        JokerType.LUCHADOR,
-        JokerType.TURTLE_BEAN,
-        JokerType.DIET_COLA,
-        JokerType.RAMEN,
-        JokerType.SELTZER,
-        JokerType.MR_BONES,
-        JokerType.INVISIBLE_JOKER,
-    }
-    NON_PERISHABLE_JOKERS = {
-        JokerType.RIDE_THE_BUS,
-        JokerType.RUNNER,
-        JokerType.GREEN_JOKER,
-        JokerType.RED_CARD,
-        JokerType.SQUARE_JOKER,
-        JokerType.CEREMONIAL_DAGGER,
-        JokerType.CONSTELLATION,
-        JokerType.MADNESS,
-        JokerType.VAMPIRE,
-        JokerType.HOLOGRAM,
-        JokerType.ROCKET,
-        JokerType.LUCKY_CAT,
-        JokerType.FLASH_CARD,
-        JokerType.SPARE_TROUSERS,
-        JokerType.CASTLE,
-        JokerType.GLASS_JOKER,
-        JokerType.OBELISK,
-        JokerType.WEE_JOKER,
-    }
-    PROHIBITED_ANTE_1_TAGS = {
-        Tag.NEGATIVE,
-        Tag.STANDARD,
-        Tag.METEOR,
-        Tag.BUFFOON,
-        Tag.HANDY,
-        Tag.GARBAGE,
-        Tag.ETHEREAL,
-        Tag.TOP_UP,
-        Tag.ORBITAL,
-    }
-    RANK_CHIPS = {
-        Rank.ACE: 11,
-        Rank.KING: 10,
-        Rank.QUEEN: 10,
-        Rank.JACK: 10,
-        Rank.TEN: 10,
-        Rank.NINE: 9,
-        Rank.EIGHT: 8,
-        Rank.SEVEN: 7,
-        Rank.SIX: 6,
-        Rank.FIVE: 5,
-        Rank.FOUR: 4,
-        Rank.THREE: 3,
-        Rank.TWO: 2,
-    }
-    SHOP_BASE_CARD_WEIGHTS = {BaseJoker: 20, Tarot: 4, Planet: 4}
-    SHOP_BASE_PACK_WEIGHTS = {
-        Pack.ARCANA: 4,
-        Pack.JUMBO_ARCANA: 2,
-        Pack.MEGA_ARCANA: 0.5,
-        Pack.CELESTIAL: 4,
-        Pack.JUMBO_CELESTIAL: 2,
-        Pack.MEGA_CELESTIAL: 0.5,
-        Pack.SPECTRAL: 0.6,
-        Pack.JUMBO_SPECTRAL: 0.3,
-        Pack.MEGA_SPECTRAL: 0.07,
-        Pack.STANDARD: 4,
-        Pack.JUMBO_STANDARD: 2,
-        Pack.MEGA_STANDARD: 0.5,
-        Pack.BUFFOON: 1.2,
-        Pack.JUMBO_BUFFOON: 0.6,
-        Pack.MEGA_BUFFOON: 0.5,
-    }
-    TAG_PACKS = {
-        Tag.BUFFOON: Pack.MEGA_BUFFOON,
-        Tag.CHARM: Pack.MEGA_ARCANA,
-        Tag.METEOR: Pack.MEGA_CELESTIAL,
-        Tag.ETHEREAL: Pack.SPECTRAL,
-        Tag.STANDARD: Pack.MEGA_STANDARD,
-    }
-
     def __init__(
         self, deck: Deck, stake: Stake = Stake.WHITE, seed: str | None = None
     ) -> None:
@@ -525,8 +157,8 @@ class Run:
 
         match item:
             case BaseJoker():
-                base_cost = Run.JOKER_BASE_COSTS[item.joker_type]
-                edition_cost = Run.EDITION_COSTS[item.edition]
+                base_cost = JOKER_BASE_COSTS[item.joker_type]
+                edition_cost = EDITION_COSTS[item.edition]
             case Consumable():
                 match item.card:
                     case Tarot():
@@ -537,12 +169,12 @@ class Run:
                         base_cost = 3
                     case Spectral():
                         base_cost = 4
-                edition_cost = Run.EDITION_COSTS[
+                edition_cost = EDITION_COSTS[
                     Edition.NEGATIVE if item.is_negative else Edition.BASE
                 ]
             case Card():
                 base_cost = 1
-                edition_cost = Run.EDITION_COSTS[item.edition]
+                edition_cost = EDITION_COSTS[item.edition]
             case Voucher():
                 base_cost = 10
                 discount_percent = 1.0
@@ -836,8 +468,8 @@ class Run:
     ) -> BaseJoker:
         if rarity is None:
             rarity = r.choices(
-                list(Run.JOKER_BASE_RARITY_WEIGHTS),
-                weights=Run.JOKER_BASE_RARITY_WEIGHTS.values(),
+                list(JOKER_BASE_RARITY_WEIGHTS),
+                weights=JOKER_BASE_RARITY_WEIGHTS.values(),
                 k=1,
             )[0]
 
@@ -886,12 +518,12 @@ class Run:
             joker_type = r.choice(JOKER_TYPE_RARITIES[rarity])
 
         edition_chances = (
-            Run.JOKER_BASE_EDITION_CHANCES_GLOW_UP
+            JOKER_BASE_EDITION_CHANCES_GLOW_UP
             if Voucher.GLOW_UP in self.vouchers
             else (
-                Run.JOKER_BASE_EDITION_CHANCES_HONE
+                JOKER_BASE_EDITION_CHANCES_HONE
                 if Voucher.HONE in self.vouchers
-                else Run.JOKER_BASE_EDITION_CHANCES
+                else JOKER_BASE_EDITION_CHANCES
             )
         )
         edition = r.choices(
@@ -932,7 +564,7 @@ class Run:
             while (
                 self.ante_tags[i] is None
                 or self.ante == 1
-                and self.ante_tags[i][0] in Run.PROHIBITED_ANTE_1_TAGS
+                and self.ante_tags[i][0] in PROHIBITED_ANTE_1_TAGS
             ):
                 tag = r.choice(list(Tag))
                 extra = None
@@ -1030,8 +662,8 @@ class Run:
                 possible_vouchers.remove(voucher)
 
         self.shop_packs = r.choices(
-            list(Run.SHOP_BASE_PACK_WEIGHTS),
-            weights=Run.SHOP_BASE_PACK_WEIGHTS.values(),
+            list(SHOP_BASE_PACK_WEIGHTS),
+            weights=SHOP_BASE_PACK_WEIGHTS.values(),
             k=2,
         )
         if self.round == 1:
@@ -1041,7 +673,7 @@ class Run:
             self.shop_packs[i] = (pack, buy_cost)
 
     def _populate_shop_cards(self, coupon: bool = False) -> None:
-        shop_card_weights = Run.SHOP_BASE_CARD_WEIGHTS.copy()
+        shop_card_weights = SHOP_BASE_CARD_WEIGHTS.copy()
         if Voucher.MAGIC_TRICK in self.vouchers:
             shop_card_weights[Card] = 4
         if Voucher.TAROT_TYCOON in self.vouchers:
@@ -1131,14 +763,14 @@ class Run:
                 self.final_blind is None
                 or self.final_blind in self.finisher_blinds_defeated
             ):
-                self.final_blind = r.choice(list(Run.BLIND_INFO)[-5:])
+                self.final_blind = r.choice(list(BLIND_INFO)[-5:])
         else:
             while (
                 self.final_blind is None
-                or Run.BLIND_INFO[self.final_blind][0] > self.ante
+                or BLIND_INFO[self.final_blind][0] > self.ante
                 or self.final_blind in self.final_blinds_defeated
             ):
-                self.final_blind = r.choice(list(Run.BLIND_INFO)[2:-5])
+                self.final_blind = r.choice(list(BLIND_INFO)[2:-5])
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1399,10 +1031,10 @@ class Run:
         self.poker_hand_info[poker_hands_played[0]][1] += 1
 
         poker_hand_level = self.poker_hand_info[poker_hands_played[0]][0]
-        poker_hand_base_chips, poker_hand_base_mult = Run.HAND_BASE_SCORE[
+        poker_hand_base_chips, poker_hand_base_mult = HAND_BASE_SCORE[
             poker_hands_played[0]
         ]
-        poker_hand_chips_scaling, poker_hand_mult_scaling = Run.HAND_SCALING[
+        poker_hand_chips_scaling, poker_hand_mult_scaling = HAND_SCALING[
             poker_hands_played[0]
         ]
         poker_hand_chips, poker_hand_mult = (
@@ -1563,9 +1195,9 @@ class Run:
 
         self.round += 1
         self.round_score = 0
-        self.round_goal = (
-            Run.ANTE_BASE_CHIPS[self.ante] * Run.BLIND_INFO[self.blind][1]
-        ) * (2 if self.deck is Deck.PLASMA else 1)
+        self.round_goal = (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[self.blind][1]) * (
+            2 if self.deck is Deck.PLASMA else 1
+        )
         self.hands = self.starting_hands
         self.discards = self.starting_discards + self.active_jokers.count(
             JokerType.DRUNKARD
@@ -1624,7 +1256,7 @@ class Run:
                     self._random_final_blind()
                 case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
                     self.state = State.OPENING_PACK_TAG
-                    self._open_pack(Run.TAG_PACKS[tag])
+                    self._open_pack(TAG_PACKS[tag])
                 case Tag.HANDY:
                     self.money += 1 * self.played_hands
                 case Tag.GARBAGE:
