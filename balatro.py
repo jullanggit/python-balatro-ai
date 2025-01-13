@@ -199,7 +199,7 @@ class Run:
         return max(round(buy_cost - 0.001), 1)
 
     def _calculate_sell_value(self, item: Sellable) -> int:
-        raise NotImplementedError
+        return max(1, self._calculate_buy_cost(item) // 2) + item.extra_sell_value
 
     def _chance(self, hit: int, pool: int) -> bool:
         hit *= 2 ** self.active_jokers.count(JokerType.OOPS_ALL_SIXES)
