@@ -198,7 +198,7 @@ class Run:
         buy_cost = (base_cost + edition_cost) * discount_percent
         return max(round(buy_cost - 0.001), 1)
 
-    def _calculate_sell_value(self, item: BaseJoker | Consumable) -> int:
+    def _calculate_sell_value(self, item: Sellable) -> int:
         raise NotImplementedError
 
     def _chance(self, hit: int, pool: int) -> bool:
@@ -945,6 +945,7 @@ class Run:
 
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
         assert self.state is State.IN_SHOP
+
         assert section_index in [0, 1, 2]
 
         section_items = [self.shop_cards, self.shop_vouchers, self.shop_packs][
@@ -1246,6 +1247,35 @@ class Run:
         self._deal()
 
         self.state = State.PLAYING_BLIND
+
+    def sell_item(self, section_index: int, item_index: int) -> None:
+        assert self.state is not State.GAME_OVER
+
+        assert section_index in [0, 1]
+
+        section_items = [self.jokers, self.consumables][section_index]
+
+        assert 0 <= item_index < len(section_items)
+
+        sold_item = section_items[item_index]
+        joker_sold = isinstance(sold_item, BaseJoker)
+
+        if joker_sold:
+            assert not sold_item.eternal
+
+        section_items.pop(item_index)
+
+        for joker in self.jokers:
+            joker._on_item_sold(sold_item)
+
+        if joker_sold:
+            if item_index > 0:
+                self.jokers[item_index - 1]._on_right_joker_changed()
+            else:
+                for other_joker in self.jokers:
+                    other_joker._on_leftmost_joker_changed()
+
+        self.money += self._calculate_sell_value(sold_item)
 
     def skip_blind(self) -> None:
         assert self.state is State.SELECTING_BLIND

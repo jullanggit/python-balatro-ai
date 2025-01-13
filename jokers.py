@@ -10,10 +10,7 @@ from enums import *
 
 @dataclass(eq=False)
 class Blueprint(CopyJoker):
-    def _leftmost_joker_changed_action(self) -> None:
-        pass
-
-    def _right_joker_changed_action(self) -> None:
+    def _on_right_joker_changed(self) -> None:
         self.copied_joker = None
         for i, joker in enumerate(self._run.jokers):
             if joker is self:
@@ -28,11 +25,8 @@ class Blueprint(CopyJoker):
 
 @dataclass(eq=False)
 class Brainstorm(CopyJoker):
-    def _leftmost_joker_changed_action(self) -> None:
+    def _on_leftmost_joker_changed(self) -> None:
         self.copied_joker = self._run.jokers[0]
-
-    def _right_joker_changed_action(self) -> None:
-        pass
 
     @property
     def joker_type(self) -> JokerType:
@@ -1499,7 +1493,7 @@ class Campfire(BaseJoker):
     ) -> None:
         self._run.mult *= self.xmult
 
-    def _item_sold_action(self) -> None:
+    def _item_sold_action(self, sold_item: Sellable) -> None:
         self.xmult += 0.25
 
     @property
@@ -2394,8 +2388,9 @@ class Rocket(BaseJoker):
 
 @dataclass(eq=False)
 class Luchador(BaseJoker):
-    def _sold_ability(self) -> None:
-        raise NotImplementedError
+    def _item_sold_ability(self, sold_item: Sellable) -> None:
+        if sold_item is self:
+            raise NotImplementedError
 
     @property
     def joker_type(self) -> JokerType:
@@ -2475,8 +2470,9 @@ class GoldenJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DietCola(BaseJoker):
-    def _sold_ability(self) -> None:
-        self._run.tags.append(Tag.DOUBLE)
+    def _item_sold_ability(self, sold_item: Sellable) -> None:
+        if sold_item is self:
+            self._run.tags.append(Tag.DOUBLE)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2546,14 +2542,9 @@ class InvisibleJoker(BaseJoker):
         if self.rounds_remaining > 0:
             self.rounds_remaining -= 1
 
-    def _sold_action(self) -> None:
-        if (
-            self.rounds_remaining == 0
-            and self._run.effective_joker_slots - len(self._run.jokers) > 1
-        ):
-            duplicated_joker = replace(
-                r.choice([joker for joker in self._run.jokers if joker is not self])
-            )
+    def _item_sold_action(self, sold_item: Sellable) -> None:
+        if sold_item is self and self.rounds_remaining == 0 and self._run.jokers:
+            duplicated_joker = replace(r.choice(self._run.jokers))
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
                 if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:

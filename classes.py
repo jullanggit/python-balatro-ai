@@ -130,10 +130,10 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         pass
 
-    def _item_sold_action(self) -> None:
+    def _item_sold_ability(self, sold_item: Sellable) -> None:
         pass
 
-    def _leftmost_joker_changed_action(self) -> None:
+    def _item_sold_action(self, sold_item: Sellable) -> None:
         pass
 
     def _lucky_card_triggered_action(self) -> None:
@@ -228,11 +228,13 @@ class BaseJoker(Sellable, ABC):
                 played_cards, scored_card_indices, poker_hands_played
             )
 
-    def _on_item_sold(self) -> None:
-        self._item_sold_action()
+    def _on_item_sold(self, sold_item: Sellable) -> None:
+        self._item_sold_action(sold_item)
+        if not self.debuffed:
+            self._item_sold_ability(sold_item)
 
     def _on_leftmost_joker_changed(self) -> None:
-        self._leftmost_joker_changed_action()
+        pass
 
     def _on_lucky_card_triggered(self) -> None:
         self._lucky_card_triggered_action()
@@ -248,7 +250,7 @@ class BaseJoker(Sellable, ABC):
         self._planet_used_action()
 
     def _on_right_joker_changed(self) -> None:
-        self._right_joker_changed_action()
+        pass
 
     def _on_round_ended(self) -> None:
         self._round_ended_action()
@@ -262,11 +264,6 @@ class BaseJoker(Sellable, ABC):
     def _on_shop_rerolled(self) -> None:
         self._shop_rerolled_action()
 
-    def _on_sold(self) -> None:
-        self._sold_action()
-        if not self.debuffed:
-            self._sold_ability()
-
     def _pack_opened_ability(self) -> None:
         pass
 
@@ -274,9 +271,6 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _planet_used_action(self) -> None:
-        pass
-
-    def _right_joker_changed_action(self) -> None:
         pass
 
     def _round_ended_ability(self) -> None:
@@ -289,12 +283,6 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _shop_rerolled_action(self) -> None:
-        pass
-
-    def _sold_ability(self) -> None:
-        pass
-
-    def _sold_action(self) -> None:
         pass
 
     @property
@@ -387,6 +375,10 @@ class CopyJoker(BaseJoker):
                 played_cards, scored_card_indices, poker_hands_played
             )
 
+    def _item_sold_ability(self, sold_item: Sellable) -> None:
+        if not self.debuffed and self.copied_joker is not None:
+            self.copied_joker._item_sold_ability(sold_item)
+
     def _pack_opened_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._pack_opened_ability()
@@ -400,10 +392,6 @@ class CopyJoker(BaseJoker):
     def _shop_exited_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
             self.copied_joker._shop_exited_ability()
-
-    def _sold_ability(self) -> None:
-        if not self.debuffed and self.copied_joker is not None:
-            self.copied_joker._sold_ability()
 
     @property
     @abstractmethod
