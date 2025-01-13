@@ -9,14 +9,14 @@ if TYPE_CHECKING:
 from enums import *
 
 
-@dataclass
+@dataclass(eq=False)
 class Sellable:
-    extra_sell_value: int = field(default=0, init=False)
+    extra_sell_value: int = field(default=0, init=False, repr=False)
 
 
-@dataclass
+@dataclass(eq=False)
 class BaseJoker(Sellable, ABC):
-    _run: Run | None = field(default=None, init=False)
+    _run: Run | None = field(default=None, init=False, repr=False)
 
     edition: Edition = Edition.BASE
 
@@ -24,9 +24,9 @@ class BaseJoker(Sellable, ABC):
     perishable: bool = False
     rental: bool = False
 
-    debuffed: bool = field(default=False, init=False)
-    face_down: bool = field(default=False, init=False)
-    perishable_rounds_left: int = field(default=5, init=False)
+    debuffed: bool = field(default=False, init=False, repr=False)
+    face_down: bool = field(default=False, init=False, repr=False)
+    perishable_rounds_left: int = field(default=5, init=False, repr=False)
 
     def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
         match other:
@@ -303,9 +303,9 @@ class BaseJoker(Sellable, ABC):
         pass
 
 
-@dataclass
+@dataclass(eq=False)
 class CopyJoker(BaseJoker):
-    copied_joker: BaseJoker | None = field(default=None, init=False)
+    copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
 
     def __eq__(self, other: BaseJoker | JokerType) -> bool:
         match other:
@@ -411,7 +411,7 @@ class CopyJoker(BaseJoker):
         pass
 
 
-@dataclass
+@dataclass(eq=False)
 class Consumable(Sellable):
     card: Tarot | Planet | Spectral
 
@@ -431,7 +431,7 @@ class Consumable(Sellable):
         return get_sprite(self, False)
 
 
-@dataclass
+@dataclass(eq=False)
 class Card:
     rank: Rank
     suit: Suit
@@ -440,9 +440,9 @@ class Card:
     seal: Seal | None = None
     edition: Edition = Edition.BASE
 
-    bonus_chips: int = field(default=0, init=False)
-    debuffed: bool = field(default=False, init=False)
-    face_down: bool = field(default=False, init=False)
+    bonus_chips: int = field(default=0, init=False, repr=False)
+    debuffed: bool = field(default=False, init=False, repr=False)
+    face_down: bool = field(default=False, init=False, repr=False)
 
     def __eq__(self, other: Card | Rank | Suit | Enhancement | Seal | Edition) -> bool:
         match other:

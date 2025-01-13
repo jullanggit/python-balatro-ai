@@ -81,7 +81,7 @@ class DNA(BaseJoker):
 @dataclass(eq=False)
 class ToDoList(BaseJoker):
     poker_hand: PokerHand = field(
-        default_factory=lambda: r.choice(list(PokerHand)[3:]), init=False
+        default_factory=lambda: r.choice(list(PokerHand)[3:]), init=False, repr=False
     )
 
     def _hand_played_ability(
@@ -422,7 +422,7 @@ class Photograph(BaseJoker):
 
 @dataclass(eq=False)
 class AncientJoker(BaseJoker):
-    suit: Suit = field(default=Suit.SPADES, init=False)
+    suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
     def _card_scored_ability(
         self,
@@ -471,7 +471,7 @@ class WalkieTalkie(BaseJoker):
 
 @dataclass(eq=False)
 class Seltzer(BaseJoker):
-    hands_left: int = field(default=10, init=False)
+    hands_left: int = field(default=10, init=False, repr=False)
 
     def _card_scored_retriggers(
         self,
@@ -630,7 +630,9 @@ class OnyxAgate(BaseJoker):
 
 @dataclass(eq=False)
 class TheIdol(BaseJoker):
-    card: Card = field(default_factory=lambda: Card(Rank.ACE, Suit.SPADES), init=False)
+    card: Card = field(
+        default_factory=lambda: Card(Rank.ACE, Suit.SPADES), init=False, repr=False
+    )
 
     def _card_scored_ability(
         self,
@@ -962,7 +964,7 @@ class JokerStencil(BaseJoker):
 
 @dataclass(eq=False)
 class CeremonialDagger(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
         for i, joker in self._run.jokers:
@@ -1019,7 +1021,7 @@ class MysticSummit(BaseJoker):
 
 @dataclass(eq=False)
 class LoyaltyCard(BaseJoker):
-    hands_remaining: int = field(default=5, init=False)
+    hands_remaining: int = field(default=5, init=False, repr=False)
 
     def _end_hand_action(self) -> None:
         if self.hands_remaining == 0:
@@ -1149,7 +1151,7 @@ class Blackboard(BaseJoker):
 
 @dataclass(eq=False)
 class IceCream(BaseJoker):
-    chips: int = field(default=100, init=False)
+    chips: int = field(default=100, init=False, repr=False)
 
     def _end_hand_action(self) -> None:
         self.chips -= 5
@@ -1186,7 +1188,7 @@ class BlueJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Constellation(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _independent_ability(
         self,
@@ -1261,7 +1263,7 @@ class CardSharp(BaseJoker):
 
 @dataclass(eq=False)
 class RedCard(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
         self,
@@ -1281,7 +1283,7 @@ class RedCard(BaseJoker):
 
 @dataclass(eq=False)
 class Madness(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
         if self._run.blind in [Blind.SMALL, Blind.BIG]:
@@ -1329,7 +1331,7 @@ class Seance(BaseJoker):
 
 @dataclass(eq=False)
 class Hologram(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_added_action(self, added_card: Card) -> None:
         self.xmult += 0.25
@@ -1349,7 +1351,7 @@ class Hologram(BaseJoker):
 
 @dataclass(eq=False)
 class Vagabond(BaseJoker):
-    will_create: bool = field(default=False, init=False)
+    will_create: bool = field(default=False, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1442,7 +1444,7 @@ class Bull(BaseJoker):
 
 @dataclass(eq=False)
 class FlashCard(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
         self,
@@ -1462,7 +1464,7 @@ class FlashCard(BaseJoker):
 
 @dataclass(eq=False)
 class Popcorn(BaseJoker):
-    mult: int = field(default=20, init=False)
+    mult: int = field(default=20, init=False, repr=False)
 
     def _independent_ability(
         self,
@@ -1484,7 +1486,7 @@ class Popcorn(BaseJoker):
 
 @dataclass(eq=False)
 class Campfire(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _boss_defeated_action(self) -> None:
         self.xmult = 1.0
@@ -1557,7 +1559,7 @@ class Throwback(BaseJoker):
 
 @dataclass(eq=False)
 class GlassJoker(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
         if destroyed_card == Enhancement.GLASS:
@@ -1634,7 +1636,7 @@ class SeeingDouble(BaseJoker):
 
 @dataclass(eq=False)
 class Matador(BaseJoker):
-    will_earn: bool = field(default=False, init=False)
+    will_earn: bool = field(default=False, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1789,7 +1791,7 @@ class Bootstraps(BaseJoker):
 
 @dataclass(eq=False)
 class Canio(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
         if self._run._is_face_card(destroyed_card):
@@ -1815,7 +1817,7 @@ class Canio(BaseJoker):
 
 @dataclass(eq=False)
 class RideTheBus(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1845,7 +1847,7 @@ class RideTheBus(BaseJoker):
 
 @dataclass(eq=False)
 class Runner(BaseJoker):
-    chips: int = field(default=0, init=False)
+    chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1871,7 +1873,7 @@ class Runner(BaseJoker):
 
 @dataclass(eq=False)
 class GreenJoker(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.mult = max(0, self.mult - 1)
@@ -1899,7 +1901,7 @@ class GreenJoker(BaseJoker):
 
 @dataclass(eq=False)
 class SquareJoker(BaseJoker):
-    chips: int = field(default=0, init=False)
+    chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1925,7 +1927,7 @@ class SquareJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Vampire(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1954,7 +1956,7 @@ class Vampire(BaseJoker):
 
 @dataclass(eq=False)
 class Obelisk(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1984,7 +1986,7 @@ class Obelisk(BaseJoker):
 
 @dataclass(eq=False)
 class LuckyCat(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _independent_ability(
         self,
@@ -2004,7 +2006,7 @@ class LuckyCat(BaseJoker):
 
 @dataclass(eq=False)
 class SpareTrousers(BaseJoker):
-    mult: int = field(default=0, init=False)
+    mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -2030,7 +2032,7 @@ class SpareTrousers(BaseJoker):
 
 @dataclass(eq=False)
 class Ramen(BaseJoker):
-    xmult: float = field(default=2.0, init=False)
+    xmult: float = field(default=2.0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.xmult -= 0.01 * len(discarded_cards)
@@ -2052,8 +2054,8 @@ class Ramen(BaseJoker):
 
 @dataclass(eq=False)
 class Castle(BaseJoker):
-    chips: int = field(default=0, init=False)
-    suit: Suit = field(default=Suit.SPADES, init=False)
+    chips: int = field(default=0, init=False, repr=False)
+    suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         for discarded_card in discarded_cards:
@@ -2089,7 +2091,7 @@ class Castle(BaseJoker):
 
 @dataclass(eq=False)
 class WeeJoker(BaseJoker):
-    chips: int = field(default=0, init=False)
+    chips: int = field(default=0, init=False, repr=False)
 
     def _card_scored_action(
         self,
@@ -2116,7 +2118,7 @@ class WeeJoker(BaseJoker):
 
 @dataclass(eq=False)
 class HitTheRoad(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         for discarded_card in discarded_cards:
@@ -2141,8 +2143,8 @@ class HitTheRoad(BaseJoker):
 
 @dataclass(eq=False)
 class Yorick(BaseJoker):
-    xmult: float = field(default=1.0, init=False)
-    discards_remaining: int = field(default=23, init=False)
+    xmult: float = field(default=1.0, init=False, repr=False)
+    discards_remaining: int = field(default=23, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.discards_remaining -= len(discarded_cards)
@@ -2205,7 +2207,7 @@ class FacelessJoker(BaseJoker):
 
 @dataclass(eq=False)
 class MailInRebate(BaseJoker):
-    rank: Rank = field(default=Rank.ACE, init=False)
+    rank: Rank = field(default=Rank.ACE, init=False, repr=False)
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
         for discarded_card in discarded_cards:
@@ -2377,7 +2379,7 @@ class CloudNine(BaseJoker):
 
 @dataclass(eq=False)
 class Rocket(BaseJoker):
-    payout: int = field(default=1, init=False)
+    payout: int = field(default=1, init=False, repr=False)
 
     def _boss_defeated_action(self) -> None:
         self.payout += 2
@@ -2415,7 +2417,7 @@ class GiftCard(BaseJoker):
 
 @dataclass(eq=False)
 class TurtleBean(BaseJoker):
-    hand_size_increase: int = field(default=5, init=False)
+    hand_size_increase: int = field(default=5, init=False, repr=False)
 
     def _round_ended_action(self) -> None:
         self.hand_size_increase -= 1
@@ -2538,7 +2540,7 @@ class OopsAllSixes(BaseJoker):
 
 @dataclass(eq=False)
 class InvisibleJoker(BaseJoker):
-    rounds_remaining: int = field(default=2, init=False)
+    rounds_remaining: int = field(default=2, init=False, repr=False)
 
     def _round_ended_action(self) -> None:
         if self.rounds_remaining > 0:
