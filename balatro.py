@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 from collections import Counter
+from copy import deepcopy
 from dataclasses import replace
 import random as r
 
@@ -8,6 +9,15 @@ from constants import *
 from classes import *
 from enums import *
 from jokers import *
+
+
+def format_number(number: float) -> str:
+    assert number >= 0
+    if number >= 1e11:
+        return f"{number:.3e}".replace("+", "")
+    if number >= 100 or number.is_integer():
+        return f"{number:,.0f}"
+    return f"{number:,.1f}" if number >= 10 else f"{number:,.2f}"
 
 
 class Run:
@@ -19,18 +29,9 @@ class Run:
 
         self.deck: Deck = deck
         self.stake: Stake = stake
-        self.starting_hands: int = 4
-        self.starting_discards: int = 3
-        self.money: int = 4
+        self.money: int = 14 if self.deck is Deck.YELLOW else 4
         self.ante: int = 1
         self.round: int = 0
-
-        self.starting_hand_size: int = 8
-        self.joker_slots: int = 5
-        self.consumable_slots: int = 2
-
-        self.remaining_hand_reward: int = 1
-        self.remaining_discard_reward: int = 0
 
         self.poker_hand_info: dict[PokerHand : list[int, int]] = {
             poker_hand: [1, 0] for poker_hand in PokerHand
@@ -39,34 +40,22 @@ class Run:
         self.tags: list[Tag] = []
 
         self.deck_cards: list[Card] = [
-            Card(rank, suit) for suit in Suit for rank in Rank
+            (self._get_random_card() if self.deck is Deck.ERRATIC else Card(rank, suit))
+            for suit in Suit
+            for rank in Rank
         ]
 
         self.jokers: list[BaseJoker] = []
         self.consumables: list[Consumable] = []
 
         match deck:
-            case Deck.RED:
-                self.starting_discards += 1
-            case Deck.BLUE:
-                self.starting_hands += 1
-            case Deck.YELLOW:
-                self.money += 10
-            case Deck.GREEN:
-                self.remaining_hand_reward = 2
-                self.remaining_discard_reward = 1
-            case Deck.BLACK:
-                self.joker_slots += 1
-                self.starting_hands -= 1
             case Deck.MAGIC:
                 self.vouchers.add(Voucher.CRYSTAL_BALL)
-                self.consumable_slots += 1
                 self.consumables.extend(
                     [Consumable(Tarot.THE_FOOL), Consumable(Tarot.THE_FOOL)]
                 )
             case Deck.NEBULA:
                 self.vouchers.add(Voucher.TELESCOPE)
-                self.consumable_slots -= 1
             case Deck.GHOST:
                 self.consumables.append(Consumable(Spectral.HEX))
             case Deck.ABANDONED:
@@ -74,7 +63,7 @@ class Run:
                     card for card in self.deck_cards if not self._is_face_card(card)
                 ]
             case Deck.CHECKERED:
-                self.deck_cards = self.deck_cards[:26] + self.deck_cards[:26]
+                self.deck_cards = self.deck_cards[:26] + deepcopy(self.deck_cards[:26])
             case Deck.ZODIAC:
                 self.vouchers.update(
                     [
@@ -83,15 +72,6 @@ class Run:
                         Voucher.OVERSTOCK,
                     ]
                 )
-            case Deck.PAINTED:
-                self.starting_hand_size += 2
-                self.joker_slots -= 1
-            case Deck.ANAGLYPH:
-                pass
-            case Deck.PLASMA:
-                pass
-            case Deck.ERRATIC:
-                self.deck_cards = [self._get_random_card() for _ in range(52)]
 
         self.played_hands: int = 0
         self.first_hand: bool | None = None
@@ -120,6 +100,7 @@ class Run:
         self.finisher_blinds_defeated: set[Blind] = set()
         self.tarot_cards_used: int = 0
         self.fool_creates: Tarot | Planet | None = None
+        self.starting_hand_size_penalty: int = 0
         self.ectoplasms_used: int = 0
         self.gros_michel_destroyed: bool = False
 
@@ -279,15 +260,23 @@ class Run:
             if self.deck is Deck.GREEN
             else (1 + self.active_jokers.count(JokerType.TO_THE_MOON))
         )
-        interest = min(5 * interest_amt, (max(0, self.money) // 5 * interest_amt))
+        interest = min(
+            (
+                20
+                if Voucher.MONEY_TREE in self.vouchers
+                else 10 if Voucher.SEED_MONEY in self.vouchers else 5
+            )
+            * interest_amt,
+            (max(0, self.money) // 5 * interest_amt),
+        )
 
         for joker in self.jokers:
             joker._on_round_ended()
 
         cash_out = (
             (0 if saved else BLIND_INFO[self.blind][2])
-            + self.remaining_hand_reward * self.hands
-            + self.remaining_discard_reward * self.discards
+            + (2 if self.deck is Deck.GREEN else 1) * self.hands
+            + (1 if self.deck is Deck.GREEN else 0) * self.discards
             + interest
         )
         self.money += cash_out
@@ -644,7 +633,11 @@ class Run:
             coupon = True
             self.tags.remove(Tag.COUPON)
 
-        self.reroll_cost = 5
+        self.reroll_cost = (
+            1
+            if Voucher.REROLL_GLUT in self.vouchers
+            else 3 if Voucher.REROLL_SURPLUS in self.vouchers else 5
+        )
         if Tag.DSIX in self.tags:
             self.tags.remove(Tag.DSIX)
             self.reroll_cost = 0
@@ -940,7 +933,7 @@ class Run:
 
         match held_card:
             case Seal.BLUE:
-                if self.effective_consumable_slots > len(self.consumables):
+                if self.consumable_slots > len(self.consumables):
                     self.consumables.append(Consumable(last_poker_hand_played.planet))
 
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
@@ -963,11 +956,11 @@ class Run:
 
         match item:
             case BaseJoker():
-                assert len(self.jokers) < self.effective_joker_slots
+                assert len(self.jokers) < self.joker_slots
 
                 self._add_joker(item)
             case Consumable():
-                assert len(self.consumables) < self.effective_consumable_slots
+                assert len(self.consumables) < self.consumable_slots
 
                 self.consumables.append(item)
             case Card():
@@ -1134,7 +1127,7 @@ class Run:
             and played_cards[0] == Rank.SIX
         ):
             self._destroy_card(played_cards[0])
-            if self.effective_consumable_slots > len(self.consumables):
+            if self.consumable_slots > len(self.consumables):
                 self.consumables.append(self._get_random_consumable(Spectral))
 
         for i in scored_card_indices:
@@ -1210,9 +1203,7 @@ class Run:
             2 if self.deck is Deck.PLASMA else 1
         )
         self.hands = self.starting_hands
-        self.discards = self.starting_discards + self.active_jokers.count(
-            JokerType.DRUNKARD
-        )
+        self.discards = self.starting_discards
         self.hand_size = self.starting_hand_size
         for active_joker in self.active_jokers:
             match active_joker:
@@ -1302,9 +1293,7 @@ class Run:
                 case Tag.GARBAGE:
                     self.money += 1 * self.unused_discards
                 case Tag.TOP_UP:
-                    for _ in range(
-                        min(2, self.effective_joker_slots - len(self.jokers))
-                    ):
+                    for _ in range(min(2, self.joker_slots - len(self.jokers))):
                         self._add_joker(self._get_random_joker(Rarity.COMMON))
                 case Tag.SPEED:
                     self.money += 5 * self.blinds_skipped
@@ -1355,9 +1344,7 @@ class Run:
                         for _ in range(
                             min(
                                 2,
-                                self.effective_consumable_slots
-                                - len(self.consumables)
-                                + 1,
+                                self.consumable_slots - len(self.consumables) + 1,
                             )
                         ):
                             self.consumables.append(self._get_random_consumable(Planet))
@@ -1370,9 +1357,7 @@ class Run:
                         for _ in range(
                             min(
                                 2,
-                                self.effective_consumable_slots
-                                - len(self.consumables)
-                                + 1,
+                                self.consumable_slots - len(self.consumables) + 1,
                             )
                         ):
                             self.consumables.append(self._get_random_consumable(Tarot))
@@ -1464,7 +1449,7 @@ class Run:
                         for card in selected_cards:
                             card.suit = Suit.HEARTS
                     case Tarot.JUDGEMENT:
-                        assert len(self.jokers) < self.effective_joker_slots
+                        assert len(self.jokers) < self.joker_slots
 
                         self._add_joker(self._get_random_joker())
                     case Tarot.THE_WORLD:
@@ -1545,7 +1530,7 @@ class Run:
                             k=1,
                         )[0]
                     case Spectral.WRAITH:
-                        assert len(self.jokers) < self.effective_joker_slots
+                        assert len(self.jokers) < self.joker_slots
 
                         self._add_joker(self._get_random_joker(rarity=Rarity.RARE))
                         self.money = 0
@@ -1563,14 +1548,14 @@ class Run:
                         random_rank = r.choice(list(Rank))
                         for card in self.hand:
                             card.rank = random_rank
-                        self.starting_hand_size -= 1
+                        self.starting_hand_size_penalty += 1
                         if self.hand_size is not None:
                             self.hand_size -= 1
                     case Spectral.ECTOPLASM:
                         assert self.jokers
 
                         r.choice(self.jokers).edition = Edition.NEGATIVE
-                        self.starting_hand_size -= 1 + self.ectoplasms_used
+                        self.starting_hand_size_penalty += 1 + self.ectoplasms_used
                         if self.hand_size is not None:
                             self.hand_size -= 1 + self.ectoplasms_used
                         self.ectoplasms_used += 1
@@ -1641,7 +1626,7 @@ class Run:
                             self._add_card(card_copy)
                             self.hand.append(card_copy)
                     case Spectral.THE_SOUL:
-                        assert len(self.jokers) < self.effective_joker_slots
+                        assert len(self.jokers) < self.joker_slots
 
                         self._add_joker(self._get_random_joker(rarity=Rarity.LEGENDARY))
                     case Spectral.BLACK_HOLE:
@@ -1666,16 +1651,36 @@ class Run:
         )
 
     @property
-    def effective_consumable_slots(self) -> int:
-        return self.consumable_slots + sum(
-            consumable.is_negative for consumable in self.consumables
+    def consumable_slots(self) -> int:
+        consumable_slots = (
+            2
+            + sum(consumable.is_negative for consumable in self.consumables)
+            + (Voucher.CRYSTAL_BALL in self.vouchers)
         )
 
+        match self.deck:
+            case Deck.MAGIC:
+                consumable_slots += 1
+            case Deck.NEBULA:
+                consumable_slots -= 1
+
+        return consumable_slots
+
     @property
-    def effective_joker_slots(self) -> int:
-        return self.joker_slots + sum(
-            joker.edition is Edition.NEGATIVE for joker in self.jokers
+    def joker_slots(self) -> int:
+        joker_slots = (
+            5
+            + sum(joker.edition is Edition.NEGATIVE for joker in self.jokers)
+            + (Voucher.ANTIMATTER in self.vouchers)
         )
+
+        match self.deck:
+            case Deck.BLACK:
+                joker_slots += 1
+            case Deck.PAINTED:
+                joker_slots -= 1
+
+        return joker_slots
 
     @property
     def is_finisher_ante(self) -> bool:
@@ -1690,18 +1695,65 @@ class Run:
         return self.reroll_cost, False
 
     @property
+    def starting_discards(self) -> int:
+        starting_discards = (
+            3
+            + (
+                2
+                if Voucher.RECYCLOMANCY in self.vouchers
+                else 1 if Voucher.WASTEFUL in self.vouchers else 0
+            )
+            + self.active_jokers.count(JokerType.DRUNKARD)
+            - (Voucher.PETROGLYPH in self.vouchers)
+        )
+
+        if self.deck is Deck.RED:
+            starting_discards += 1
+
+        return starting_discards
+
+    @property
+    def starting_hand_size(self) -> int:
+        starting_hand_size = (
+            8
+            + (
+                2
+                if Voucher.PALETTE in self.vouchers
+                else 1 if Voucher.PAINT_BRUSH in self.vouchers else 0
+            )
+            - self.starting_hand_size_penalty
+        )
+
+        match self.deck:
+            case Deck.PAINTED:
+                starting_hand_size += 2
+
+        return starting_hand_size
+
+    @property
+    def starting_hands(self) -> int:
+        starting_hands = (
+            4
+            + (
+                2
+                if Voucher.NACHO_TONG in self.vouchers
+                else 1 if Voucher.GRABBER in self.vouchers else 0
+            )
+            - (Voucher.HIEROGLYPH in self.vouchers)
+        )
+
+        match self.deck:
+            case Deck.BLUE:
+                starting_hands += 1
+            case Deck.BLACK:
+                starting_hands -= 1
+
+        return starting_hands
+
+    @property
     def unlocked_poker_hands(self) -> list[PokerHand]:
         return [
             poker_hand
             for i, poker_hand in enumerate(PokerHand)
             if i > 2 or self.poker_hand_info[poker_hand][1] > 0
         ]
-
-    @staticmethod
-    def format_number(number: float) -> str:
-        assert number >= 0
-        if number >= 1e11:
-            return f"{number:.3e}".replace("+", "")
-        if number >= 100 or number.is_integer():
-            return f"{number:,.0f}"
-        return f"{number:,.1f}" if number >= 10 else f"{number:,.2f}"

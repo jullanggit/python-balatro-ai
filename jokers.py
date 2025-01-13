@@ -203,7 +203,7 @@ class EightBall(BaseJoker):
     ) -> None:
         if (
             scored_card == Rank.EIGHT
-            and self._run.effective_consumable_slots > len(self._run.consumables)
+            and self._run.consumable_slots > len(self._run.consumables)
             and self._run._chance(1, 4)
         ):
             self._run.consumables.append(self._run._get_random_consumable(Tarot))
@@ -948,7 +948,7 @@ class JokerStencil(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         self._run.mult *= (
-            self._run.effective_joker_slots - len(self._run.jokers)
+            self._run.joker_slots - len(self._run.jokers)
         ) + self._run.jokers.count(JokerType.JOKER_STENCIL)
 
     @property
@@ -1211,7 +1211,7 @@ class Superposition(BaseJoker):
         if (
             PokerHand.STRAIGHT in poker_hands_played
             and any(played_cards[i] == Rank.ACE for i in scored_card_indices)
-            and self._run.effective_consumable_slots > len(self._run.consumables)
+            and self._run.consumable_slots > len(self._run.consumables)
         ):
             self._run.consumables.append(self._run._get_random_consumable(Tarot))
 
@@ -1313,7 +1313,7 @@ class Seance(BaseJoker):
     ) -> None:
         if poker_hands_played[
             0
-        ] is PokerHand.STRAIGHT_FLUSH and self._run.effective_consumable_slots > len(
+        ] is PokerHand.STRAIGHT_FLUSH and self._run.consumable_slots > len(
             self._run.consumables
         ):
             self._run.consumables.append(self._run._get_random_consumable(Spectral))
@@ -1361,9 +1361,7 @@ class Vagabond(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.will_create and self._run.effective_consumable_slots > len(
-            self._run.consumables
-        ):
+        if self.will_create and self._run.consumable_slots > len(self._run.consumables):
             self._run.consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
@@ -2346,7 +2344,7 @@ class SixthSense(BaseJoker):
 @dataclass(eq=False)
 class RiffRaff(BaseJoker):
     def _blind_selected_ability(self) -> None:
-        for _ in range(min(2, self._run.effective_joker_slots - len(self._run.jokers))):
+        for _ in range(min(2, self._run.joker_slots - len(self._run.jokers))):
             self._run._add_joker(self._run._get_random_joker(Rarity.COMMON))
 
     @property
@@ -2434,7 +2432,7 @@ class ToTheMoon(BaseJoker):
 @dataclass(eq=False)
 class Hallucination(BaseJoker):
     def _pack_opened_ability(self) -> None:
-        if self._run.effective_consumable_slots > len(
+        if self._run.consumable_slots > len(
             self._run.consumables
         ) and self._run._chance(1, 2):
             self._run.consumables.append(self._run._get_random_consumable(Tarot))
@@ -2569,7 +2567,7 @@ class Satellite(BaseJoker):
 @dataclass(eq=False)
 class Cartomancer(BaseJoker):
     def _blind_selected_ability(self) -> None:
-        if self._run.effective_consumable_slots > len(self._run.consumables):
+        if self._run.consumable_slots > len(self._run.consumables):
             self._run.consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
