@@ -9,7 +9,7 @@ from balatro_enums import *
 from balatro_jokers import *
 
 
-class Balatro:
+class Run:
     ANTE_BASE_CHIPS = [
         100,
         300,
@@ -352,7 +352,7 @@ class Balatro:
         Rank.THREE: 3,
         Rank.TWO: 2,
     }
-    SHOP_BASE_CARD_WEIGHTS = {Joker: 20, Tarot: 4, Planet: 4}
+    SHOP_BASE_CARD_WEIGHTS = {BaseJoker: 20, Tarot: 4, Planet: 4}
     SHOP_BASE_PACK_WEIGHTS = {
         Pack.ARCANA: 4,
         Pack.JUMBO_ARCANA: 2,
@@ -409,7 +409,7 @@ class Balatro:
             Card(suit, rank) for suit in Suit for rank in Rank
         ]
 
-        self.jokers: list[Joker] = []
+        self.jokers: list[BaseJoker] = []
         self.consumables: list[Consumable] = []
 
         match deck:
@@ -479,10 +479,12 @@ class Balatro:
 
         self.reroll_cost: int | None = None
         self.used_chaos: bool | None = None
-        self.shop_cards: list[Joker | Consumable | Card] | None = None
+        self.shop_cards: list[BaseJoker | Consumable | Card] | None = None
         self.shop_vouchers: list[Voucher] | None = None
         self.shop_packs: list[Pack] | None = None
         self.planet_cards_used: set[Planet] = set()
+        self.final_blinds_defeated: set[Blind] = set()
+        self.finisher_blinds_defeated: set[Blind] = set()
         self.gros_michel_destroyed: bool = False
 
         self._new_ante()
@@ -499,17 +501,17 @@ class Balatro:
     def _add_card(self, card: Card) -> None:
         self.deck_cards.append(card)
         for joker in self.jokers:
-            joker.on_card_added(card)
+            joker._on_card_added(card)
 
-    def _add_joker(self, joker: Joker) -> None:
+    def _add_joker(self, joker: BaseJoker) -> None:
         self.jokers.append(joker)
-        # joker.on_acquired()
-        joker.on_leftmost_joker_changed()
+        # joker._on_acquired()
+        joker._on_leftmost_joker_changed()
         if len(self.jokers) > 1:
-            self.jokers[-2].on_right_joker_changed()
+            self.jokers[-2]._on_right_joker_changed()
 
     def _calculate_buy_cost(
-        self, item: Joker | Consumable | Card | Voucher | Pack, coupon: bool = False
+        self, item: BaseJoker | Consumable | Card | Voucher | Pack, coupon: bool = False
     ) -> int:
         if coupon and not isinstance(item, Voucher):
             return 0
@@ -522,9 +524,9 @@ class Balatro:
         )
 
         match item:
-            case Joker():
-                base_cost = Balatro.JOKER_BASE_COSTS[item.joker_type]
-                edition_cost = Balatro.EDITION_COSTS[item.edition]
+            case BaseJoker():
+                base_cost = Run.JOKER_BASE_COSTS[item.joker_type]
+                edition_cost = Run.EDITION_COSTS[item.edition]
             case Consumable():
                 match item.card:
                     case Tarot():
@@ -535,12 +537,12 @@ class Balatro:
                         base_cost = 3
                     case Spectral():
                         base_cost = 4
-                edition_cost = Balatro.EDITION_COSTS[
+                edition_cost = Run.EDITION_COSTS[
                     Edition.NEGATIVE if item.is_negative else Edition.BASE
                 ]
             case Card():
                 base_cost = 1
-                edition_cost = Balatro.EDITION_COSTS[item.edition]
+                edition_cost = Run.EDITION_COSTS[item.edition]
             case Voucher():
                 base_cost = 10
                 discount_percent = 1.0
@@ -571,14 +573,16 @@ class Balatro:
         eternal: bool = False,
         perishable: bool = False,
         rental: bool = False,
-    ) -> Joker:
-        return JOKER_CLASSES[joker_type](
-            self,
-            edition,
-            eternal,
-            perishable,
-            rental,
+    ) -> BaseJoker:
+        joker = JOKER_CLASSES[joker_type](
+            edition=edition,
+            eternal=eternal,
+            perishable=perishable,
+            rental=rental,
         )
+        joker._run = self
+        joker._on_created()
+        return joker
 
     def _deal(self) -> None:
         num_cards = self.hand_size - len(self.hand)
@@ -598,11 +602,17 @@ class Balatro:
         except ValueError:
             pass
         for joker in self.jokers:
-            joker.on_card_destroyed(card)
+            joker._on_card_destroyed(card)
 
-    def _destroy_joker(self, joker: Joker) -> None:
+    def _destroy_joker(self, joker: BaseJoker) -> None:
         try:
-            self.jokers.remove(joker)
+            i = self.jokers.index(joker)
+            self.jokers.pop(i)
+            if i > 0:
+                self.jokers[i - 1]._on_right_joker_changed()
+            else:
+                for other_joker in self.jokers:
+                    other_joker._on_leftmost_joker_changed()
         except ValueError:
             pass
 
@@ -617,7 +627,7 @@ class Balatro:
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
             for joker in self.jokers:
-                for _ in range(joker.on_card_held_retriggers(held_card)):
+                for _ in range(joker._on_card_held_retriggers(held_card)):
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
         for deck_card in self.deck_cards:
@@ -631,7 +641,7 @@ class Balatro:
         interest = min(5 * interest_amt, (max(0, self.money) // 5 * interest_amt))
 
         for joker in self.jokers:
-            joker.on_round_ended()
+            joker._on_round_ended()
 
         cash_out = (
             (0 if saved else self.BLIND_INFO[self.blind][2])
@@ -660,8 +670,8 @@ class Balatro:
         self._populate_shop()
         self.state = State.IN_SHOP
 
-    def _get_card_suits(self, card: Card, include_base: bool = False) -> list[Suit]:
-        if (card.debuffed and not include_base) or card.is_stone_card:
+    def _get_card_suits(self, card: Card, force_base_suit: bool = False) -> list[Suit]:
+        if (card.debuffed and not force_base_suit) or card.is_stone_card:
             return []
         if card == Enhancement.WILD:
             return list(Suit)
@@ -681,7 +691,7 @@ class Balatro:
 
         suit_counts = Counter()
         for played_card in played_cards:
-            suit_counts.update(self._get_card_suits(played_card, include_base=True))
+            suit_counts.update(self._get_card_suits(played_card, force_base_suit=True))
 
         # flush check
         flush_suit, flush_suit_count = (
@@ -691,7 +701,7 @@ class Balatro:
             poker_hands[PokerHand.FLUSH] = [
                 i
                 for i, card in enumerate(played_cards)
-                if flush_suit in self._get_card_suits(card, include_base=True)
+                if flush_suit in self._get_card_suits(card, force_base_suit=True)
             ]
 
         rank_counts = Counter(
@@ -823,11 +833,11 @@ class Balatro:
         rarity: Rarity | None = None,
         existing: list[JokerType] | None = None,
         stickers: bool = False,
-    ) -> Joker:
+    ) -> BaseJoker:
         if rarity is None:
             rarity = r.choices(
-                list(Balatro.JOKER_BASE_RARITY_WEIGHTS),
-                weights=Balatro.JOKER_BASE_RARITY_WEIGHTS.values(),
+                list(Run.JOKER_BASE_RARITY_WEIGHTS),
+                weights=Run.JOKER_BASE_RARITY_WEIGHTS.values(),
                 k=1,
             )[0]
 
@@ -876,12 +886,12 @@ class Balatro:
             joker_type = r.choice(JOKER_TYPE_RARITIES[rarity])
 
         edition_chances = (
-            Balatro.JOKER_BASE_EDITION_CHANCES_GLOW_UP
+            Run.JOKER_BASE_EDITION_CHANCES_GLOW_UP
             if Voucher.GLOW_UP in self.vouchers
             else (
-                Balatro.JOKER_BASE_EDITION_CHANCES_HONE
+                Run.JOKER_BASE_EDITION_CHANCES_HONE
                 if Voucher.HONE in self.vouchers
-                else Balatro.JOKER_BASE_EDITION_CHANCES
+                else Run.JOKER_BASE_EDITION_CHANCES
             )
         )
         edition = r.choices(
@@ -922,7 +932,7 @@ class Balatro:
             while (
                 self.ante_tags[i] is None
                 or self.ante == 1
-                and self.ante_tags[i][0] in Balatro.PROHIBITED_ANTE_1_TAGS
+                and self.ante_tags[i][0] in Run.PROHIBITED_ANTE_1_TAGS
             ):
                 tag = r.choice(list(Tag))
                 extra = None
@@ -943,6 +953,14 @@ class Balatro:
             case Blind.BIG_BLIND:
                 self.blind = self.final_blind
             case _:
+                if self.is_finisher_ante:
+                    self.finisher_blinds_defeated.add(self.blind)
+                    if len(self.finisher_blinds_defeated) == 5:
+                        self.finisher_blinds_defeated.clear()
+                else:
+                    self.final_blinds_defeated.add(self.blind)
+                    if len(self.final_blinds_defeated) == 23:
+                        self.final_blinds_defeated.clear()
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
@@ -1012,8 +1030,8 @@ class Balatro:
                 possible_vouchers.remove(voucher)
 
         self.shop_packs = r.choices(
-            list(Balatro.SHOP_BASE_PACK_WEIGHTS),
-            weights=Balatro.SHOP_BASE_PACK_WEIGHTS.values(),
+            list(Run.SHOP_BASE_PACK_WEIGHTS),
+            weights=Run.SHOP_BASE_PACK_WEIGHTS.values(),
             k=2,
         )
         if self.round == 1:
@@ -1023,7 +1041,7 @@ class Balatro:
             self.shop_packs[i] = (pack, buy_cost)
 
     def _populate_shop_cards(self, coupon: bool = False) -> None:
-        shop_card_weights = Balatro.SHOP_BASE_CARD_WEIGHTS.copy()
+        shop_card_weights = Run.SHOP_BASE_CARD_WEIGHTS.copy()
         if Voucher.MAGIC_TRICK in self.vouchers:
             shop_card_weights[Card] = 4
         if Voucher.TAROT_TYCOON in self.vouchers:
@@ -1049,14 +1067,14 @@ class Balatro:
         joker_tags_used = 0
         for tag in self.tags:
             if tag is Tag.UNCOMMON or tag is Tag.RARE:
-                self.shop_cards[joker_tags_used] = Joker
+                self.shop_cards[joker_tags_used] = BaseJoker
                 joker_tags_used += 1
                 if joker_tags_used == 2:
                     break
 
         for i in range(len(self.shop_cards)):
             match self.shop_cards[i].__name__:
-                case Joker.__name__:
+                case BaseJoker.__name__:
                     buy_cost = None
 
                     rarity = None
@@ -1072,7 +1090,7 @@ class Balatro:
                         existing=[
                             card.joker_type
                             for card, _ in self.shop_cards[:i]
-                            if isinstance(card, Joker)
+                            if isinstance(card, BaseJoker)
                         ],
                         stickers=True,
                     )
@@ -1107,15 +1125,20 @@ class Balatro:
                     self.shop_cards[i] = (card, buy_cost)
 
     def _random_final_blind(self) -> None:
-        if self.ante % 8 == 0:
-            self.final_blind = r.choice(list(Balatro.BLIND_INFO)[-5:])
-        else:
-            self.final_blind = None
+        self.final_blind = None
+        if self.is_finisher_ante:
             while (
                 self.final_blind is None
-                or Balatro.BLIND_INFO[self.final_blind][0] > self.ante
+                or self.final_blind in self.finisher_blinds_defeated
             ):
-                self.final_blind = r.choice(list(Balatro.BLIND_INFO)[2:-5])
+                self.final_blind = r.choice(list(Run.BLIND_INFO)[-5:])
+        else:
+            while (
+                self.final_blind is None
+                or Run.BLIND_INFO[self.final_blind][0] > self.ante
+                or self.final_blind in self.final_blinds_defeated
+            ):
+                self.final_blind = r.choice(list(Run.BLIND_INFO)[2:-5])
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1240,7 +1263,7 @@ class Balatro:
             case Enhancement.LUCKY:
                 if self._lucky_check():
                     for joker in self.jokers:
-                        joker.on_lucky_card_triggered()
+                        joker._on_lucky_card_triggered()
 
         match scored_card:
             case Seal.GOLD:
@@ -1255,7 +1278,7 @@ class Balatro:
                 self.mult *= 1.5
 
         for joker in self.jokers:
-            joker.on_card_scored(
+            joker._on_card_scored(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
 
@@ -1265,7 +1288,7 @@ class Balatro:
                 self.mult *= 1.5
 
         for joker in self.jokers:
-            joker.on_card_held(held_card)
+            joker._on_card_held(held_card)
 
     def _trigger_held_card_round_end(
         self, held_card: Card, last_poker_hand_played: PokerHand
@@ -1296,7 +1319,7 @@ class Balatro:
         section_items.pop(item_index)
 
         match item:
-            case Joker():
+            case BaseJoker():
                 assert len(self.jokers) < self.effective_joker_slots
 
                 self._add_joker(item)
@@ -1321,7 +1344,7 @@ class Balatro:
         assert len(set(discard_indices)) == len(discard_indices)
 
         for joker in self.jokers:
-            joker.on_discard([self.hand[i] for i in discard_indices])
+            joker._on_discard([self.hand[i] for i in discard_indices])
 
         for i in sorted(discard_indices, reverse=True):
             self.hand.pop(i)
@@ -1371,15 +1394,15 @@ class Balatro:
         )
 
         for joker in self.jokers:
-            joker.on_hand_played(played_cards, scored_card_indices, poker_hands_played)
+            joker._on_hand_played(played_cards, scored_card_indices, poker_hands_played)
 
         self.poker_hand_info[poker_hands_played[0]][1] += 1
 
         poker_hand_level = self.poker_hand_info[poker_hands_played[0]][0]
-        poker_hand_base_chips, poker_hand_base_mult = Balatro.HAND_BASE_SCORE[
+        poker_hand_base_chips, poker_hand_base_mult = Run.HAND_BASE_SCORE[
             poker_hands_played[0]
         ]
-        poker_hand_chips_scaling, poker_hand_mult_scaling = Balatro.HAND_SCALING[
+        poker_hand_chips_scaling, poker_hand_mult_scaling = Run.HAND_SCALING[
             poker_hands_played[0]
         ]
         poker_hand_chips, poker_hand_mult = (
@@ -1407,7 +1430,7 @@ class Balatro:
 
             for joker in self.jokers:
                 for _ in range(
-                    joker.on_card_scored_retriggers(
+                    joker._on_card_scored_retriggers(
                         scored_card,
                         played_cards,
                         scored_card_indices,
@@ -1429,7 +1452,7 @@ class Balatro:
                     self._trigger_held_card(held_card)
 
             for joker in self.jokers:
-                for _ in range(joker.on_card_held_retriggers(held_card)):
+                for _ in range(joker._on_card_held_retriggers(held_card)):
                     self._trigger_held_card(held_card)
 
         for joker in self.jokers:
@@ -1439,10 +1462,10 @@ class Balatro:
                 case Edition.HOLO:
                     self.mult += 10
 
-            joker.on_independent(played_cards, scored_card_indices, poker_hands_played)
+            joker._on_independent(played_cards, scored_card_indices, poker_hands_played)
 
             for other_joker in self.jokers:
-                other_joker.on_dependent(joker)
+                other_joker._on_dependent(joker)
 
             match joker:
                 case Edition.POLYCHROME:
@@ -1482,7 +1505,7 @@ class Balatro:
         self.first_hand = False
 
         for joker in self.jokers:
-            joker.on_end_hand()
+            joker._on_end_hand()
 
         # return  # leave in when testing
 
@@ -1524,7 +1547,7 @@ class Balatro:
         assert self.available_money >= reroll_cost
 
         for joker in self.jokers:
-            joker.on_shop_rerolled()
+            joker._on_shop_rerolled()
 
         self.money -= reroll_cost
 
@@ -1541,8 +1564,8 @@ class Balatro:
         self.round += 1
         self.round_score = 0
         self.round_goal = (
-            Balatro.ANTE_BASE_CHIPS[self.ante] * Balatro.BLIND_INFO[self.blind][1]
-        )
+            Run.ANTE_BASE_CHIPS[self.ante] * Run.BLIND_INFO[self.blind][1]
+        ) * (2 if self.deck is Deck.PLASMA else 1)
         self.hands = self.starting_hands
         self.discards = self.starting_discards + self.active_jokers.count(
             JokerType.DRUNKARD
@@ -1566,7 +1589,7 @@ class Balatro:
             raise NotImplementedError
 
         for joker in self.jokers:
-            joker.on_blind_selected()
+            joker._on_blind_selected()
 
         while Tag.JUGGLE in self.tags:
             self.tags.remove(Tag.JUGGLE)
@@ -1601,7 +1624,7 @@ class Balatro:
                     self._random_final_blind()
                 case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
                     self.state = State.OPENING_PACK_TAG
-                    self._open_pack(Balatro.TAG_PACKS[tag])
+                    self._open_pack(Run.TAG_PACKS[tag])
                 case Tag.HANDY:
                     self.money += 1 * self.played_hands
                 case Tag.GARBAGE:
@@ -1623,7 +1646,7 @@ class Balatro:
         self._next_blind()
 
     @property
-    def active_jokers(self) -> list[Joker]:
+    def active_jokers(self) -> list[BaseJoker]:
         return [joker for joker in self.jokers if not joker.debuffed]
 
     @property
@@ -1648,6 +1671,10 @@ class Balatro:
         return self.joker_slots + sum(
             joker.edition is Edition.NEGATIVE for joker in self.jokers
         )
+
+    @property
+    def is_finisher_ante(self) -> bool:
+        return self.ante % 8 == 0
 
     @property
     def next_reroll(self) -> tuple[int, bool] | None:

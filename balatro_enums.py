@@ -241,6 +241,10 @@ class Planet(Enum):
     MERCURY = "Mercury"
     PLUTO = "Pluto"
 
+    @property
+    def poker_hand(self) -> Planet:
+        return list(PokerHand)[list(Planet).index(self)]
+
 
 class Spectral(Enum):
     FAMILIAR = "Familiar"

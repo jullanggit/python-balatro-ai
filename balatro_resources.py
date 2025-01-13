@@ -695,11 +695,11 @@ def _apply_negative(sprite: Image.Image) -> Image.Image:
 
 
 def get_sprite(
-    item: Joker | Consumable | Card | Voucher | Stake | Tag | Blind | Deck | Pack,
+    item: BaseJoker | Consumable | Card | Voucher | Stake | Tag | Blind | Deck | Pack,
     as_image: bool = True,
 ) -> bytes:
     match item:
-        case Joker():
+        case BaseJoker():
             joker_sheet = Image.open("resources/textures/Jokers.png")
 
             match item.joker_type:

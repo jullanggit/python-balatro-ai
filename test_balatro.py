@@ -10,18 +10,18 @@ class TestBalatro(unittest.TestCase):
 
         if "round_score" in expected:
             self.assertEqual(
-                Balatro.format_number(self.balatro.round_score),
+                Run.format_number(self.run.round_score),
                 expected["round_score"],
             )
             del expected["round_score"]
         if "custom" in expected:
-            self.assertTrue(expected["custom"](self.balatro))
+            self.assertTrue(expected["custom"](self.run))
             del expected["custom"]
 
         for attr, value in expected.items():
-            self.assertEqual(getattr(self.balatro, attr), value)
+            self.assertEqual(getattr(self.run, attr), value)
 
-    def _set_up_hand(self, test_config: dict[str, Any]) -> Balatro:
+    def _set_up_hand(self, test_config: dict[str, Any]) -> Run:
         if "deck" in test_config:
             deck = Deck[test_config["deck"]]
             del test_config["deck"]
@@ -33,30 +33,30 @@ class TestBalatro(unittest.TestCase):
         else:
             stake = Stake.WHITE
 
-        self.balatro = Balatro(
+        self.run = Run(
             deck,
             stake=stake,
         )
-        self.balatro.select_blind()
+        self.run.select_blind()
 
         if "poker_hand_levels" in test_config:
             for poker_hand, level in test_config["poker_hand_levels"].items():
-                self.balatro.poker_hand_info[PokerHand[poker_hand]][0] = level
+                self.run.poker_hand_info[PokerHand[poker_hand]][0] = level
             del test_config["poker_hand_levels"]
         if "poker_hand_times_played" in test_config:
             for poker_hand, times_played in test_config[
                 "poker_hand_times_played"
             ].items():
-                self.balatro.poker_hand_info[PokerHand[poker_hand]][1] = times_played
+                self.run.poker_hand_info[PokerHand[poker_hand]][1] = times_played
             del test_config["poker_hand_times_played"]
         if "num_deck_cards_left" in test_config:
-            assert len(self.balatro.deck_cards) >= test_config["num_deck_cards_left"]
-            self.balatro.deck_cards = self.balatro.deck_cards[
+            assert len(self.run.deck_cards) >= test_config["num_deck_cards_left"]
+            self.run.deck_cards = self.run.deck_cards[
                 : test_config["num_deck_cards_left"]
             ]
             del test_config["num_deck_cards_left"]
         if "custom_setup" in test_config:
-            test_config["custom_setup"](self.balatro)
+            test_config["custom_setup"](self.run)
             del test_config["custom_setup"]
 
         if "hand" in test_config:
@@ -160,34 +160,32 @@ class TestBalatro(unittest.TestCase):
                     debuffed=debuffed,
                 )
                 hand.append(card)
-            self.balatro.hand = hand
+            self.run.hand = hand
             del test_config["hand"]
 
         if "jokers" in test_config:
             for joker_config in test_config["jokers"]:
-                joker = self.balatro._create_joker(
-                    JokerType[joker_config["joker_type"]]
-                )
+                joker = self.run._create_joker(JokerType[joker_config["joker_type"]])
                 del joker_config["joker_type"]
                 for attr, value in joker_config.items():
                     setattr(joker, attr, value)
-                self.balatro._add_joker(joker)
+                self.run._add_joker(joker)
             del test_config["jokers"]
 
         for attr, value in test_config.items():
-            setattr(self.balatro, attr, value)
+            setattr(self.run, attr, value)
 
     def run_balatro_test_discarded(self, test_config: dict[str, Any]) -> None:
         self._set_up_hand(test_config)
 
-        self.balatro.discard(test_config["discard_indices"])
+        self.run.discard(test_config["discard_indices"])
 
         self._check_expected(test_config)
 
     def run_balatro_test_scored(self, test_config: dict[str, Any]) -> None:
         self._set_up_hand(test_config)
 
-        self.balatro.play_hand(test_config["played_card_indices"])
+        self.run.play_hand(test_config["played_card_indices"])
 
         self._check_expected(test_config)
 
@@ -211,10 +209,10 @@ def create_test_method(test_name, test_config, test_type):
     return test_method
 
 
-def test_sixth_sense_scored_simple_custom_setup(b: Balatro) -> None:
+def test_sixth_sense_scored_simple_custom_setup(run: Run) -> None:
     c = Card(Suit.CLUBS, Rank.SIX)
-    b.deck_cards.append(c)
-    b.hand.insert(0, c)
+    run.deck_cards.append(c)
+    run.hand.insert(0, c)
 
 
 test_cases = {
