@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 from collections import Counter
+from dataclasses import replace
 import random as r
 
 from constants import *
@@ -38,7 +39,7 @@ class Run:
         self.tags: list[Tag] = []
 
         self.deck_cards: list[Card] = [
-            Card(suit, rank) for suit in Suit for rank in Rank
+            Card(rank, suit) for suit in Suit for rank in Rank
         ]
 
         self.jokers: list[BaseJoker] = []
@@ -111,12 +112,15 @@ class Run:
 
         self.reroll_cost: int | None = None
         self.used_chaos: bool | None = None
-        self.shop_cards: list[BaseJoker | Consumable | Card] | None = None
-        self.shop_vouchers: list[Voucher] | None = None
-        self.shop_packs: list[Pack] | None = None
+        self.shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
+        self.shop_vouchers: list[tuple[Voucher, int]] | None = None
+        self.shop_packs: list[tuple[Pack, int]] | None = None
         self.planet_cards_used: set[Planet] = set()
         self.final_blinds_defeated: set[Blind] = set()
         self.finisher_blinds_defeated: set[Blind] = set()
+        self.tarot_cards_used: int = 0
+        self.fool_creates: Tarot | Planet | None = None
+        self.ectoplasms_used: int = 0
         self.gros_michel_destroyed: bool = False
 
         self._new_ante()
@@ -194,6 +198,9 @@ class Run:
         buy_cost = (base_cost + edition_cost) * discount_percent
         return max(round(buy_cost - 0.001), 1)
 
+    def _calculate_sell_value(self, item: BaseJoker | Consumable) -> int:
+        raise NotImplementedError
+
     def _chance(self, hit: int, pool: int) -> bool:
         hit *= 2 ** self.active_jokers.count(JokerType.OOPS_ALL_SIXES)
         return hit >= pool or (r.randint(1, pool) <= hit)
@@ -237,6 +244,8 @@ class Run:
             joker._on_card_destroyed(card)
 
     def _destroy_joker(self, joker: BaseJoker) -> None:
+        if joker.eternal:
+            return
         try:
             i = self.jokers.index(joker)
             self.jokers.pop(i)
@@ -276,7 +285,7 @@ class Run:
             joker._on_round_ended()
 
         cash_out = (
-            (0 if saved else self.BLIND_INFO[self.blind][2])
+            (0 if saved else BLIND_INFO[self.blind][2])
             + self.remaining_hand_reward * self.hands
             + self.remaining_discard_reward * self.discards
             + interest
@@ -426,19 +435,18 @@ class Run:
 
         return poker_hands
 
-    def _get_random_card(self, allow_modifiers: bool = False) -> Card:
-        card = Card(r.choice(list(Suit)), r.choice(list(Rank)))
+    def _get_random_card(
+        self, allow_modifiers: bool = False, restricted_ranks: list[Rank] | None = None
+    ) -> Card:
+        ranks = restricted_ranks if restricted_ranks is not None else list(Rank)
+        card = Card(r.choice(ranks), r.choice(list(Suit)))
 
         if allow_modifiers:
             raise NotImplementedError
 
         return card
 
-    def _get_random_consumable(
-        self,
-        consumable_type: type,
-        existing: list[Tarot | Planet | Spectral] | None = None,
-    ) -> Consumable:
+    def _get_random_consumable(self, consumable_type: type) -> Consumable:
         match consumable_type.__name__:
             case Tarot.__name__:
                 card_pool = list(Tarot)
@@ -449,12 +457,19 @@ class Run:
                 ]
             case Spectral.__name__:
                 card_pool = list(Spectral)[:-2]
+        shop_cards = (
+            [
+                shop_card[0].card
+                for shop_card in self.shop_cards
+                if isinstance(shop_card, tuple) and isinstance(shop_card[0], Consumable)
+            ]
+            if self.state is State.IN_SHOP
+            else []
+        )
         card = None
         while card is None or (
             JokerType.SHOWMAN not in self.active_jokers
-            and (
-                card in self.consumables or (existing is not None and card in existing)
-            )
+            and (card in self.consumables or card in shop_cards)
         ):
             card = r.choice(card_pool)
 
@@ -463,7 +478,6 @@ class Run:
     def _get_random_joker(
         self,
         rarity: Rarity | None = None,
-        existing: list[JokerType] | None = None,
         stickers: bool = False,
     ) -> BaseJoker:
         if rarity is None:
@@ -473,15 +487,22 @@ class Run:
                 k=1,
             )[0]
 
+        shop_joker_types = (
+            [
+                shop_card[0].joker_type
+                for shop_card in self.shop_cards
+                if isinstance(shop_card, tuple) and isinstance(shop_card[0], BaseJoker)
+            ]
+            if self.state is State.IN_SHOP
+            else []
+        )
+
         joker_type = None
         while (
             joker_type is None
             or (
                 JokerType.SHOWMAN not in self.active_jokers
-                and (
-                    joker_type in self.jokers
-                    or (existing is not None and joker_type in existing)
-                )
+                and (joker_type in self.jokers or joker_type in shop_joker_types)
             )
             or (joker_type is JokerType.CAVENDISH and not self.gros_michel_destroyed)
             or (
@@ -719,11 +740,6 @@ class Run:
 
                     joker = self._get_random_joker(
                         rarity=rarity,
-                        existing=[
-                            card.joker_type
-                            for card, _ in self.shop_cards[:i]
-                            if isinstance(card, BaseJoker)
-                        ],
                         stickers=True,
                     )
 
@@ -739,14 +755,7 @@ class Run:
                         buy_cost = self._calculate_buy_cost(joker, coupon=coupon)
                     self.shop_cards[i] = (joker, buy_cost)
                 case Tarot.__name__ | Planet.__name__ | Spectral.__name__:
-                    consumable = self._get_random_consumable(
-                        self.shop_cards[i],
-                        existing=[
-                            card.card
-                            for card, _ in self.shop_cards[:i]
-                            if isinstance(card, Consumable)
-                        ],
-                    )
+                    consumable = self._get_random_consumable(self.shop_cards[i])
                     buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
                     self.shop_cards[i] = (consumable, buy_cost)
                 case Card.__name__:
@@ -935,6 +944,7 @@ class Run:
                     self.consumables.append(Consumable(last_poker_hand_played.planet))
 
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
+        assert self.state is State.IN_SHOP
         assert section_index in [0, 1, 2]
 
         section_items = [self.shop_cards, self.shop_vouchers, self.shop_packs][
@@ -1276,6 +1286,339 @@ class Run:
                     self.tags.append(tag)
 
         self._next_blind()
+
+    def use_consumable(
+        self, consumable_index: int, selected_card_indices: list[int] | None = None
+    ) -> None:
+        assert self.state is not State.GAME_OVER
+
+        assert 0 <= consumable_index < len(self.consumables)
+
+        if selected_card_indices is not None:
+            assert self.hand is not None
+            assert 1 <= len(selected_card_indices) <= 5
+            assert all(0 <= i < len(self.hand) for i in selected_card_indices)
+            assert len(set(selected_card_indices)) == len(selected_card_indices)
+
+            selected_cards = [self.hand[i] for i in selected_card_indices]
+        else:
+            selected_cards = None
+
+        consumable = self.consumables[consumable_index]
+
+        match consumable.card:
+            case Tarot():
+                match consumable.card:
+                    case Tarot.THE_FOOL:
+                        assert (
+                            self.fool_creates is not None
+                            and self.fool_creates is not Tarot.THE_FOOL
+                        )
+
+                        self.consumables.append(Consumable(self.fool_creates))
+                    case Tarot.THE_MAGICIAN:
+                        assert 1 <= len(selected_cards) <= 2
+
+                        for card in selected_cards:
+                            card.enhancement = Enhancement.LUCKY
+                    case Tarot.THE_HIGH_PRIESTESS:
+                        for _ in range(
+                            min(
+                                2,
+                                self.effective_consumable_slots
+                                - len(self.consumables)
+                                + 1,
+                            )
+                        ):
+                            self.consumables.append(self._get_random_consumable(Planet))
+                    case Tarot.THE_EMPRESS:
+                        assert 1 <= len(selected_cards) <= 2
+
+                        for card in selected_cards:
+                            card.enhancement = Enhancement.MULT
+                    case Tarot.THE_EMPEROR:
+                        for _ in range(
+                            min(
+                                2,
+                                self.effective_consumable_slots
+                                - len(self.consumables)
+                                + 1,
+                            )
+                        ):
+                            self.consumables.append(self._get_random_consumable(Tarot))
+                    case Tarot.THE_HEIROPHANT:
+                        assert 1 <= len(selected_cards) <= 2
+
+                        for card in selected_cards:
+                            card.enhancement = Enhancement.BONUS
+                    case Tarot.THE_LOVERS:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].enhancement = Enhancement.WILD
+                    case Tarot.THE_CHARIOT:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].enhancement = Enhancement.STEEL
+                    case Tarot.JUSTICE:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].enhancement = Enhancement.GLASS
+                    case Tarot.THE_HERMIT:
+                        self.money += max(0, min(20, self.money))
+                    case Tarot.THE_WHEEL_OF_FORTUNE:
+                        assert self.jokers
+
+                        valid_jokers = [
+                            joker
+                            for joker in self.jokers
+                            if joker.edition is Edition.BASE
+                        ]
+
+                        assert valid_jokers
+
+                        if self._chance(1, 4):
+                            r.choice(valid_jokers).edition = r.choices(
+                                list(UPGRADED_EDITION_WEIGHTS),
+                                weights=UPGRADED_EDITION_WEIGHTS.values(),
+                                k=1,
+                            )[0]
+                    case Tarot.STRENGTH:
+                        assert 1 <= len(selected_cards) <= 2
+
+                        ranks = list(Rank)
+                        for card in selected_cards:
+                            card.rank = ranks[(ranks.index(card.rank) - 1) % 13]
+                    case Tarot.THE_HANGED_MAN:
+                        assert 1 <= len(selected_cards) <= 2
+
+                        for card in selected_cards:
+                            self._destroy_card(card)
+                    case Tarot.DEATH:
+                        assert len(selected_cards) == 2
+
+                        left, right = selected_cards
+                        left.suit = right.suit
+                        left.rank = right.rank
+                        left.enhancement = right.enhancement
+                        left.seal = right.seal
+                        left.edition = right.edition
+                    case Tarot.TEMPERANCE:
+                        self.money += min(
+                            50,
+                            sum(
+                                self._calculate_sell_value(joker)
+                                for joker in self.jokers
+                            ),
+                        )
+                    case Tarot.THE_DEVIL:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].enhancement = Enhancement.GOLD
+                    case Tarot.THE_TOWER:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].enhancement = Enhancement.STONE
+                    case Tarot.THE_STAR:
+                        assert 1 <= len(selected_cards) <= 3
+
+                        for card in selected_cards:
+                            card.suit = Suit.DIAMONDS
+                    case Tarot.THE_MOON:
+                        assert 1 <= len(selected_cards) <= 3
+
+                        for card in selected_cards:
+                            card.suit = Suit.CLUBS
+                    case Tarot.THE_SUN:
+                        assert 1 <= len(selected_cards) <= 3
+
+                        for card in selected_cards:
+                            card.suit = Suit.HEARTS
+                    case Tarot.JUDGEMENT:
+                        assert len(self.jokers) < self.effective_joker_slots
+
+                        self._add_joker(self._get_random_joker())
+                    case Tarot.THE_WORLD:
+                        assert 1 <= len(selected_cards) <= 3
+
+                        for card in selected_cards:
+                            card.suit = Suit.SPADES
+
+                self.tarot_cards_used += 1
+                self.fool_creates = consumable.card
+            case Planet():
+                self.poker_hand_info[consumable.card.poker_hand][0] += 1
+
+                for joker in self.jokers:
+                    joker._on_planet_used()
+
+                self.fool_creates = consumable.card
+            case Spectral():
+                match consumable.card:
+                    case Spectral.FAMILIAR:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        self._destroy_card(r.choice(self.hand))
+                        for _ in range(3):
+                            random_face_card = self._get_random_card(
+                                restricted_ranks=[Rank.KING, Rank.QUEEN, Rank.JACK]
+                            )
+                            random_face_card.enhancement = r.choice(list(Enhancement))
+                            self._add_card(random_face_card)
+                            self.hand.append(random_face_card)
+                    case Spectral.GRIM:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        self._destroy_card(r.choice(self.hand))
+                        for _ in range(2):
+                            random_ace = self._get_random_card(
+                                restricted_ranks=[Rank.ACE]
+                            )
+                            random_ace.enhancement = r.choice(list(Enhancement))
+                            self._add_card(random_ace)
+                            self.hand.append(random_ace)
+                    case Spectral.INCANTATION:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        self._destroy_card(r.choice(self.hand))
+                        for _ in range(4):
+                            random_numbered_card = self._get_random_card(
+                                restricted_ranks=[
+                                    Rank.TEN,
+                                    Rank.NINE,
+                                    Rank.EIGHT,
+                                    Rank.SEVEN,
+                                    Rank.SIX,
+                                    Rank.FIVE,
+                                    Rank.FOUR,
+                                    Rank.THREE,
+                                    Rank.TWO,
+                                ]
+                            )
+                            random_numbered_card.enhancement = r.choice(
+                                list(Enhancement)
+                            )
+                            self._add_card(random_numbered_card)
+                            self.hand.append(random_numbered_card)
+                    case Spectral.TALISMAN:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].seal = Seal.GOLD
+                    case Spectral.AURA:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].edition = r.choices(
+                            list(UPGRADED_EDITION_WEIGHTS),
+                            weights=UPGRADED_EDITION_WEIGHTS.values(),
+                            k=1,
+                        )[0]
+                    case Spectral.WRAITH:
+                        assert len(self.jokers) < self.effective_joker_slots
+
+                        self._add_joker(self._get_random_joker(rarity=Rarity.RARE))
+                        self.money = 0
+                    case Spectral.SIGIL:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        random_suit = r.choice(list(Suit))
+                        for card in self.hand:
+                            card.suit = random_suit
+                    case Spectral.OUIJA:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        random_rank = r.choice(list(Rank))
+                        for card in self.hand:
+                            card.rank = random_rank
+                        self.starting_hand_size -= 1
+                        if self.hand_size is not None:
+                            self.hand_size -= 1
+                    case Spectral.ECTOPLASM:
+                        assert self.jokers
+
+                        r.choice(self.jokers).edition = Edition.NEGATIVE
+                        self.starting_hand_size -= 1 + self.ectoplasms_used
+                        if self.hand_size is not None:
+                            self.hand_size -= 1 + self.ectoplasms_used
+                        self.ectoplasms_used += 1
+                    case Spectral.IMMOLATE:
+                        assert self.hand is not None
+                        assert len(self.hand) > 1
+
+                        for _ in range(5):
+                            if not self.hand:
+                                break
+                            self._destroy_card(r.choice(self.hand))
+                        self.money += 20
+                    case Spectral.ANKH:
+                        assert self.jokers
+
+                        copied_joker = r.choice(self.jokers)
+                        joker_copy = self._create_joker(
+                            copied_joker.joker_type,
+                            (
+                                Edition.BASE
+                                if copied_joker.edition is Edition.NEGATIVE
+                                else copied_joker.edition
+                            ),
+                            copied_joker.eternal,
+                            copied_joker.perishable,
+                            copied_joker.rental,
+                        )
+                        self._add_joker(joker_copy)
+                        for joker in self.jokers:
+                            if joker is copied_joker or joker is joker_copy:
+                                continue
+                            self._destroy_joker(joker)
+                    case Spectral.DEJA_VU:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].seal = Seal.RED
+                    case Spectral.HEX:
+                        assert self.jokers
+
+                        valid_jokers = [
+                            joker
+                            for joker in self.jokers
+                            if joker.edition is Edition.BASE
+                        ]
+
+                        assert valid_jokers
+
+                        random_joker = r.choice(valid_jokers)
+                        random_joker.edition = Edition.POLYCHROME
+
+                        for joker in self.jokers:
+                            if joker is random_joker:
+                                continue
+                            self._destroy_joker(joker)
+                    case Spectral.TRANCE:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].seal = Seal.BLUE
+                    case Spectral.MEDIUM:
+                        assert len(selected_cards) == 1
+
+                        selected_cards[0].seal = Seal.PURPLE
+                    case Spectral.CRYPTID:
+                        assert len(selected_cards) == 1
+
+                        for _ in range(2):
+                            card_copy = replace(selected_cards[0])
+                            self._add_card(card_copy)
+                            self.hand.append(card_copy)
+                    case Spectral.THE_SOUL:
+                        assert len(self.jokers) < self.effective_joker_slots
+
+                        self._add_joker(self._get_random_joker(rarity=Rarity.LEGENDARY))
+                    case Spectral.BLACK_HOLE:
+                        for poker_hand in PokerHand:
+                            self.poker_hand_info[poker_hand][0] += 1
+
+        self.consumables.pop(consumable_index)
 
     @property
     def active_jokers(self) -> list[BaseJoker]:

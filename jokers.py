@@ -630,7 +630,7 @@ class OnyxAgate(BaseJoker):
 
 @dataclass(eq=False)
 class TheIdol(BaseJoker):
-    card: Card = field(default_factory=lambda: Card(Suit.SPADES, Rank.ACE), init=False)
+    card: Card = field(default_factory=lambda: Card(Rank.ACE, Suit.SPADES), init=False)
 
     def _card_scored_ability(
         self,
@@ -659,9 +659,9 @@ class TheIdol(BaseJoker):
         ]
         if valid_deck_cards:
             random_deck_card = r.choice(valid_deck_cards)
-            self.card = Card(random_deck_card.suit, random_deck_card.rank)
+            self.card = Card(random_deck_card.rank, random_deck_card.suit)
         else:
-            self.card = Card(Suit.SPADES, Rank.ACE)
+            self.card = Card(Rank.ACE, Suit.SPADES)
 
     @property
     def joker_type(self) -> JokerType:

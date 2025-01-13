@@ -151,8 +151,8 @@ class TestBalatro(unittest.TestCase):
                         debuffed = True
 
                 card = Card(
-                    suit,
                     rank,
+                    suit,
                     enhancement=enhancement,
                     seal=seal,
                     edition=edition,
@@ -210,7 +210,7 @@ def create_test_method(test_name, test_config, test_type):
 
 
 def test_sixth_sense_scored_simple_custom_setup(run: Run) -> None:
-    c = Card(Suit.CLUBS, Rank.SIX)
+    c = Card(Rank.SIX, Suit.CLUBS)
     run.deck_cards.append(c)
     run.hand.insert(0, c)
 

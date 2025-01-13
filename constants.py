@@ -526,3 +526,8 @@ TAG_PACKS = {
     Tag.ETHEREAL: Pack.SPECTRAL,
     Tag.STANDARD: Pack.MEGA_STANDARD,
 }
+UPGRADED_EDITION_WEIGHTS = {
+    Edition.FOIL: 12.5,
+    Edition.HOLO: 8.75,
+    Edition.POLYCHROME: 3.75,
+}

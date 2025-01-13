@@ -25,6 +25,7 @@ class BaseJoker(Sellable, ABC):
     rental: bool = False
 
     debuffed: bool = field(default=False, init=False)
+    face_down: bool = field(default=False, init=False)
     perishable_rounds_left: int = field(default=5, init=False)
 
     def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
@@ -432,28 +433,28 @@ class Consumable(Sellable):
 
 @dataclass
 class Card:
-    suit: Suit
     rank: Rank
+    suit: Suit
 
     enhancement: Enhancement | None = None
     seal: Seal | None = None
     edition: Edition = Edition.BASE
 
-    bonus_chips: int = 0
+    bonus_chips: int = field(default=0, init=False)
+    debuffed: bool = field(default=False, init=False)
+    face_down: bool = field(default=False, init=False)
 
-    debuffed: bool = False
-
-    def __eq__(self, other: Card | Suit | Rank | Enhancement | Seal | Edition) -> bool:
+    def __eq__(self, other: Card | Rank | Suit | Enhancement | Seal | Edition) -> bool:
         match other:
             case Card():
                 return self is other
-            case Suit():
-                return (
-                    not self.debuffed and not self.is_stone_card and self.suit is other
-                )
             case Rank():
                 return (
                     not self.debuffed and not self.is_stone_card and self.rank is other
+                )
+            case Suit():
+                return (
+                    not self.debuffed and not self.is_stone_card and self.suit is other
                 )
             case Enhancement():
                 return not self.debuffed and self.enhancement is other
