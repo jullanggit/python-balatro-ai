@@ -10,13 +10,11 @@ from enums import *
 
 @dataclass(eq=False)
 class Blueprint(CopyJoker):
-    def _on_right_joker_changed(self) -> None:
-        self.copied_joker = None
-        for i, joker in enumerate(self._run.jokers):
-            if joker is self:
-                break
-        if i < len(self._run.jokers) - 1:
-            self.copied_joker = self._run.jokers[i + 1]
+    def _on_jokers_moved(self) -> None:
+        i = self._run.jokers.index(self)
+        self.copied_joker = (
+            self._run.jokers[i + 1] if i < len(self._run.jokers) - 1 else None
+        )
 
     @property
     def joker_type(self) -> JokerType:
@@ -25,7 +23,7 @@ class Blueprint(CopyJoker):
 
 @dataclass(eq=False)
 class Brainstorm(CopyJoker):
-    def _on_leftmost_joker_changed(self) -> None:
+    def _on_jokers_moved(self) -> None:
         self.copied_joker = self._run.jokers[0]
 
     @property

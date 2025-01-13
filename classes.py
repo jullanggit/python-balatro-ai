@@ -233,7 +233,7 @@ class BaseJoker(Sellable, ABC):
         if not self.debuffed:
             self._item_sold_ability(sold_item)
 
-    def _on_leftmost_joker_changed(self) -> None:
+    def _on_jokers_moved(self) -> None:
         pass
 
     def _on_lucky_card_triggered(self) -> None:
@@ -248,9 +248,6 @@ class BaseJoker(Sellable, ABC):
 
     def _on_planet_used(self) -> None:
         self._planet_used_action()
-
-    def _on_right_joker_changed(self) -> None:
-        pass
 
     def _on_round_ended(self) -> None:
         self._round_ended_action()

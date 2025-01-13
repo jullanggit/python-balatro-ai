@@ -122,10 +122,8 @@ class Run:
 
     def _add_joker(self, joker: BaseJoker) -> None:
         self.jokers.append(joker)
-        # joker._on_acquired()
-        joker._on_leftmost_joker_changed()
-        if len(self.jokers) > 1:
-            self.jokers[-2]._on_right_joker_changed()
+        for other_joker in self.jokers:
+            other_joker._on_jokers_moved()
 
     def _buy_shop_item(
         self, section_index: int, item_index: int
@@ -256,11 +254,8 @@ class Run:
         try:
             i = self.jokers.index(joker)
             self.jokers.pop(i)
-            if i > 0:
-                self.jokers[i - 1]._on_right_joker_changed()
-            else:
-                for other_joker in self.jokers:
-                    other_joker._on_leftmost_joker_changed()
+            for other_joker in self.jokers:
+                other_joker._on_jokers_moved()
         except ValueError:
             pass
 
@@ -1505,6 +1500,17 @@ class Run:
         else:
             self._deal()
 
+    def rearrange_jokers(self, new_positions: list[int]) -> None:
+        assert self.state is not State.GAME_OVER
+
+        assert self.jokers
+        assert sorted(new_positions) == list(range(len(self.jokers)))
+
+        self.jokers = [self.jokers[i] for i in new_positions]
+
+        for joker in self.jokers:
+            joker._on_jokers_moved()
+
     def reroll(self) -> None:
         assert self.state is State.IN_SHOP
 
@@ -1589,12 +1595,8 @@ class Run:
         for joker in self.jokers:
             joker._on_item_sold(sold_item)
 
-        if joker_sold:
-            if item_index > 0:
-                self.jokers[item_index - 1]._on_right_joker_changed()
-            else:
-                for other_joker in self.jokers:
-                    other_joker._on_leftmost_joker_changed()
+            if joker_sold:
+                joker._on_jokers_moved()
 
         self.money += self._calculate_sell_value(sold_item)
 
