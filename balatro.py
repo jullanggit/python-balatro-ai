@@ -231,7 +231,7 @@ class Run:
         return joker
 
     def _deal(self) -> None:
-        num_cards = self.hand_size - len(self.hand)
+        num_cards = min(len(self.deck_cards_left), self.hand_size - len(self.hand))
         if num_cards <= 0:
             return
         deal_indices = sorted(
@@ -1473,7 +1473,7 @@ class Run:
         for joker in self.jokers:
             joker._on_end_hand()
 
-        # return  # leave in when testing
+        return  # leave in when testing
 
         if self.round_score >= self.round_goal:
             self._end_round(poker_hands_played[0])
