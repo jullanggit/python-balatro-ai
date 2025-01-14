@@ -520,6 +520,7 @@ class Run:
                 JokerType.SHOWMAN not in self._active_jokers
                 and (joker_type in self._jokers or joker_type in shop_joker_types)
             )
+            or (joker_type is JokerType.GROS_MICHEL and self._gros_michel_extinct)
             or (joker_type is JokerType.CAVENDISH and not self._gros_michel_extinct)
             or (
                 joker_type is JokerType.GOLDEN_TICKET
@@ -1551,25 +1552,12 @@ class Run:
         self._hands = self._starting_hands
         self._discards = self._starting_discards
         self._hand_size = self._starting_hand_size
-        for active_joker in self._active_jokers:
-            match active_joker:
-                case JokerType.JUGGLER:
-                    self._hand_size += 1
-                case JokerType.TURTLE_BEAN:
-                    self._hand_size += active_joker.hand_size_increase
-                case JokerType.TROUBADOUR:
-                    self._hand_size += 2
-                    self._hands -= 1
-                case JokerType.MERRY_ANDY:
-                    self._discards += 3
-                    self._hand_size -= 1
-                case JokerType.STUNTMAN:
-                    self._hand_size -= 2
-        if self._hand_size <= 0 or self._hands <= 0:
-            raise NotImplementedError
 
         for joker in self._jokers:
             joker._on_blind_selected()
+
+        if self._hand_size <= 0 or self._hands <= 0:
+            raise NotImplementedError
 
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)

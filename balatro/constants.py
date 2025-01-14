@@ -486,21 +486,6 @@ PROHIBITED_ANTE_1_TAGS = {
     Tag.TOP_UP,
     Tag.ORBITAL,
 }
-RANK_CHIPS = {
-    Rank.ACE: 11,
-    Rank.KING: 10,
-    Rank.QUEEN: 10,
-    Rank.JACK: 10,
-    Rank.TEN: 10,
-    Rank.NINE: 9,
-    Rank.EIGHT: 8,
-    Rank.SEVEN: 7,
-    Rank.SIX: 6,
-    Rank.FIVE: 5,
-    Rank.FOUR: 4,
-    Rank.THREE: 3,
-    Rank.TWO: 2,
-}
 SHOP_BASE_CARD_WEIGHTS = {BaseJoker: 20, Tarot: 4, Planet: 4}
 SHOP_BASE_PACK_WEIGHTS = {
     Pack.ARCANA: 4,

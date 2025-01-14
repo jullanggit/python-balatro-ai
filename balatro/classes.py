@@ -141,9 +141,9 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _on_blind_selected(self) -> None:
-        self._blind_selected_action()
         if not self.debuffed:
             self._blind_selected_ability()
+            self._blind_selected_action()  # intentinal, (madness, ceremonial, drunkcard, etc. can't be copied but dont work on debuffed)
 
     def _on_boss_defeated(self) -> None:
         self._boss_defeated_action()
