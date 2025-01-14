@@ -1,4 +1,4 @@
-# balatro-python
+# python-balatro
 
 [![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
 
