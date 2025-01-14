@@ -10,7 +10,7 @@ class TestBalatro(unittest.TestCase):
 
         if "round_score" in expected:
             self.assertEqual(
-                format_number(self._run.round_score),
+                format_number(self._run._round_score),
                 expected["round_score"],
             )
             del expected["round_score"]
@@ -41,17 +41,17 @@ class TestBalatro(unittest.TestCase):
 
         if "poker_hand_levels" in test_config:
             for poker_hand, level in test_config["poker_hand_levels"].items():
-                self._run.poker_hand_info[PokerHand[poker_hand]][0] = level
+                self._run._poker_hand_info[PokerHand[poker_hand]][0] = level
             del test_config["poker_hand_levels"]
         if "poker_hand_times_played" in test_config:
             for poker_hand, times_played in test_config[
                 "poker_hand_times_played"
             ].items():
-                self._run.poker_hand_info[PokerHand[poker_hand]][1] = times_played
+                self._run._poker_hand_info[PokerHand[poker_hand]][1] = times_played
             del test_config["poker_hand_times_played"]
         if "num_deck_cards_left" in test_config:
-            assert len(self._run.deck_cards) >= test_config["num_deck_cards_left"]
-            self._run.deck_cards = self._run.deck_cards[
+            assert len(self._run._full_deck) >= test_config["num_deck_cards_left"]
+            self._run._full_deck = self._run._full_deck[
                 : test_config["num_deck_cards_left"]
             ]
             del test_config["num_deck_cards_left"]
@@ -160,7 +160,7 @@ class TestBalatro(unittest.TestCase):
                 card.bonus_chips = bonus_chips
                 card.debuffed = debuffed
                 hand.append(card)
-            self._run.hand = hand
+            self._run._hand = hand
             del test_config["hand"]
 
         if "jokers" in test_config:

@@ -11,9 +11,9 @@ from enums import *
 @dataclass(eq=False)
 class Blueprint(CopyJoker):
     def _on_jokers_moved(self) -> None:
-        i = self._run.jokers.index(self)
+        i = self._run._jokers.index(self)
         self.copied_joker = (
-            self._run.jokers[i + 1] if i < len(self._run.jokers) - 1 else None
+            self._run._jokers[i + 1] if i < len(self._run._jokers) - 1 else None
         )
 
     @property
@@ -24,7 +24,7 @@ class Blueprint(CopyJoker):
 @dataclass(eq=False)
 class Brainstorm(CopyJoker):
     def _on_jokers_moved(self) -> None:
-        self.copied_joker = self._run.jokers[0]
+        self.copied_joker = self._run._jokers[0]
 
     @property
     def joker_type(self) -> JokerType:
@@ -45,7 +45,7 @@ class SpaceJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._chance(1, 4):
-            self._run.poker_hand_info[poker_hands_played[0]][0] += 1
+            self._run._poker_hand_info[poker_hands_played[0]][0] += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -60,10 +60,10 @@ class DNA(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self._run.first_hand and len(played_cards) == 1:
+        if self._run._first_hand and len(played_cards) == 1:
             card_copy = replace(played_cards[0])
             self._run._add_card(card_copy)
-            self._run.hand.append(card_copy)
+            self._run._hand.append(card_copy)
 
     @property
     def joker_type(self) -> JokerType:
@@ -83,7 +83,7 @@ class ToDoList(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if poker_hands_played[0] is self.poker_hand:
-            self._run.money += 4
+            self._run._money += 4
 
     def _on_created(self) -> None:
         self._set_random_poker_hand()
@@ -92,7 +92,7 @@ class ToDoList(BaseJoker):
         self._set_random_poker_hand()
 
     def _set_random_poker_hand(self) -> None:
-        self.poker_hand = r.choice(self._run.unlocked_poker_hands)
+        self.poker_hand = r.choice(self._run._unlocked_poker_hands)
 
     @property
     def joker_type(self) -> JokerType:
@@ -132,7 +132,7 @@ class GreedyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.DIAMONDS in self._run._get_card_suits(scored_card):
-            self._run.mult += 3
+            self._run._mult += 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -149,7 +149,7 @@ class LustyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.HEARTS in self._run._get_card_suits(scored_card):
-            self._run.mult += 3
+            self._run._mult += 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -166,7 +166,7 @@ class WrathfulJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.SPADES in self._run._get_card_suits(scored_card):
-            self._run.mult += 3
+            self._run._mult += 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -183,7 +183,7 @@ class GluttonousJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.CLUBS in self._run._get_card_suits(scored_card):
-            self._run.mult += 3
+            self._run._mult += 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -201,10 +201,10 @@ class EightBall(BaseJoker):
     ) -> None:
         if (
             scored_card == Rank.EIGHT
-            and self._run.consumable_slots > len(self._run.consumables)
+            and self._run.consumable_slots > len(self._run._consumables)
             and self._run._chance(1, 4)
         ):
-            self._run.consumables.append(self._run._get_random_consumable(Tarot))
+            self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
     def joker_type(self) -> JokerType:
@@ -220,7 +220,7 @@ class Dusk(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> int:
-        return int(self._run.hands == 0)
+        return int(self._run._hands == 0)
 
     @property
     def joker_type(self) -> JokerType:
@@ -243,7 +243,7 @@ class Fibonacci(BaseJoker):
             Rank.FIVE,
             Rank.EIGHT,
         ]:
-            self._run.mult += 8
+            self._run._mult += 8
 
     @property
     def joker_type(self) -> JokerType:
@@ -260,7 +260,7 @@ class ScaryFace(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._is_face_card(scored_card):
-            self._run.chips += 30
+            self._run._chips += 30
 
     @property
     def joker_type(self) -> JokerType:
@@ -307,7 +307,7 @@ class EvenSteven(BaseJoker):
             Rank.EIGHT,
             Rank.TEN,
         ]:
-            self._run.mult += 4
+            self._run._mult += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -330,7 +330,7 @@ class OddTodd(BaseJoker):
             Rank.NINE,
             Rank.ACE,
         ]:
-            self._run.chips += 31
+            self._run._chips += 31
 
     @property
     def joker_type(self) -> JokerType:
@@ -347,8 +347,8 @@ class Scholar(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if scored_card == Rank.ACE:
-            self._run.chips += 20
-            self._run.mult += 4
+            self._run._chips += 20
+            self._run._mult += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -365,7 +365,7 @@ class BusinessCard(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._is_face_card(scored_card) and self._run._chance(1, 2):
-            self._run.money += 2
+            self._run._money += 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -405,7 +405,7 @@ class Photograph(BaseJoker):
             ),
             None,
         ):
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -424,7 +424,7 @@ class AncientJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self.suit in self._run._get_card_suits(scored_card):
-            self._run.mult *= 1.5
+            self._run._mult *= 1.5
 
     def _on_created(self) -> None:
         self._set_random_suit()
@@ -453,8 +453,8 @@ class WalkieTalkie(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if scored_card in [Rank.TEN, Rank.FOUR]:
-            self._run.chips += 10
-            self._run.mult += 4
+            self._run._chips += 10
+            self._run._mult += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -494,7 +494,7 @@ class SmileyFace(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._is_face_card(scored_card):
-            self._run.mult += 5
+            self._run._mult += 5
 
     @property
     def joker_type(self) -> JokerType:
@@ -511,7 +511,7 @@ class GoldenTicket(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if scored_card == Enhancement.GOLD:
-            self._run.money += 4
+            self._run._money += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -560,7 +560,7 @@ class RoughGem(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.DIAMONDS in self._run._get_card_suits(scored_card):
-            self._run.money += 1
+            self._run._money += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -579,7 +579,7 @@ class Bloodstone(BaseJoker):
         if (
             Suit.HEARTS in self._run._get_card_suits(scored_card)
         ) and self._run._chance(1, 2):
-            self._run.mult *= 1.5
+            self._run._mult *= 1.5
 
     @property
     def joker_type(self) -> JokerType:
@@ -596,7 +596,7 @@ class Arrowhead(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.SPADES in self._run._get_card_suits(scored_card):
-            self._run.chips += 50
+            self._run._chips += 50
 
     @property
     def joker_type(self) -> JokerType:
@@ -613,7 +613,7 @@ class OnyxAgate(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if Suit.CLUBS in self._run._get_card_suits(scored_card):
-            self._run.mult += 7
+            self._run._mult += 7
 
     @property
     def joker_type(self) -> JokerType:
@@ -637,7 +637,7 @@ class TheIdol(BaseJoker):
             scored_card == self.card.rank
             and self.card.suit in self._run._get_card_suits(scored_card)
         ):
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     def _on_created(self) -> None:
         self._set_random_card()
@@ -648,7 +648,7 @@ class TheIdol(BaseJoker):
     def _set_random_card(self) -> None:
         valid_deck_cards = [
             deck_card
-            for deck_card in self._run.deck_cards
+            for deck_card in self._run._full_deck
             if not deck_card.is_stone_card
         ]
         if valid_deck_cards:
@@ -672,7 +672,7 @@ class Triboulet(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if scored_card in [Rank.KING, Rank.QUEEN]:
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -698,10 +698,10 @@ class Mime(BaseJoker):
 class RaisedFist(BaseJoker):
     def _card_held_ability(self, held_card: Card) -> None:
         valid_hand_cards = [
-            hand_card for hand_card in self._run.hand if not hand_card.is_stone_card
+            hand_card for hand_card in self._run._hand if not hand_card.is_stone_card
         ]
         if valid_hand_cards and held_card is min(reversed(valid_hand_cards)):
-            self._run.mult += held_card.chips * 2
+            self._run._mult += held_card.chips * 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -712,7 +712,7 @@ class RaisedFist(BaseJoker):
 class Baron(BaseJoker):
     def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.KING:
-            self._run.mult *= 1.5
+            self._run._mult *= 1.5
 
     @property
     def joker_type(self) -> JokerType:
@@ -723,7 +723,7 @@ class Baron(BaseJoker):
 class ReservedParking(BaseJoker):
     def _card_held_ability(self, held_card: Card) -> None:
         if self._run._is_face_card(held_card) and self._run._chance(1, 2):
-            self._run.money += 1
+            self._run._money += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -734,7 +734,7 @@ class ReservedParking(BaseJoker):
 class ShootTheMoon(BaseJoker):
     def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.QUEEN:
-            self._run.mult += 13
+            self._run._mult += 13
 
     @property
     def joker_type(self) -> JokerType:
@@ -754,7 +754,7 @@ class Joker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += 4
+        self._run._mult += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -770,7 +770,7 @@ class JollyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.PAIR in poker_hands_played:
-            self._run.mult += 8
+            self._run._mult += 8
 
     @property
     def joker_type(self) -> JokerType:
@@ -786,7 +786,7 @@ class ZanyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.THREE_OF_A_KIND in poker_hands_played:
-            self._run.mult += 12
+            self._run._mult += 12
 
     @property
     def joker_type(self) -> JokerType:
@@ -802,7 +802,7 @@ class MadJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.TWO_PAIR in poker_hands_played:
-            self._run.mult += 10
+            self._run._mult += 10
 
     @property
     def joker_type(self) -> JokerType:
@@ -818,7 +818,7 @@ class CrazyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.STRAIGHT in poker_hands_played:
-            self._run.mult += 12
+            self._run._mult += 12
 
     @property
     def joker_type(self) -> JokerType:
@@ -834,7 +834,7 @@ class DrollJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.FLUSH in poker_hands_played:
-            self._run.mult += 10
+            self._run._mult += 10
 
     @property
     def joker_type(self) -> JokerType:
@@ -850,7 +850,7 @@ class SlyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.PAIR in poker_hands_played:
-            self._run.chips += 50
+            self._run._chips += 50
 
     @property
     def joker_type(self) -> JokerType:
@@ -866,7 +866,7 @@ class WilyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.THREE_OF_A_KIND in poker_hands_played:
-            self._run.chips += 100
+            self._run._chips += 100
 
     @property
     def joker_type(self) -> JokerType:
@@ -882,7 +882,7 @@ class CleverJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.TWO_PAIR in poker_hands_played:
-            self._run.chips += 80
+            self._run._chips += 80
 
     @property
     def joker_type(self) -> JokerType:
@@ -898,7 +898,7 @@ class DeviousJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.STRAIGHT in poker_hands_played:
-            self._run.chips += 100
+            self._run._chips += 100
 
     @property
     def joker_type(self) -> JokerType:
@@ -914,7 +914,7 @@ class CraftyJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.FLUSH in poker_hands_played:
-            self._run.chips += 80
+            self._run._chips += 80
 
     @property
     def joker_type(self) -> JokerType:
@@ -930,7 +930,7 @@ class HalfJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if len(played_cards) <= 3:
-            self._run.mult += 20
+            self._run._mult += 20
 
     @property
     def joker_type(self) -> JokerType:
@@ -945,9 +945,9 @@ class JokerStencil(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= (
-            self._run.joker_slots - len(self._run.jokers)
-        ) + self._run.jokers.count(JokerType.JOKER_STENCIL)
+        self._run._mult *= (
+            self._run.joker_slots - len(self._run._jokers)
+        ) + self._run._jokers.count(JokerType.JOKER_STENCIL)
 
     @property
     def joker_type(self) -> JokerType:
@@ -959,11 +959,11 @@ class CeremonialDagger(BaseJoker):
     mult: int = field(default=0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
-        for i, joker in self._run.jokers:
+        for i, joker in self._run._jokers:
             if joker is self:
                 break
-        if i < len(self._run.jokers) - 1:
-            right_joker = self._run.jokers[i + 1]
+        if i < len(self._run._jokers) - 1:
+            right_joker = self._run._jokers[i + 1]
             self.mult += self._run._calculate_sell_value(right_joker)
             self._run._destroy_joker(right_joker)
 
@@ -973,7 +973,7 @@ class CeremonialDagger(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     @property
     def joker_type(self) -> JokerType:
@@ -988,7 +988,7 @@ class Banner(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += 30 * self._run.discards
+        self._run._chips += 30 * self._run._discards
 
     @property
     def joker_type(self) -> JokerType:
@@ -1003,8 +1003,8 @@ class MysticSummit(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self._run.discards == 0:
-            self._run.mult += 15
+        if self._run._discards == 0:
+            self._run._mult += 15
 
     @property
     def joker_type(self) -> JokerType:
@@ -1028,7 +1028,7 @@ class LoyaltyCard(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self.hands_remaining == 0:
-            self._run.mult *= 4
+            self._run._mult *= 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -1043,7 +1043,7 @@ class Misprint(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += r.randint(0, 23)
+        self._run._mult += r.randint(0, 23)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1058,11 +1058,11 @@ class SteelJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= 1 + (
+        self._run._mult *= 1 + (
             0.2
             * sum(
                 deck_card.enhancement is Enhancement.STEEL
-                for deck_card in self._run.deck_cards
+                for deck_card in self._run._full_deck
             )
         )
 
@@ -1079,7 +1079,7 @@ class AbstractJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += 3 * len(self._run.jokers)
+        self._run._mult += 3 * len(self._run._jokers)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1094,12 +1094,12 @@ class GrosMichel(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += 15
+        self._run._mult += 15
 
     def _round_ended_action(self) -> None:
         if self._run._chance(1, 6):
             self._run._destroy_joker(self)
-            self._run.gros_michel_destroyed = True
+            self._run._gros_michel_extinct = True
 
     @property
     def joker_type(self) -> JokerType:
@@ -1114,7 +1114,7 @@ class Supernova(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self._run.poker_hand_info[poker_hands_played[0]][1]
+        self._run._mult += self._run._poker_hand_info[poker_hands_played[0]][1]
 
     @property
     def joker_type(self) -> JokerType:
@@ -1129,12 +1129,12 @@ class Blackboard(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        for held_card in self._run.hand:
+        for held_card in self._run._hand:
             held_card_suits = self._run._get_card_suits(held_card, force_base_suit=True)
             if Suit.SPADES not in held_card_suits and Suit.CLUBS not in held_card_suits:
                 break
         else:
-            self._run.mult *= 3
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1156,7 +1156,7 @@ class IceCream(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += self.chips
+        self._run._chips += self.chips
 
     @property
     def joker_type(self) -> JokerType:
@@ -1171,7 +1171,7 @@ class BlueJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += 2 * len(self._run.deck_cards_left)
+        self._run._chips += 2 * len(self._run._full_deck_left)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1188,7 +1188,7 @@ class Constellation(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     def _planet_used_action(self) -> None:
         self.xmult += 0.1
@@ -1209,9 +1209,9 @@ class Superposition(BaseJoker):
         if (
             PokerHand.STRAIGHT in poker_hands_played
             and any(played_cards[i] == Rank.ACE for i in scored_card_indices)
-            and self._run.consumable_slots > len(self._run.consumables)
+            and self._run.consumable_slots > len(self._run._consumables)
         ):
-            self._run.consumables.append(self._run._get_random_consumable(Tarot))
+            self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
     def joker_type(self) -> JokerType:
@@ -1226,7 +1226,7 @@ class Cavendish(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= 3
+        self._run._mult *= 3
 
     def _round_ended_action(self) -> None:
         if self._run._chance(1, 1000):
@@ -1245,8 +1245,8 @@ class CardSharp(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if poker_hands_played[0] in self._run.round_poker_hands:
-            self._run.mult *= 3
+        if poker_hands_played[0] in self._run._round_poker_hands:
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1263,7 +1263,7 @@ class RedCard(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     def _pack_skipped_action(self) -> None:
         self.mult += 3
@@ -1278,11 +1278,11 @@ class Madness(BaseJoker):
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
-        if self._run.blind in [Blind.SMALL, Blind.BIG]:
+        if self._run._blind in [Blind.SMALL_BLIND, Blind.BIG_BLIND]:
             self.xmult += 0.5
             valid_destroys = [
                 joker
-                for joker in self._run.jokers
+                for joker in self._run._jokers
                 if joker is not self and not joker.eternal
             ]
             if valid_destroys:
@@ -1294,7 +1294,7 @@ class Madness(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1312,9 +1312,9 @@ class Seance(BaseJoker):
         if poker_hands_played[
             0
         ] is PokerHand.STRAIGHT_FLUSH and self._run.consumable_slots > len(
-            self._run.consumables
+            self._run._consumables
         ):
-            self._run.consumables.append(self._run._get_random_consumable(Spectral))
+            self._run._consumables.append(self._run._get_random_consumable(Spectral))
 
     @property
     def joker_type(self) -> JokerType:
@@ -1334,7 +1334,7 @@ class Hologram(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1351,7 +1351,7 @@ class Vagabond(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self.will_create = self._run.money <= 4
+        self.will_create = self._run._money <= 4
 
     def _independent_ability(
         self,
@@ -1359,8 +1359,10 @@ class Vagabond(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.will_create and self._run.consumable_slots > len(self._run.consumables):
-            self._run.consumables.append(self._run._get_random_consumable(Tarot))
+        if self.will_create and self._run.consumable_slots > len(
+            self._run._consumables
+        ):
+            self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
     def joker_type(self) -> JokerType:
@@ -1375,9 +1377,9 @@ class Erosion(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += 4 * max(
+        self._run._mult += 4 * max(
             0,
-            self._run.deck.starting_size - len(self._run.deck_cards),
+            self._run._deck.starting_size - len(self._run._full_deck),
         )
 
     @property
@@ -1393,7 +1395,7 @@ class FortuneTeller(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self._run.tarot_cards_used
+        self._run._mult += self._run._num_tarot_cards_used
 
     @property
     def joker_type(self) -> JokerType:
@@ -1408,8 +1410,8 @@ class StoneJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += 25 * sum(
-            deck_card.is_stone_card for deck_card in self._run.deck_cards
+        self._run._chips += 25 * sum(
+            deck_card.is_stone_card for deck_card in self._run._full_deck
         )
 
     @property
@@ -1425,7 +1427,7 @@ class Bull(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += 2 * max(0, self._run.money)
+        self._run._chips += 2 * max(0, self._run._money)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1442,7 +1444,7 @@ class FlashCard(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     def _shop_rerolled_action(self) -> None:
         self.mult += 2
@@ -1462,7 +1464,7 @@ class Popcorn(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     def _round_ended_action(self) -> None:
         self.mult -= 4
@@ -1487,7 +1489,7 @@ class Campfire(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     def _item_sold_action(self, sold_item: Sellable) -> None:
         self.xmult += 0.25
@@ -1505,8 +1507,8 @@ class Acrobat(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self._run.hands == 0:
-            self._run.mult *= 3
+        if self._run._hands == 0:
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1521,9 +1523,9 @@ class Swashbuckler(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += sum(
+        self._run._mult += sum(
             self._run._calculate_sell_value(joker)
-            for joker in self._run.jokers
+            for joker in self._run._jokers
             if joker is not self
         )
 
@@ -1540,7 +1542,7 @@ class Throwback(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= 1 + (0.25 * self._run.blinds_skipped)
+        self._run._mult *= 1 + (0.25 * self._run._blinds_skipped)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1561,7 +1563,7 @@ class GlassJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1588,7 +1590,7 @@ class FlowerPot(BaseJoker):
                     scored_suits.add(suit)
                     break
         if len(scored_suits) == 4:
-            self._run.mult *= 3
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1617,7 +1619,7 @@ class SeeingDouble(BaseJoker):
             ):
                 other = True
         if club and other:
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -1643,7 +1645,7 @@ class Matador(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self.will_earn:
-            self._run.money += 8
+            self._run._money += 8
 
     @property
     def joker_type(self) -> JokerType:
@@ -1659,7 +1661,7 @@ class TheDuo(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.PAIR in poker_hands_played:
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -1675,7 +1677,7 @@ class TheTrio(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.THREE_OF_A_KIND in poker_hands_played:
-            self._run.mult *= 3
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1691,7 +1693,7 @@ class TheFamily(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.FOUR_OF_A_KIND in poker_hands_played:
-            self._run.mult *= 4
+            self._run._mult *= 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -1707,7 +1709,7 @@ class TheOrder(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.STRAIGHT in poker_hands_played:
-            self._run.mult *= 3
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1723,7 +1725,7 @@ class TheTribe(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if PokerHand.FLUSH in poker_hands_played:
-            self._run.mult *= 2
+            self._run._mult *= 2
 
     @property
     def joker_type(self) -> JokerType:
@@ -1738,7 +1740,7 @@ class Stuntman(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += 250
+        self._run._chips += 250
 
     @property
     def joker_type(self) -> JokerType:
@@ -1754,10 +1756,10 @@ class DriversLicense(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if (
-            sum(deck_card.enhancement is not None for deck_card in self._run.deck_cards)
+            sum(deck_card.enhancement is not None for deck_card in self._run._full_deck)
             >= 16
         ):
-            self._run.mult *= 3
+            self._run._mult *= 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -1772,7 +1774,7 @@ class Bootstraps(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += 2 * max(0, self._run.money // 5)
+        self._run._mult += 2 * max(0, self._run._money // 5)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1793,7 +1795,7 @@ class Canio(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1828,7 +1830,7 @@ class RideTheBus(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1854,7 +1856,7 @@ class Runner(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += self.chips
+        self._run._chips += self.chips
 
     @property
     def joker_type(self) -> JokerType:
@@ -1882,7 +1884,7 @@ class GreenJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1908,7 +1910,7 @@ class SquareJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += self.chips
+        self._run._chips += self.chips
 
     @property
     def joker_type(self) -> JokerType:
@@ -1937,7 +1939,7 @@ class Vampire(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1954,8 +1956,8 @@ class Obelisk(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self._run.poker_hand_info[poker_hands_played[0]][1] < max(
-            times_played for hand_level, times_played in self._run.poker_hand_info
+        if self._run._poker_hand_info[poker_hands_played[0]][1] < max(
+            times_played for hand_level, times_played in self._run._poker_hand_info
         ):
             self.xmult += 0.2
         else:
@@ -1967,7 +1969,7 @@ class Obelisk(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -1984,7 +1986,7 @@ class LuckyCat(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     def _lucky_card_triggered_action(self) -> None:
         self.xmult += 0.25
@@ -2013,7 +2015,7 @@ class SpareTrousers(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult += self.mult
+        self._run._mult += self.mult
 
     @property
     def joker_type(self) -> JokerType:
@@ -2035,7 +2037,7 @@ class Ramen(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -2058,7 +2060,7 @@ class Castle(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += self.chips
+        self._run._chips += self.chips
 
     def _on_created(self) -> None:
         self._set_random_suit()
@@ -2069,7 +2071,7 @@ class Castle(BaseJoker):
     def _set_random_suit(self) -> None:
         valid_suits = [
             deck_card.suit
-            for deck_card in self._run.deck_cards
+            for deck_card in self._run._full_deck
             if not deck_card.is_stone_card
         ]
         self.suit = r.choice(valid_suits) if valid_suits else Suit.SPADES
@@ -2099,7 +2101,7 @@ class WeeJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.chips += self.chips
+        self._run._chips += self.chips
 
     @property
     def joker_type(self) -> JokerType:
@@ -2121,7 +2123,7 @@ class HitTheRoad(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     def _round_ended_action(self) -> None:
         self.xmult = 1.0
@@ -2148,7 +2150,7 @@ class Yorick(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run.mult *= self.xmult
+        self._run._mult *= self.xmult
 
     @property
     def joker_type(self) -> JokerType:
@@ -2166,7 +2168,7 @@ class BaseballCard(BaseJoker):
         from constants import JOKER_TYPE_RARITIES
 
         if other_joker in JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
-            self._run.mult *= 1.5
+            self._run._mult *= 1.5
 
     @property
     def joker_type(self) -> JokerType:
@@ -2188,7 +2190,7 @@ class FacelessJoker(BaseJoker):
             )
             >= 3
         ):
-            self._run.money += 5
+            self._run._money += 5
 
     @property
     def joker_type(self) -> JokerType:
@@ -2202,7 +2204,7 @@ class MailInRebate(BaseJoker):
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
         for discarded_card in discarded_cards:
             if discarded_card == self.rank:
-                self._run.money += 5
+                self._run._money += 5
 
     def _on_created(self) -> None:
         self._set_random_rank()
@@ -2213,7 +2215,7 @@ class MailInRebate(BaseJoker):
     def _set_random_rank(self) -> None:
         valid_ranks = [
             deck_card.rank
-            for deck_card in self._run.deck_cards
+            for deck_card in self._run._full_deck
             if not deck_card.is_stone_card
         ]
         self.rank = r.choice(valid_ranks) if valid_ranks else Rank.ACE
@@ -2226,9 +2228,9 @@ class MailInRebate(BaseJoker):
 @dataclass(eq=False)
 class TradingCard(BaseJoker):
     def _discard_action(self, discarded_cards: list[Card]) -> None:
-        if self._run.first_discard and len(discarded_cards) == 1:
-            self._run.money += 3
-            self._run._destroy_card(self._run.hand[discarded_cards[0]])
+        if self._run._first_discard and len(discarded_cards) == 1:
+            self._run._money += 3
+            self._run._destroy_card(self._run._hand[discarded_cards[0]])
 
     @property
     def joker_type(self) -> JokerType:
@@ -2238,10 +2240,10 @@ class TradingCard(BaseJoker):
 @dataclass(eq=False)
 class BurntJoker(BaseJoker):
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
-        if self._run.first_discard:
-            self._run.poker_hand_info[max(self._run._get_poker_hands(discarded_cards))][
-                1
-            ] += 1
+        if self._run._first_discard:
+            self._run._poker_hand_info[
+                max(self._run._get_poker_hands(discarded_cards))
+            ][1] += 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -2289,8 +2291,8 @@ class ChaosTheClown(BaseJoker):
 @dataclass(eq=False)
 class DelayedGratification(BaseJoker):
     def _round_ended_ability(self) -> None:
-        if self._run.first_discard:
-            self._run.money += 2 * self._run.discards
+        if self._run._first_discard:
+            self._run._money += 2 * self._run._discards
 
     @property
     def joker_type(self) -> JokerType:
@@ -2317,8 +2319,8 @@ class Egg(BaseJoker):
 @dataclass(eq=False)
 class Burglar(BaseJoker):
     def _blind_selected_ability(self) -> None:
-        self._run.hands += 3
-        self._run.discards = 0
+        self._run._hands += 3
+        self._run._discards = 0
 
     @property
     def joker_type(self) -> JokerType:
@@ -2342,7 +2344,7 @@ class SixthSense(BaseJoker):
 @dataclass(eq=False)
 class RiffRaff(BaseJoker):
     def _blind_selected_ability(self) -> None:
-        for _ in range(min(2, self._run.joker_slots - len(self._run.jokers))):
+        for _ in range(min(2, self._run.joker_slots - len(self._run._jokers))):
             self._run._add_joker(self._run._get_random_joker(Rarity.COMMON))
 
     @property
@@ -2360,7 +2362,7 @@ class Shortcut(BaseJoker):
 @dataclass(eq=False)
 class CloudNine(BaseJoker):
     def _round_ended_ability(self) -> None:
-        self._run.money += self._run.deck_cards.count(Rank.NINE)
+        self._run._money += self._run._full_deck.count(Rank.NINE)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2375,7 +2377,7 @@ class Rocket(BaseJoker):
         self.payout += 2
 
     def _round_ended_ability(self) -> None:
-        self._run.money += self.payout
+        self._run._money += self.payout
 
     @property
     def joker_type(self) -> JokerType:
@@ -2396,9 +2398,9 @@ class Luchador(BaseJoker):
 @dataclass(eq=False)
 class GiftCard(BaseJoker):
     def _round_ended_ability(self) -> None:
-        for joker in self._run.jokers:
+        for joker in self._run._jokers:
             joker.extra_sell_value += 1
-        for consumable in self._run.consumables:
+        for consumable in self._run._consumables:
             consumable.extra_sell_value += 1
 
     @property
@@ -2431,9 +2433,9 @@ class ToTheMoon(BaseJoker):
 class Hallucination(BaseJoker):
     def _pack_opened_ability(self) -> None:
         if self._run.consumable_slots > len(
-            self._run.consumables
+            self._run._consumables
         ) and self._run._chance(1, 2):
-            self._run.consumables.append(self._run._get_random_consumable(Tarot))
+            self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
     def joker_type(self) -> JokerType:
@@ -2457,7 +2459,7 @@ class Drunkard(BaseJoker):
 @dataclass(eq=False)
 class GoldenJoker(BaseJoker):
     def _round_ended_ability(self) -> None:
-        self._run.money += 4
+        self._run._money += 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -2468,7 +2470,7 @@ class GoldenJoker(BaseJoker):
 class DietCola(BaseJoker):
     def _item_sold_ability(self, sold_item: Sellable) -> None:
         if sold_item is self:
-            self._run.tags.append(Tag.DOUBLE)
+            self._run._tags.append(Tag.DOUBLE)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2495,7 +2497,7 @@ class Certificate(BaseJoker):
         added_card = self._run._get_random_card()
         added_card.seal = r.choice(list(Seal))
         self._run._add_card(added_card)
-        self._run.hand.append(added_card)
+        self._run._hand.append(added_card)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2539,8 +2541,8 @@ class InvisibleJoker(BaseJoker):
             self.rounds_remaining -= 1
 
     def _item_sold_action(self, sold_item: Sellable) -> None:
-        if sold_item is self and self.rounds_remaining == 0 and self._run.jokers:
-            duplicated_joker = replace(r.choice(self._run.jokers))
+        if sold_item is self and self.rounds_remaining == 0 and self._run._jokers:
+            duplicated_joker = replace(r.choice(self._run._jokers))
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
                 if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:
@@ -2555,7 +2557,7 @@ class InvisibleJoker(BaseJoker):
 @dataclass(eq=False)
 class Satellite(BaseJoker):
     def _round_ended_ability(self) -> None:
-        self._run.money += len(self._run.planet_cards_used)
+        self._run._money += len(self._run._planet_cards_used)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2565,8 +2567,8 @@ class Satellite(BaseJoker):
 @dataclass(eq=False)
 class Cartomancer(BaseJoker):
     def _blind_selected_ability(self) -> None:
-        if self._run.consumable_slots > len(self._run.consumables):
-            self._run.consumables.append(self._run._get_random_consumable(Tarot))
+        if self._run.consumable_slots > len(self._run._consumables):
+            self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
     @property
     def joker_type(self) -> JokerType:
@@ -2592,8 +2594,8 @@ class Chicot(BaseJoker):
 @dataclass(eq=False)
 class Perkeo(BaseJoker):
     def _shop_exited_ability(self) -> None:
-        self._run.consumables.append(
-            replace(r.choice(self._run.consumables), is_negative=True)
+        self._run._consumables.append(
+            replace(r.choice(self._run._consumables), is_negative=True)
         )
 
     @property

@@ -447,6 +447,7 @@ class Rank(Enum):
         match other:
             case Rank():
                 return list(Rank).index(self) > list(Rank).index(other)
+
         return NotImplemented
 
     def __str__(self) -> str:
@@ -480,6 +481,7 @@ class PokerHand(Enum):
         match other:
             case PokerHand():
                 return list(PokerHand).index(self) > list(PokerHand).index(other)
+
         return NotImplemented
 
     def __str__(self) -> str:

@@ -36,6 +36,7 @@ class BaseJoker(Sellable, ABC):
                 return self.joker_type is other
             case Edition():
                 return not self.debuffed and self.edition is other
+
         return NotImplemented
 
     def __str__(self) -> str:
@@ -292,13 +293,12 @@ class BaseJoker(Sellable, ABC):
 class CopyJoker(BaseJoker):
     copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
 
-    def __eq__(self, other: BaseJoker | JokerType) -> bool:
+    def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
         match other:
-            case BaseJoker():
-                return self is other
             case JokerType():
-                return self.copied_joker == other
-        return NotImplemented
+                return self.copied_joker.__eq__(other)
+            case _:
+                return super().__eq__(other)
 
     def _blind_selected_ability(self) -> None:
         if not self.debuffed and self.copied_joker is not None:
@@ -408,6 +408,7 @@ class Consumable(Sellable):
                 return self is other
             case Tarot() | Planet() | Spectral():
                 return self.card is other
+
         return NotImplemented
 
     def _repr_png_(self) -> bytes:
@@ -447,12 +448,14 @@ class Card:
                 return not self.debuffed and self.seal is other
             case Edition():
                 return not self.debuffed and self.edition is other
+
         return NotImplemented
 
     def __lt__(self, other: Card) -> bool:
         match other:
             case Card():
-                return self.rank < other.rank
+                return self.rank.__lt__(other.rank)
+
         return NotImplemented
 
     def __str__(self) -> str:
