@@ -5,8 +5,8 @@ import math
 from PIL import Image
 import random as r
 
-from classes import *
-from enums import *
+from .classes import *
+from .enums import *
 
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 142, 190
 

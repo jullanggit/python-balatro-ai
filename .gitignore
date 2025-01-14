@@ -1,4 +1,6 @@
 .DS_Store
 __pycache__
-Balatro
+Balatro Source Code
+balatro.egg-info
 test.ipynb
+test.py

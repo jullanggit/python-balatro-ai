@@ -5,10 +5,12 @@ from copy import deepcopy
 from dataclasses import replace
 import random as r
 
-from constants import *
-from classes import *
-from enums import *
-from jokers import *
+from .constants import *
+from .classes import *
+from .enums import *
+from .jokers import *
+
+__version__ = "1.0.0"
 
 
 def format_number(number: float) -> str:
@@ -1853,6 +1855,10 @@ class Run:
     @property
     def round(self) -> int:
         return self._round
+
+    @property
+    def round_score(self) -> int:
+        return self._round_score
 
     @property
     def shop_cards(self) -> list[tuple[BaseJoker | Consumable | Card, int]] | None:

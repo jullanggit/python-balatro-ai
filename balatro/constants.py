@@ -1,5 +1,5 @@
-from enums import *
-from jokers import *
+from .enums import *
+from .jokers import *
 
 ANTE_BASE_CHIPS = [
     100,

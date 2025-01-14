@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field, replace
 import random as r
 
-from classes import *
-from enums import *
+from .classes import *
+from .enums import *
 
 
 # ---- copiers/ ---- #
@@ -2165,7 +2165,7 @@ class Yorick(BaseJoker):
 @dataclass(eq=False)
 class BaseballCard(BaseJoker):
     def _dependent_ability(self, other_joker: BaseJoker) -> None:
-        from constants import JOKER_TYPE_RARITIES
+        from .constants import JOKER_TYPE_RARITIES
 
         if other_joker in JOKER_TYPE_RARITIES[Rarity.UNCOMMON]:
             self._run._mult *= 1.5
