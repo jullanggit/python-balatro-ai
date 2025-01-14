@@ -102,13 +102,14 @@ class Run:
         self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
         self._planet_cards_used: set[Planet] = set()
-        self._final_blinds_defeated: set[Blind] = set()
+        self._boss_blinds_defeated: set[Blind] = set()
         self._finisher_blinds_defeated: set[Blind] = set()
         self._num_tarot_cards_used: int = 0
         self._fool_next: Tarot | Planet | None = None
         self._hand_size_penalty: int = 0
         self._num_ectoplasms_used: int = 0
         self._gros_michel_extinct: bool = False
+        self._boss_blind_disabled: bool | None = None
 
         self._new_ante()
 
@@ -321,11 +322,29 @@ class Run:
         self._first_hand = None
         self._first_discard = None
         self._round_poker_hands = None
+        self._boss_blind_disabled = None
 
         self._next_blind()
 
         self._populate_shop()
         self._state = State.IN_SHOP
+
+    def _game_over(self) -> None:
+        self._round_score = None
+        self._round_goal = None
+        self._hands = None
+        self._unused_discards += self._discards
+        self._discards = None
+        self._hand_size = None
+        self._hand = None
+        self._deck_cards_left = None
+        self._chips = None
+        self._mult = None
+        self._first_hand = None
+        self._first_discard = None
+        self._round_poker_hands = None
+
+        self._state = State.GAME_OVER
 
     def _get_card_suits(self, card: Card, force_base_suit: bool = False) -> list[Suit]:
         if (card.debuffed and not force_base_suit) or card.is_stone_card:
@@ -612,7 +631,7 @@ class Run:
 
                 self._ante_tags[i] = (tag, extra)
 
-        self._random_final_blind()
+        self._random_boss_blind()
 
         self._blind: Blind = Blind.SMALL_BLIND
 
@@ -621,16 +640,16 @@ class Run:
             case Blind.SMALL_BLIND:
                 self._blind = Blind.BIG_BLIND
             case Blind.BIG_BLIND:
-                self._blind = self._final_blind
+                self._blind = self._boss_blind
             case _:
                 if self._is_finisher_ante:
                     self._finisher_blinds_defeated.add(self._blind)
                     if len(self._finisher_blinds_defeated) == 5:
                         self._finisher_blinds_defeated.clear()
                 else:
-                    self._final_blinds_defeated.add(self._blind)
-                    if len(self._final_blinds_defeated) == 23:
-                        self._final_blinds_defeated.clear()
+                    self._boss_blinds_defeated.add(self._blind)
+                    if len(self._boss_blinds_defeated) == 23:
+                        self._boss_blinds_defeated.clear()
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
@@ -786,21 +805,21 @@ class Run:
                     buy_cost = self._calculate_buy_cost(card, coupon=coupon)
                     self._shop_cards[i] = (card, buy_cost)
 
-    def _random_final_blind(self) -> None:
-        self._final_blind: Blind = None
+    def _random_boss_blind(self) -> None:
+        self._boss_blind: Blind = None
         if self._is_finisher_ante:
             while (
-                self._final_blind is None
-                or self._final_blind in self._finisher_blinds_defeated
+                self._boss_blind is None
+                or self._boss_blind in self._finisher_blinds_defeated
             ):
-                self._final_blind = r.choice(list(BLIND_INFO)[-5:])
+                self._boss_blind = r.choice(list(BLIND_INFO)[-5:])
         else:
             while (
-                self._final_blind is None
-                or BLIND_INFO[self._final_blind][0] > self._ante
-                or self._final_blind in self._final_blinds_defeated
+                self._boss_blind is None
+                or BLIND_INFO[self._boss_blind][0] > self._ante
+                or self._boss_blind in self._boss_blinds_defeated
             ):
-                self._final_blind = r.choice(list(BLIND_INFO)[2:-5])
+                self._boss_blind = r.choice(list(BLIND_INFO)[2:-5])
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1484,22 +1503,7 @@ class Run:
                         self._destroy_joker(joker)
                         self._end_round(poker_hands_played[0], saved=True)
                         return
-
-            self._round_score = None
-            self._round_goal = None
-            self._hands = None
-            self._unused_discards += self._discards
-            self._discards = None
-            self._hand_size = None
-            self._hand = None
-            self._deck_cards_left = None
-            self._chips = None
-            self._mult = None
-            self._first_hand = None
-            self._first_discard = None
-            self._round_poker_hands = None
-
-            self._state = State.GAME_OVER
+            self._game_over()
         else:
             self._deal()
 
@@ -1541,9 +1545,44 @@ class Run:
         self._round_goal = (
             ANTE_BASE_CHIPS[self._ante] * BLIND_INFO[self._blind][1]
         ) * (2 if self._deck is Deck.PLASMA else 1)
-        self._hands = self._starting_hands
-        self._discards = self._starting_discards
-        self._hand_size = self._starting_hand_size
+        self._hands = (
+            (
+                4
+                + (
+                    2
+                    if Voucher.NACHO_TONG in self._vouchers
+                    else 1 if Voucher.GRABBER in self._vouchers else 0
+                )
+                - (Voucher.HIEROGLYPH in self._vouchers)
+            )
+            + (self.deck is Deck.BLUE)
+            - (self.deck is Deck.BLACK)
+        )
+        self._discards = (
+            3
+            + (
+                2
+                if Voucher.RECYCLOMANCY in self._vouchers
+                else 1 if Voucher.WASTEFUL in self._vouchers else 0
+            )
+            - (Voucher.PETROGLYPH in self._vouchers)
+        ) + (self._deck is Deck.RED)
+        self._hand_size = (
+            8
+            + (
+                2
+                if Voucher.PALETTE in self._vouchers
+                else 1 if Voucher.PAINT_BRUSH in self._vouchers else 0
+            )
+            - self._hand_size_penalty
+        ) + (2 if self.deck is Deck.PAINTED else 0)
+        self._hand = []
+        self._deck_cards_left = self._full_deck.copy()
+        self._round_poker_hands = set()
+        self._first_hand = True
+        self._first_discard = True
+        if self._blind is self._boss_blind:
+            self._boss_blind_disabled = False
 
         for joker in self._jokers:
             joker._on_blind_selected()
@@ -1554,12 +1593,6 @@ class Run:
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
             self._hands += 3
-
-        self._hand = []
-        self._deck_cards_left = self._full_deck.copy()
-        self._round_poker_hands = set()
-        self._first_hand = True
-        self._first_discard = True
 
         self._deal()
 
@@ -1606,7 +1639,7 @@ class Run:
         for _ in range(num_tags):
             match tag:
                 case Tag.BOSS:
-                    self._random_final_blind()
+                    self._random_boss_blind()
                 case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
                     self._state = State.OPENING_PACK_TAG
                     self._open_pack(TAG_PACKS[tag])
@@ -1669,61 +1702,6 @@ class Run:
         return self._ante % 8 == 0
 
     @property
-    def _starting_discards(self) -> int:
-        starting_discards = (
-            3
-            + (
-                2
-                if Voucher.RECYCLOMANCY in self._vouchers
-                else 1 if Voucher.WASTEFUL in self._vouchers else 0
-            )
-            - (Voucher.PETROGLYPH in self._vouchers)
-        )
-
-        if self._deck is Deck.RED:
-            starting_discards += 1
-
-        return starting_discards
-
-    @property
-    def _starting_hand_size(self) -> int:
-        starting_hand_size = (
-            8
-            + (
-                2
-                if Voucher.PALETTE in self._vouchers
-                else 1 if Voucher.PAINT_BRUSH in self._vouchers else 0
-            )
-            - self._hand_size_penalty
-        )
-
-        match self._deck:
-            case Deck.PAINTED:
-                starting_hand_size += 2
-
-        return starting_hand_size
-
-    @property
-    def _starting_hands(self) -> int:
-        starting_hands = (
-            4
-            + (
-                2
-                if Voucher.NACHO_TONG in self._vouchers
-                else 1 if Voucher.GRABBER in self._vouchers else 0
-            )
-            - (Voucher.HIEROGLYPH in self._vouchers)
-        )
-
-        match self._deck:
-            case Deck.BLUE:
-                starting_hands += 1
-            case Deck.BLACK:
-                starting_hands -= 1
-
-        return starting_hands
-
-    @property
     def _unlocked_poker_hands(self) -> list[PokerHand]:
         return [
             poker_hand
@@ -1744,6 +1722,10 @@ class Run:
     @property
     def blind(self) -> Blind:
         return self._blind
+
+    @property
+    def boss_blind(self) -> Blind:
+        return self._boss_blind
 
     @property
     def consumable_slots(self) -> int:
@@ -1772,10 +1754,6 @@ class Run:
     @property
     def discards(self) -> int | None:
         return self._discards
-
-    @property
-    def final_blind(self) -> Blind:
-        return self._final_blind
 
     @property
     def full_deck(self) -> list[Card]:

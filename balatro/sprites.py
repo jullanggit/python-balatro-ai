@@ -742,6 +742,13 @@ def get_sprite(
                     face_sprite = joker_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, face_sprite)
 
+            if item.eternal:
+                raise NotImplementedError
+            if item.perishable:
+                raise NotImplementedError
+            if item.rental:
+                raise NotImplementedError
+
             if item.debuffed:
                 raise NotImplementedError
         case Consumable():

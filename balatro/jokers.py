@@ -2422,8 +2422,8 @@ class Rocket(BaseJoker):
 @dataclass(eq=False)
 class Luchador(BaseJoker):
     def _item_sold_ability(self, sold_item: Sellable) -> None:
-        if sold_item is self:
-            raise NotImplementedError
+        if sold_item is self and self._run._blind is self._run._boss_blind:
+            self._run._boss_blind_disabled = True
 
     @property
     def joker_type(self) -> JokerType:
@@ -2636,7 +2636,9 @@ class Astronomer(BaseJoker):
 
 @dataclass(eq=False)
 class Chicot(BaseJoker):
-    # TODO
+    def _blind_selected_action(self) -> None:
+        if self._run._blind is self._run._boss_blind:
+            self._run._boss_blind_disabled = True
 
     @property
     def joker_type(self) -> JokerType:
