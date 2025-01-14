@@ -1456,15 +1456,10 @@ class Run:
         )
         self._round_score += score
 
-        if (
-            JokerType.SIXTH_SENSE in self._active_jokers
-            and self._first_hand
-            and len(played_cards) == 1
-            and played_cards[0] == Rank.SIX
-        ):
-            self._destroy_card(played_cards[0])
-            if self.consumable_slots > len(self._consumables):
-                self._consumables.append(self._get_random_consumable(Spectral))
+        # un-debuff cards
+
+        for joker in self._jokers:
+            joker._on_end_hand()
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
@@ -1476,10 +1471,7 @@ class Run:
         self._round_poker_hands.add(poker_hands_played[0])
         self._first_hand = False
 
-        for joker in self._jokers:
-            joker._on_end_hand()
-
-        return  # leave in when testing
+        # return  # leave in when testing
 
         if self._round_score >= self._round_goal:
             self._end_round(poker_hands_played[0])
@@ -1685,7 +1677,6 @@ class Run:
                 if Voucher.RECYCLOMANCY in self._vouchers
                 else 1 if Voucher.WASTEFUL in self._vouchers else 0
             )
-            + self._active_jokers.count(JokerType.DRUNKARD)
             - (Voucher.PETROGLYPH in self._vouchers)
         )
 

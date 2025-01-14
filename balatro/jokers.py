@@ -85,7 +85,7 @@ class ToDoList(BaseJoker):
         if poker_hands_played[0] is self.poker_hand:
             self._run._money += 4
 
-    def _on_created(self) -> None:
+    def _on_created_action(self) -> None:
         self._set_random_poker_hand()
 
     def _round_ended_action(self) -> None:
@@ -426,7 +426,7 @@ class AncientJoker(BaseJoker):
         if self.suit in self._run._get_card_suits(scored_card):
             self._run._mult *= 1.5
 
-    def _on_created(self) -> None:
+    def _on_created_action(self) -> None:
         self._set_random_suit()
 
     def _round_ended_action(self) -> None:
@@ -475,7 +475,12 @@ class Seltzer(BaseJoker):
         self.hands_left -= 1
         return 1
 
-    def _end_hand_action(self) -> None:
+    def _end_hand_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.hands_left == 0:
             self._run._destroy_joker(self)
 
@@ -639,7 +644,7 @@ class TheIdol(BaseJoker):
         ):
             self._run._mult *= 2
 
-    def _on_created(self) -> None:
+    def _on_created_action(self) -> None:
         self._set_random_card()
 
     def _round_ended_action(self) -> None:
@@ -1015,7 +1020,12 @@ class MysticSummit(BaseJoker):
 class LoyaltyCard(BaseJoker):
     hands_remaining: int = field(default=5, init=False, repr=False)
 
-    def _end_hand_action(self) -> None:
+    def _end_hand_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         if self.hands_remaining == 0:
             self.hands_remaining = 5
         else:
@@ -1145,7 +1155,12 @@ class Blackboard(BaseJoker):
 class IceCream(BaseJoker):
     chips: int = field(default=100, init=False, repr=False)
 
-    def _end_hand_action(self) -> None:
+    def _end_hand_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
         self.chips -= 5
         if self.chips == 0:
             self._run._destroy_joker(self)
@@ -2065,7 +2080,7 @@ class Castle(BaseJoker):
     ) -> None:
         self._run._chips += self.chips
 
-    def _on_created(self) -> None:
+    def _on_created_action(self) -> None:
         self._set_random_suit()
 
     def _round_ended_action(self) -> None:
@@ -2209,7 +2224,7 @@ class MailInRebate(BaseJoker):
             if discarded_card == self.rank:
                 self._run._money += 5
 
-    def _on_created(self) -> None:
+    def _on_created_action(self) -> None:
         self._set_random_rank()
 
     def _round_ended_action(self) -> None:
@@ -2293,7 +2308,7 @@ class ChaosTheClown(BaseJoker):
 
 @dataclass(eq=False)
 class DelayedGratification(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         if self._run._first_discard:
             self._run._money += 2 * self._run._discards
 
@@ -2311,7 +2326,7 @@ class Pareidolia(BaseJoker):
 
 @dataclass(eq=False)
 class Egg(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         self.extra_sell_value += 3
 
     @property
@@ -2339,6 +2354,23 @@ class Splash(BaseJoker):
 
 @dataclass(eq=False)
 class SixthSense(BaseJoker):
+    def _end_hand_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if (
+            self._run._first_hand
+            and len(played_cards) == 1
+            and played_cards[0] == Rank.SIX
+        ):
+            self._run._destroy_card(played_cards[0])
+            if self._run.consumable_slots > len(self._run._consumables):
+                self._run._consumables.append(
+                    self._run._get_random_consumable(Spectral)
+                )
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SIXTH_SENSE
@@ -2364,7 +2396,7 @@ class Shortcut(BaseJoker):
 
 @dataclass(eq=False)
 class CloudNine(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         self._run._money += self._run._full_deck.count(Rank.NINE)
 
     @property
@@ -2379,7 +2411,7 @@ class Rocket(BaseJoker):
     def _boss_defeated_action(self) -> None:
         self.payout += 2
 
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         self._run._money += self.payout
 
     @property
@@ -2400,7 +2432,7 @@ class Luchador(BaseJoker):
 
 @dataclass(eq=False)
 class GiftCard(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         for joker in self._run._jokers:
             joker.extra_sell_value += 1
         for consumable in self._run._consumables:
@@ -2460,6 +2492,9 @@ class Juggler(BaseJoker):
 
 @dataclass(eq=False)
 class Drunkard(BaseJoker):
+    def _blind_selected_action(self) -> None:
+        self._run._discards += 1
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.DRUNKARD
@@ -2467,7 +2502,7 @@ class Drunkard(BaseJoker):
 
 @dataclass(eq=False)
 class GoldenJoker(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         self._run._money += 4
 
     @property
@@ -2573,7 +2608,7 @@ class InvisibleJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Satellite(BaseJoker):
-    def _round_ended_ability(self) -> None:
+    def _round_ended_action(self) -> None:
         self._run._money += len(self._run._planet_cards_used)
 
     @property
