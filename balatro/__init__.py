@@ -219,13 +219,13 @@ class Run:
         return hit >= pool or (r.randint(1, pool) <= hit)
 
     def _close_pack(self) -> None:
+        self._hand = None
+
         self._pack_items = None
         self._pack_choices_left = None
 
         self._state = (
-            State.IN_SHOP
-            if self._state is State.OPENING_PACK_SHOP
-            else State.SELECTING_BLIND
+            State.IN_SHOP if self._shop_cards is not None else State.SELECTING_BLIND
         )
 
     def _create_joker(
@@ -682,6 +682,8 @@ class Run:
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
+        self._state = State.OPENING_PACK
+
         for joker in self._jokers:
             joker._on_pack_opened()
 
@@ -1396,7 +1398,6 @@ class Run:
             case Card():
                 self._add_card(item)
             case Pack():
-                self._state = State.OPENING_PACK_SHOP
                 self._open_pack(item)
             case Voucher():
                 self._vouchers.add(item)
@@ -1642,7 +1643,7 @@ class Run:
         self._state = State.PLAYING_BLIND
 
     def select_pack_card(self, item_index: int) -> None:
-        assert self._state in [State.OPENING_PACK_SHOP, State.OPENING_PACK_TAG]
+        assert self._state is State.OPENING_PACK
 
         raise NotImplementedError
 
@@ -1692,7 +1693,6 @@ class Run:
                 case Tag.BOSS:
                     self._random_boss_blind()
                 case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
-                    self._state = State.OPENING_PACK_TAG
                     self._open_pack(TAG_PACKS[tag])
                 case Tag.HANDY:
                     self._money += 1 * self._num_played_hands
@@ -1713,7 +1713,7 @@ class Run:
         self._next_blind()
 
     def skip_pack(self) -> None:
-        assert self._state in [State.OPENING_PACK_SHOP, State.OPENING_PACK_TAG]
+        assert self._state is State.OPENING_PACK
 
         for joker in self.jokers:
             joker._on_pack_skipped()
