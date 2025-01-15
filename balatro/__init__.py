@@ -84,7 +84,7 @@ class Run:
         self._first_discard: bool | None = None
         self._round_poker_hands: set[PokerHand] | None = None
         self._num_unused_discards: int = 0
-        self._blinds_skipped: int = 0
+        self._num_blinds_skipped: int = 0
 
         self._round_score: int | None = None
         self._round_goal: int | None = None
@@ -152,7 +152,10 @@ class Run:
 
         match item:
             case BaseJoker():
-                assert len(self._jokers) < self.joker_slots
+                assert (
+                    len(self._jokers) < self.joker_slots
+                    or item.edition is Edition.NEGATIVE
+                )
             case Consumable():
                 assert len(self._consumables) < self.consumable_slots
 
@@ -223,10 +226,16 @@ class Run:
 
         self._pack_items = None
         self._pack_choices_left = None
+        self._hand = None
+        self._deck_cards_left = None
 
-        self._state = (
-            State.IN_SHOP if self._shop_cards is not None else State.SELECTING_BLIND
-        )
+        if self._shop_cards is None:
+            self._state = State.SELECTING_BLIND
+
+            if self._tags[-1] in TAG_PACKS:
+                self._open_pack(TAG_PACKS[self._tags.pop()])
+        else:
+            self._state = State.IN_SHOP
 
     def _create_joker(
         self,
@@ -707,7 +716,9 @@ class Run:
                     else:
                         self._pack_items.append(self._get_random_consumable(Tarot))
 
-                raise NotImplementedError
+                self._hand = []
+                self._deck_cards_left = self._full_deck.copy()
+                self._deal()
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
                 for _ in range(of_up_to):
                     if (
@@ -729,7 +740,9 @@ class Run:
                     else:
                         self._pack_items.append(self._get_random_consumable(Spectral))
 
-                raise NotImplementedError
+                self._hand = []
+                self._deck_cards_left = self._full_deck.copy()
+                self._deal()
             case Pack.STANDARD | Pack.JUMBO_STANDARD | Pack.MEGA_STANDARD:
                 edition_chances = (
                     CARD_EDITION_CHANCES_GLOW_UP
@@ -1388,8 +1401,6 @@ class Run:
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
         item, cost = self._buy_shop_item(section_index, item_index)
 
-        raise NotImplementedError  # check space
-
         match item:
             case BaseJoker():
                 self._add_joker(item)
@@ -1401,6 +1412,17 @@ class Run:
                 self._open_pack(item)
             case Voucher():
                 self._vouchers.add(item)
+
+    def choose_pack_item(
+        self, item_index: int, selected_card_indices: list[int] | None = None
+    ) -> None:
+        assert self._state is State.OPENING_PACK
+
+        raise NotImplementedError
+
+        self._pack_choices_left -= 1
+        if self._pack_choices_left == 0:
+            self._close_pack()
 
     def discard(self, discard_indices: list[int]) -> None:
         assert self._state is State.PLAYING_BLIND
@@ -1642,14 +1664,6 @@ class Run:
 
         self._state = State.PLAYING_BLIND
 
-    def select_pack_card(self, item_index: int) -> None:
-        assert self._state is State.OPENING_PACK
-
-        raise NotImplementedError
-
-        if self._pack_choices_left == 0:
-            self._close_pack()
-
     def sell_item(self, section_index: int, item_index: int) -> None:
         assert self._state is not State.GAME_OVER
 
@@ -1679,7 +1693,9 @@ class Run:
         assert self._state is State.SELECTING_BLIND
         assert self._blind in [Blind.SMALL_BLIND, Blind.BIG_BLIND]
 
-        self._blinds_skipped += 1
+        self._next_blind()
+
+        self._num_blinds_skipped += 1
 
         tag, extra = self._ante_tags[self._blind is Blind.BIG_BLIND]
 
@@ -1692,8 +1708,6 @@ class Run:
             match tag:
                 case Tag.BOSS:
                     self._random_boss_blind()
-                case Tag.BUFFOON | Tag.CHARM | Tag.METEOR | Tag.ETHEREAL | Tag.STANDARD:
-                    self._open_pack(TAG_PACKS[tag])
                 case Tag.HANDY:
                     self._money += 1 * self._num_played_hands
                 case Tag.GARBAGE:
@@ -1702,7 +1716,7 @@ class Run:
                     for _ in range(min(2, self.joker_slots - len(self._jokers))):
                         self._add_joker(self._get_random_joker(Rarity.COMMON))
                 case Tag.SPEED:
-                    self._money += 5 * self._blinds_skipped
+                    self._money += 5 * self._num_blinds_skipped
                 case Tag.ORBITAL:
                     self._poker_hand_info[extra][0] += 3
                 case Tag.ECONOMY:
@@ -1710,7 +1724,8 @@ class Run:
                 case _:
                     self._tags.append(tag)
 
-        self._next_blind()
+        if self._tags[-1] in TAG_PACKS:
+            self._open_pack(TAG_PACKS[self._tags.pop()])
 
     def skip_pack(self) -> None:
         assert self._state is State.OPENING_PACK

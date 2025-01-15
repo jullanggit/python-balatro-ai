@@ -1557,7 +1557,7 @@ class Throwback(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._mult *= 1 + (0.25 * self._run._blinds_skipped)
+        self._run._mult *= 1 + (0.25 * self._run._num_blinds_skipped)
 
     @property
     def joker_type(self) -> JokerType:
