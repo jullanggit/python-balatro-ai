@@ -79,11 +79,11 @@ class Run:
                     ]
                 )
 
-        self._played_hands: int = 0
+        self._num_played_hands: int = 0
         self._first_hand: bool | None = None
         self._first_discard: bool | None = None
         self._round_poker_hands: set[PokerHand] | None = None
-        self._unused_discards: int = 0
+        self._num_unused_discards: int = 0
         self._blinds_skipped: int = 0
 
         self._round_score: int | None = None
@@ -92,7 +92,6 @@ class Run:
         self._mult: float | None = None
         self._hands: int | None = None
         self._discards: int | None = None
-        self._hand_size: int | None = None
         self._hand: list[Card] | None = None
         self._deck_cards_left: list[Card] | None = None
 
@@ -101,6 +100,8 @@ class Run:
         self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
         self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
+        self._pack_items: list[BaseJoker | Consumable | Card] | None = None
+        self._pack_choices_left: int | None = None
         self._planet_cards_used: set[Planet] = set()
         self._boss_blinds_defeated: set[Blind] = set()
         self._finisher_blinds_defeated: set[Blind] = set()
@@ -217,6 +218,16 @@ class Run:
         hit *= 2 ** self._active_jokers.count(JokerType.OOPS_ALL_SIXES)
         return hit >= pool or (r.randint(1, pool) <= hit)
 
+    def _close_pack(self) -> None:
+        self._pack_items = None
+        self._pack_choices_left = None
+
+        self._state = (
+            State.IN_SHOP
+            if self._state is State.OPENING_PACK_SHOP
+            else State.SELECTING_BLIND
+        )
+
     def _create_joker(
         self,
         joker_type: JokerType,
@@ -235,10 +246,17 @@ class Run:
         joker._on_created()
         return joker
 
-    def _deal(self) -> None:
-        num_cards = min(len(self._deck_cards_left), self._hand_size - len(self._hand))
-        if num_cards <= 0:
-            return
+    def _deal(self) -> bool:
+        hand_size = self.hand_size
+
+        if (
+            not self._deck_cards_left
+            or hand_size <= 0
+            or self._hands is not None
+            and self._hands <= 0
+        ):
+            return False
+        num_cards = min(len(self._deck_cards_left), hand_size - len(self._hand))
         deal_indices = sorted(
             r.sample(range(len(self._deck_cards_left)), num_cards), reverse=True
         )
@@ -246,6 +264,8 @@ class Run:
             self._hand.append(self._deck_cards_left.pop(i))
 
         self._sort_hand()
+
+        return True
 
     def _destroy_card(self, card: Card) -> None:
         try:
@@ -312,9 +332,8 @@ class Run:
         self._round_score = None
         self._round_goal = None
         self._hands = None
-        self._unused_discards += self._discards
+        self._num_unused_discards += self._discards
         self._discards = None
-        self._hand_size = None
         self._hand = None
         self._deck_cards_left = None
         self._chips = None
@@ -333,9 +352,8 @@ class Run:
         self._round_score = None
         self._round_goal = None
         self._hands = None
-        self._unused_discards += self._discards
+        self._num_unused_discards += self._discards
         self._discards = None
-        self._hand_size = None
         self._hand = None
         self._deck_cards_left = None
         self._chips = None
@@ -470,14 +488,9 @@ class Run:
 
         return poker_hands
 
-    def _get_random_card(
-        self, allow_modifiers: bool = False, restricted_ranks: list[Rank] | None = None
-    ) -> Card:
+    def _get_random_card(self, restricted_ranks: list[Rank] | None = None) -> Card:
         ranks = restricted_ranks if restricted_ranks is not None else list(Rank)
         card = Card(r.choice(ranks), r.choice(list(Suit)))
-
-        if allow_modifiers:
-            raise NotImplementedError
 
         return card
 
@@ -492,20 +505,30 @@ class Run:
                 ]
             case Spectral.__name__:
                 card_pool = list(Spectral)[:-2]
-        shop_cards = (
-            [
-                shop_card[0].card
-                for shop_card in self._shop_cards
-                if isinstance(shop_card, tuple) and isinstance(shop_card[0], Consumable)
-            ]
-            if self._state is State.IN_SHOP
-            else []
-        )
+
+        prohibited_consumable_cards = []
+        if JokerType.SHOWMAN not in self._active_jokers:
+            prohibited_consumable_cards.extend(
+                consumable.card for consumable in self.consumables
+            )
+
+            if self._shop_cards is not None:
+                prohibited_consumable_cards.extend(
+                    shop_card[0].card
+                    for shop_card in self._shop_cards
+                    if isinstance(shop_card, tuple)
+                    and isinstance(shop_card[0], Consumable)
+                )
+
+            if self._pack_items is not None:
+                prohibited_consumable_cards.extend(
+                    pack_item.card
+                    for pack_item in self._pack_items
+                    if isinstance(pack_item, Consumable)
+                )
+
         card = None
-        while card is None or (
-            JokerType.SHOWMAN not in self._active_jokers
-            and (card in self._consumables or card in shop_cards)
-        ):
+        while card is None or (card in prohibited_consumable_cards):
             card = r.choice(card_pool)
 
         return Consumable(card)
@@ -513,7 +536,7 @@ class Run:
     def _get_random_joker(
         self,
         rarity: Rarity | None = None,
-        stickers: bool = False,
+        allow_stickers: bool = False,
     ) -> BaseJoker:
         if rarity is None:
             rarity = r.choices(
@@ -522,23 +545,29 @@ class Run:
                 k=1,
             )[0]
 
-        shop_joker_types = (
-            [
-                shop_card[0].joker_type
-                for shop_card in self._shop_cards
-                if isinstance(shop_card, tuple) and isinstance(shop_card[0], BaseJoker)
-            ]
-            if self._state is State.IN_SHOP
-            else []
-        )
+        prohibited_joker_types = []
+        if JokerType.SHOWMAN not in self._active_jokers:
+            prohibited_joker_types.extend(joker.joker_type for joker in self.jokers)
+
+            if self._shop_cards is not None:
+                prohibited_joker_types.extend(
+                    shop_card[0].joker_type
+                    for shop_card in self._shop_cards
+                    if isinstance(shop_card, tuple)
+                    and isinstance(shop_card[0], BaseJoker)
+                )
+
+            if self._pack_items is not None:
+                prohibited_joker_types.extend(
+                    pack_item.joker_type
+                    for pack_item in self._pack_items
+                    if isinstance(pack_item, BaseJoker)
+                )
 
         joker_type = None
         while (
             joker_type is None
-            or (
-                JokerType.SHOWMAN not in self._active_jokers
-                and (joker_type in self._jokers or joker_type in shop_joker_types)
-            )
+            or joker_type in prohibited_joker_types
             or (joker_type is JokerType.GROS_MICHEL and self._gros_michel_extinct)
             or (joker_type is JokerType.CAVENDISH and not self._gros_michel_extinct)
             or (
@@ -575,19 +604,19 @@ class Run:
             joker_type = r.choice(JOKER_TYPE_RARITIES[rarity])
 
         edition_chances = (
-            JOKER_BASE_EDITION_CHANCES_GLOW_UP
+            JOKER_EDITION_CHANCES_GLOW_UP
             if Voucher.GLOW_UP in self._vouchers
             else (
-                JOKER_BASE_EDITION_CHANCES_HONE
+                JOKER_EDITION_CHANCES_HONE
                 if Voucher.HONE in self._vouchers
-                else JOKER_BASE_EDITION_CHANCES
+                else JOKER_EDITION_CHANCES
             )
         )
         edition = r.choices(
             list(edition_chances), weights=edition_chances.values(), k=1
         )[0]
 
-        if self._stake is not Stake.WHITE and stickers:
+        if self._stake is not Stake.WHITE and allow_stickers:
             raise NotImplementedError
 
         return self._create_joker(joker_type, edition=edition)
@@ -653,26 +682,74 @@ class Run:
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
+        for joker in self._jokers:
+            joker._on_pack_opened()
+
         if pack.name.startswith("MEGA"):
-            choose = [2, 5]
+            self._pack_choices_left, of_up_to = 2, 5
         elif pack.name.startswith("JUMBO"):
-            choose = [1, 5]
+            self._pack_choices_left, of_up_to = 1, 5
         else:
-            choose = [1, 3]
+            self._pack_choices_left, of_up_to = 1, 3
+
+        self._pack_items = []
 
         match pack:
             case Pack.BUFFOON | Pack.JUMBO_BUFFOON | Pack.MEGA_BUFFOON:
-                choose[1] -= 1
-                raise NotImplementedError
+                for _ in range(of_up_to - 1):
+                    self._pack_items.append(self._get_random_joker(allow_stickers=True))
             case Pack.ARCANA | Pack.JUMBO_ARCANA | Pack.MEGA_ARCANA:
+                for _ in range(of_up_to):
+                    if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
+                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
+                    else:
+                        self._pack_items.append(self._get_random_consumable(Tarot))
+
                 raise NotImplementedError
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
-                raise NotImplementedError
+                for _ in range(of_up_to):
+                    if (
+                        Spectral.BLACK_HOLE not in self._pack_items
+                        and r.random() < 0.003
+                    ):
+                        self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
+                    else:
+                        self._pack_items.append(self._get_random_consumable(Spectral))
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
-                choose[1] -= 1
+                for _ in range(of_up_to - 1):
+                    if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
+                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
+                    elif (
+                        Spectral.BLACK_HOLE not in self._pack_items
+                        and r.random() < 0.003
+                    ):
+                        self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
+                    else:
+                        self._pack_items.append(self._get_random_consumable(Spectral))
+
                 raise NotImplementedError
             case Pack.STANDARD | Pack.JUMBO_STANDARD | Pack.MEGA_STANDARD:
-                raise NotImplementedError
+                edition_chances = (
+                    CARD_EDITION_CHANCES_GLOW_UP
+                    if Voucher.GLOW_UP in self._vouchers
+                    else (
+                        CARD_EDITION_CHANCES_HONE
+                        if Voucher.HONE in self._vouchers
+                        else CARD_EDITION_CHANCES
+                    )
+                )
+
+                for _ in range(of_up_to):
+                    pack_card = self._get_random_card()
+                    pack_card.edition = r.choices(
+                        list(edition_chances), weights=edition_chances.values(), k=1
+                    )[0]
+                    if r.random() < 0.4:
+                        pack_card.enhancement = r.choice(list(Enhancement))
+                    if r.random() < 0.2:
+                        pack_card.enhancement = r.choice(list(Seal))
+
+                    self._pack_items.append(pack_card)
 
     def _populate_shop(self) -> None:
         coupon = False
@@ -681,9 +758,9 @@ class Run:
             self._tags.remove(Tag.COUPON)
 
         self._reroll_cost = (
-            1
-            if Voucher.REROLL_GLUT in self._vouchers
-            else 3 if Voucher.REROLL_SURPLUS in self._vouchers else 5
+            5
+            - 2 * (Voucher.REROLL_SURPLUS in self._vouchers)
+            - 2 * (Voucher.REROLL_GLUT in self._vouchers)
         )
         if Tag.DSIX in self._tags:
             self._tags.remove(Tag.DSIX)
@@ -780,7 +857,7 @@ class Run:
 
                     joker = self._get_random_joker(
                         rarity=rarity,
-                        stickers=True,
+                        allow_stickers=True,
                     )
 
                     if joker.edition is Edition.BASE:
@@ -799,9 +876,9 @@ class Run:
                     buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
                     self._shop_cards[i] = (consumable, buy_cost)
                 case Card.__name__:
-                    card = self._get_random_card(
-                        allow_modifiers=(Voucher.ILLUSION in self._vouchers)
-                    )
+                    card = self._get_random_card()
+                    if Voucher.ILLUSION in self._vouchers:
+                        raise NotImplementedError
                     buy_cost = self._calculate_buy_cost(card, coupon=coupon)
                     self._shop_cards[i] = (card, buy_cost)
 
@@ -1214,15 +1291,11 @@ class Run:
                         for card in self._hand:
                             card.rank = random_rank
                         self._hand_size_penalty += 1
-                        if self._hand_size is not None:
-                            self._hand_size -= 1
                     case Spectral.ECTOPLASM:
                         assert self._jokers
 
                         r.choice(self._jokers).edition = Edition.NEGATIVE
                         self._hand_size_penalty += 1 + self._num_ectoplasms_used
-                        if self._hand_size is not None:
-                            self._hand_size -= 1 + self._num_ectoplasms_used
                         self._num_ectoplasms_used += 1
                     case Spectral.IMMOLATE:
                         assert self._hand is not None
@@ -1313,6 +1386,8 @@ class Run:
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
         item, cost = self._buy_shop_item(section_index, item_index)
 
+        raise NotImplementedError  # check space
+
         match item:
             case BaseJoker():
                 self._add_joker(item)
@@ -1364,7 +1439,7 @@ class Run:
         assert len(set(card_indices)) == len(card_indices)
 
         self._hands -= 1
-        self._played_hands += 1
+        self._num_played_hands += 1
 
         played_cards = [self._hand[i] for i in card_indices]
 
@@ -1545,37 +1620,8 @@ class Run:
         self._round_goal = (
             ANTE_BASE_CHIPS[self._ante] * BLIND_INFO[self._blind][1]
         ) * (2 if self._deck is Deck.PLASMA else 1)
-        self._hands = (
-            (
-                4
-                + (
-                    2
-                    if Voucher.NACHO_TONG in self._vouchers
-                    else 1 if Voucher.GRABBER in self._vouchers else 0
-                )
-                - (Voucher.HIEROGLYPH in self._vouchers)
-            )
-            + (self.deck is Deck.BLUE)
-            - (self.deck is Deck.BLACK)
-        )
-        self._discards = (
-            3
-            + (
-                2
-                if Voucher.RECYCLOMANCY in self._vouchers
-                else 1 if Voucher.WASTEFUL in self._vouchers else 0
-            )
-            - (Voucher.PETROGLYPH in self._vouchers)
-        ) + (self._deck is Deck.RED)
-        self._hand_size = (
-            8
-            + (
-                2
-                if Voucher.PALETTE in self._vouchers
-                else 1 if Voucher.PAINT_BRUSH in self._vouchers else 0
-            )
-            - self._hand_size_penalty
-        ) + (2 if self.deck is Deck.PAINTED else 0)
+        self._hands = self._hands_each_round
+        self._discards = self._discards_each_round
         self._hand = []
         self._deck_cards_left = self._full_deck.copy()
         self._round_poker_hands = set()
@@ -1587,9 +1633,6 @@ class Run:
         for joker in self._jokers:
             joker._on_blind_selected()
 
-        if self._hand_size <= 0 or self._hands <= 0:
-            raise NotImplementedError
-
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
             self._hands += 3
@@ -1597,6 +1640,14 @@ class Run:
         self._deal()
 
         self._state = State.PLAYING_BLIND
+
+    def select_pack_card(self, item_index: int) -> None:
+        assert self._state in [State.OPENING_PACK_SHOP, State.OPENING_PACK_TAG]
+
+        raise NotImplementedError
+
+        if self._pack_choices_left == 0:
+            self._close_pack()
 
     def sell_item(self, section_index: int, item_index: int) -> None:
         assert self._state is not State.GAME_OVER
@@ -1644,9 +1695,9 @@ class Run:
                     self._state = State.OPENING_PACK_TAG
                     self._open_pack(TAG_PACKS[tag])
                 case Tag.HANDY:
-                    self._money += 1 * self._played_hands
+                    self._money += 1 * self._num_played_hands
                 case Tag.GARBAGE:
-                    self._money += 1 * self._unused_discards
+                    self._money += 1 * self._num_unused_discards
                 case Tag.TOP_UP:
                     for _ in range(min(2, self.joker_slots - len(self._jokers))):
                         self._add_joker(self._get_random_joker(Rarity.COMMON))
@@ -1660,6 +1711,14 @@ class Run:
                     self._tags.append(tag)
 
         self._next_blind()
+
+    def skip_pack(self) -> None:
+        assert self._state in [State.OPENING_PACK_SHOP, State.OPENING_PACK_TAG]
+
+        for joker in self.jokers:
+            joker._on_pack_skipped()
+
+        self._close_pack()
 
     def use_consumable(
         self, consumable_index: int, selected_card_indices: list[int] | None = None
@@ -1698,6 +1757,48 @@ class Run:
         )
 
     @property
+    def _discards_each_round(self) -> int:
+        discards_each_round = 3
+
+        if self._deck is Deck.RED:
+            discards_each_round += 1
+
+        if Voucher.WASTEFUL in self._vouchers:
+            discards_each_round += 1
+        if Voucher.RECYCLOMANCY in self._vouchers:
+            discards_each_round += 1
+        if Voucher.PETROGLYPH in self._vouchers:
+            discards_each_round -= 1
+
+        for joker in self.jokers:
+            match joker:
+                case JokerType.DRUNKARD:
+                    discards_each_round += 1
+                case JokerType.MERRY_ANDY:
+                    discards_each_round += 3
+
+        return discards_each_round
+
+    @property
+    def _hands_each_round(self) -> int:
+        hands_each_round = 4
+
+        match self._deck:
+            case Deck.BLUE:
+                hands_each_round += 1
+            case Deck.BLACK:
+                hands_each_round -= 1
+
+        if Voucher.GRABBER in self._vouchers:
+            hands_each_round += 1
+        if Voucher.NACHO_TONG in self._vouchers:
+            hands_each_round += 1
+        if Voucher.HIEROGLYPH in self._vouchers:
+            hands_each_round -= 1
+
+        return hands_each_round
+
+    @property
     def _is_finisher_ante(self) -> bool:
         return self._ante % 8 == 0
 
@@ -1729,10 +1830,8 @@ class Run:
 
     @property
     def consumable_slots(self) -> int:
-        consumable_slots = (
-            2
-            + sum(consumable.is_negative for consumable in self._consumables)
-            + (Voucher.CRYSTAL_BALL in self._vouchers)
+        consumable_slots = 2 + sum(
+            consumable.is_negative for consumable in self._consumables
         )
 
         match self._deck:
@@ -1740,6 +1839,9 @@ class Run:
                 consumable_slots += 1
             case Deck.NEBULA:
                 consumable_slots -= 1
+
+        if Voucher.CRYSTAL_BALL in self._vouchers:
+            consumable_slots += 1
 
         return consumable_slots
 
@@ -1752,8 +1854,10 @@ class Run:
         return self._deck
 
     @property
-    def discards(self) -> int | None:
-        return self._discards
+    def discards(self) -> int:
+        return (
+            self._discards if self._discards is not None else self._discards_each_round
+        )
 
     @property
     def full_deck(self) -> list[Card]:
@@ -1764,19 +1868,42 @@ class Run:
         return self._hand
 
     @property
-    def hand_size(self) -> int | None:
-        return self._hand_size
+    def hand_size(self) -> int:
+        hand_size = 8
+
+        if self.deck is Deck.PAINTED:
+            hand_size -= 2
+
+        if Voucher.PAINT_BRUSH in self._vouchers:
+            hand_size += 1
+        if Voucher.PALETTE in self._vouchers:
+            hand_size += 1
+
+        for joker in self.jokers:
+            match joker:
+                case JokerType.STUNTMAN:
+                    hand_size -= 2
+                case JokerType.TURTLE_BEAN:
+                    hand_size += joker.hand_size_increase
+                case JokerType.JUGGLER:
+                    hand_size += 1
+                case JokerType.MERRY_ANDY:
+                    hand_size -= 1
+                case JokerType.TROUBADOUR:
+                    hand_size += 2
+
+        hand_size -= self._hand_size_penalty
+
+        return hand_size
 
     @property
     def hands(self) -> int | None:
-        return self._hands
+        return self._hands if self._hands is not None else self._hands_each_round
 
     @property
     def joker_slots(self) -> int:
-        joker_slots = (
-            5
-            + sum(joker.edition is Edition.NEGATIVE for joker in self._jokers)
-            + (Voucher.ANTIMATTER in self._vouchers)
+        joker_slots = 5 + sum(
+            joker.edition is Edition.NEGATIVE for joker in self._jokers
         )
 
         match self._deck:
@@ -1784,6 +1911,9 @@ class Run:
                 joker_slots += 1
             case Deck.PAINTED:
                 joker_slots -= 1
+
+        if Voucher.ANTIMATTER in self._vouchers:
+            joker_slots += 1
 
         return joker_slots
 

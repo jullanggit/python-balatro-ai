@@ -1749,9 +1749,6 @@ class TheTribe(BaseJoker):
 
 @dataclass(eq=False)
 class Stuntman(BaseJoker):
-    def _blind_selected_action(self) -> None:
-        self._run._hand_size -= 2
-
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -2447,9 +2444,6 @@ class GiftCard(BaseJoker):
 class TurtleBean(BaseJoker):
     hand_size_increase: int = field(default=5, init=False, repr=False)
 
-    def _blind_selected_action(self) -> None:
-        self._run._hand_size += self.hand_size_increase
-
     def _round_ended_action(self) -> None:
         self.hand_size_increase -= 1
         if self.hand_size_increase == 0:
@@ -2482,9 +2476,6 @@ class Hallucination(BaseJoker):
 
 @dataclass(eq=False)
 class Juggler(BaseJoker):
-    def _blind_selected_action(self) -> None:
-        self._run._hand_size += 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.JUGGLER
@@ -2492,9 +2483,6 @@ class Juggler(BaseJoker):
 
 @dataclass(eq=False)
 class Drunkard(BaseJoker):
-    def _blind_selected_action(self) -> None:
-        self._run._discards += 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.DRUNKARD
@@ -2531,7 +2519,6 @@ class MrBones(BaseJoker):
 @dataclass(eq=False)
 class Troubadour(BaseJoker):
     def _blind_selected_action(self) -> None:
-        self._run._hand_size += 2
         self._run._hands -= 1
 
     @property
@@ -2568,10 +2555,6 @@ class Showman(BaseJoker):
 
 @dataclass(eq=False)
 class MerryAndy(BaseJoker):
-    def _blind_selected_action(self) -> None:
-        self._run._discards += 3
-        self._run._hand_size -= 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.MERRY_ANDY

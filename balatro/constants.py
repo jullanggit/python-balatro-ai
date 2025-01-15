@@ -75,6 +75,24 @@ BLIND_INFO = {
     Blind.CRIMSON_HEART: [8, 2, 8],
     Blind.CERULEAN_BELL: [8, 2, 8],
 }
+CARD_EDITION_CHANCES = {
+    Edition.BASE: 92,
+    Edition.POLYCHROME: 1.2,
+    Edition.HOLO: 2.8,
+    Edition.FOIL: 4,
+}
+CARD_EDITION_CHANCES_HONE = {
+    Edition.BASE: 84,
+    Edition.POLYCHROME: 2.4,
+    Edition.HOLO: 5.6,
+    Edition.FOIL: 8,
+}
+CARD_EDITION_CHANCES_GLOW_UP = {
+    Edition.BASE: 68,
+    Edition.POLYCHROME: 4.8,
+    Edition.HOLO: 11.2,
+    Edition.FOIL: 16,
+}
 EDITION_COSTS = {
     Edition.BASE: 0,
     Edition.FOIL: 2,
@@ -262,21 +280,21 @@ JOKER_BASE_COSTS = {
     JokerType.CHICOT: 20,
     JokerType.PERKEO: 20,
 }
-JOKER_BASE_EDITION_CHANCES = {
+JOKER_EDITION_CHANCES = {
     Edition.BASE: 96,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 0.3,
     Edition.HOLO: 1.4,
     Edition.FOIL: 2,
 }
-JOKER_BASE_EDITION_CHANCES_HONE = {
+JOKER_EDITION_CHANCES_HONE = {
     Edition.BASE: 92,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 0.9,
     Edition.HOLO: 2.8,
     Edition.FOIL: 4,
 }
-JOKER_BASE_EDITION_CHANCES_GLOW_UP = {
+JOKER_EDITION_CHANCES_GLOW_UP = {
     Edition.BASE: 84,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 2.1,
