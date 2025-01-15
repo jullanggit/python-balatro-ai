@@ -177,6 +177,9 @@ class Run:
 
         match item:
             case BaseJoker():
+                if item.rental:
+                    return 1
+
                 base_cost = JOKER_BASE_COSTS[item.joker_type]
                 edition_cost = EDITION_COSTS[item.edition]
             case Consumable():
@@ -625,10 +628,32 @@ class Run:
             list(edition_chances), weights=edition_chances.values(), k=1
         )[0]
 
-        if self._stake is not Stake.WHITE and allow_stickers:
-            raise NotImplementedError
+        eternal, perishable, rental = False, False, False
+        if allow_stickers:
+            roll = r.random()
+            if (
+                self._stake >= Stake.BLACK
+                and joker_type not in NON_ETERNAL_JOKERS
+                and roll < 0.3
+            ):
+                eternal = True
+            elif (
+                self._stake >= Stake.ORANGE
+                and joker_type not in NON_PERISHABLE_JOKERS
+                and roll < 0.6
+            ):
+                perishable = True
 
-        return self._create_joker(joker_type, edition=edition)
+            if self._stake is Stake.GOLD and r.random() < 0.3:
+                rental = True
+
+        return self._create_joker(
+            joker_type,
+            edition=edition,
+            eternal=eternal,
+            perishable=perishable,
+            rental=rental,
+        )
 
     def _is_face_card(self, card: Card) -> bool:
         return (
@@ -730,12 +755,10 @@ class Run:
                         self._pack_items.append(self._get_random_consumable(Spectral))
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
                 for _ in range(of_up_to - 1):
-                    if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
+                    roll = r.random()
+                    if Spectral.THE_SOUL not in self._pack_items and roll < 0.003:
                         self._pack_items.append(Consumable(Spectral.THE_SOUL))
-                    elif (
-                        Spectral.BLACK_HOLE not in self._pack_items
-                        and r.random() < 0.003
-                    ):
+                    elif Spectral.BLACK_HOLE not in self._pack_items and roll < 0.006:
                         self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
                     else:
                         self._pack_items.append(self._get_random_consumable(Spectral))
@@ -1301,6 +1324,7 @@ class Run:
                     case Spectral.OUIJA:
                         assert self._hand is not None
                         assert len(self._hand) > 1
+                        assert self.hand_size > 1
 
                         random_rank = r.choice(list(Rank))
                         for card in self._hand:
@@ -1308,6 +1332,7 @@ class Run:
                         self._hand_size_penalty += 1
                     case Spectral.ECTOPLASM:
                         assert self._jokers
+                        assert self.hand_size > 1
 
                         r.choice(self._jokers).edition = Edition.NEGATIVE
                         self._hand_size_penalty += 1 + self._num_ectoplasms_used

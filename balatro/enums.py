@@ -1,5 +1,6 @@
 from __future__ import annotations
 from enum import Enum, auto
+from functools import total_ordering
 
 
 class JokerType(Enum):
@@ -286,15 +287,23 @@ class Enhancement(Enum):
     LUCKY = "Lucky"
 
 
+@total_ordering
 class Stake(Enum):
-    WHITE = "White"
-    RED = "Red"
-    GREEN = "Green"
+    GOLD = "Gold"
+    ORANGE = "Orange"
+    PURPLE = "Purple"
     BLUE = "Blue"
     BLACK = "Black"
-    PURPLE = "Purple"
-    ORANGE = "Orange"
-    GOLD = "Gold"
+    GREEN = "Green"
+    RED = "Red"
+    WHITE = "White"
+
+    def __lt__(self, other: Stake) -> bool:
+        match other:
+            case Stake():
+                return list(Stake).index(self) > list(Stake).index(other)
+
+        return NotImplemented
 
 
 class Tag(Enum):
@@ -425,6 +434,7 @@ class Suit(Enum):
         return self.value
 
 
+@total_ordering
 class Rank(Enum):
     ACE = "Ace"
     KING = "King"
@@ -463,6 +473,7 @@ class Rank(Enum):
             return int(self)
 
 
+@total_ordering
 class PokerHand(Enum):
     FLUSH_FIVE = "Flush Five"
     FLUSH_HOUSE = "Flush House"

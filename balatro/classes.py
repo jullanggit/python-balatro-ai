@@ -151,27 +151,32 @@ class BaseJoker(Sellable, ABC):
     def _on_blind_selected(self) -> None:
         if self.debuffed:
             return
+
         self._blind_selected_ability()
         self._blind_selected_action()
 
     def _on_boss_defeated(self) -> None:
         if self.debuffed:
             return
+
         self._boss_defeated_action()
 
     def _on_card_added(self, added_card: Card) -> None:
         if self.debuffed:
             return
+
         self._card_added_action(added_card)
 
     def _on_card_destroyed(self, destroyed_card: Card) -> None:
         if self.debuffed:
             return
+
         self._card_destroyed_action(destroyed_card)
 
     def _on_card_held(self, held_card: Card) -> None:
         if self.debuffed:
             return
+
         self._card_held_ability(held_card)
 
     def _on_card_held_retriggers(self, held_card: Card) -> int:
@@ -188,6 +193,7 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         if self.debuffed:
             return
+
         self._card_scored_action(
             scored_card, played_cards, scored_card_indices, poker_hands_played
         )
@@ -211,16 +217,19 @@ class BaseJoker(Sellable, ABC):
     def _on_created(self) -> None:
         if self.debuffed:
             return
+
         self._created_action()
 
     def _on_dependent(self, other_joker: BaseJoker) -> None:
         if self.debuffed:
             return
+
         self._dependent_ability(other_joker)
 
     def _on_discard(self, discarded_cards: list[Card]) -> None:
         if self.debuffed:
             return
+
         self._discard_action(discarded_cards)
         self._discard_ability(discarded_cards)
 
@@ -232,6 +241,7 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         if self.debuffed:
             return
+
         self._end_hand_action(played_cards, scored_card_indices, poker_hands_played)
 
     def _on_hand_played(
@@ -242,6 +252,7 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         if self.debuffed:
             return
+
         self._hand_played_action(played_cards, scored_card_indices, poker_hands_played)
         self._hand_played_ability(played_cards, scored_card_indices, poker_hands_played)
 
@@ -253,11 +264,13 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         if self.debuffed:
             return
+
         self._independent_ability(played_cards, scored_card_indices, poker_hands_played)
 
     def _on_item_sold(self, sold_item: Sellable) -> None:
         if self.debuffed:
             return
+
         self._item_sold_action(sold_item)
         self._item_sold_ability(sold_item)
 
@@ -267,36 +280,51 @@ class BaseJoker(Sellable, ABC):
     def _on_lucky_card_triggered(self) -> None:
         if self.debuffed:
             return
+
         self._lucky_card_triggered_action()
 
     def _on_pack_opened(self) -> None:
         if self.debuffed:
             return
+
         self._pack_opened_ability()
 
     def _on_pack_skipped(self) -> None:
         if self.debuffed:
             return
+
         self._pack_skipped_action()
 
     def _on_planet_used(self) -> None:
         if self.debuffed:
             return
+
         self._planet_used_action()
 
     def _on_round_ended(self) -> None:
         if self.debuffed:
             return
+
+        if self.rental:
+            self._run.money -= 3
+
+        self.perishable_rounds_left -= 1
+        if self.perishable_rounds_left == 0:
+            self.debuffed = True
+            return
+
         self._round_ended_action()
 
     def _on_shop_exited(self) -> None:
         if self.debuffed:
             return
+
         self._shop_exited_ability()
 
     def _on_shop_rerolled(self) -> None:
         if self.debuffed:
             return
+
         self._shop_rerolled_action()
 
     def _pack_opened_ability(self) -> None:
@@ -445,6 +473,7 @@ class Consumable(Sellable):
         return get_sprite(self, False)
 
 
+@total_ordering
 @dataclass(eq=False)
 class Card:
     rank: Rank

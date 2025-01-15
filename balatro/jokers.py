@@ -964,13 +964,12 @@ class CeremonialDagger(BaseJoker):
     mult: int = field(default=0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
-        for i, joker in self._run._jokers:
-            if joker is self:
-                break
+        i = self._run._jokers.index(self)
         if i < len(self._run._jokers) - 1:
             right_joker = self._run._jokers[i + 1]
-            self.mult += self._run._calculate_sell_value(right_joker)
-            self._run._destroy_joker(right_joker)
+            if not right_joker.eternal:
+                self.mult += self._run._calculate_sell_value(right_joker)
+                self._run._destroy_joker(right_joker)
 
     def _independent_ability(
         self,
