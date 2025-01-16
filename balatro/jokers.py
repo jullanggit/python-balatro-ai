@@ -26,6 +26,16 @@ class Brainstorm(CopyJoker):
     def _on_jokers_moved(self) -> None:
         self.copied_joker = self._run._jokers[0]
 
+        self._copy_loop = False
+        visited_jokers = set()
+        joker = self
+        while isinstance(joker, CopyJoker):
+            if id(joker) in visited_jokers:
+                self._copy_loop = True
+                return
+            visited_jokers.add(id(joker))
+            joker = joker.copied_joker
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.BRAINSTORM

@@ -8,8 +8,53 @@ import random as r
 from .classes import *
 from .enums import *
 
-DEFAULT_WIDTH, DEFAULT_HEIGHT = 142, 190
+DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT = 142, 190
+DEFAULT_CHIP_WIDTH, DEFAULT_CHIP_HEIGHT = 58, 58
+DEFAULT_TAG_WIDTH, DEFAULT_TAG_HEIGHT = 68, 68
+DEFAULT_BLIND_WIDTH, DEFAULT_BLIND_HEIGHT = 68, 68
 
+BLIND_ROWS = {
+    Blind.SMALL_BLIND: 0,
+    Blind.BIG_BLIND: 1,
+    Blind.THE_OX: 2,
+    Blind.THE_HOUSE: 3,
+    Blind.THE_CLUB: 4,
+    Blind.THE_FISH: 5,
+    Blind.THE_WINDOW: 6,
+    Blind.THE_HOOK: 7,
+    Blind.THE_MANACLE: 8,
+    Blind.THE_WALL: 9,
+    Blind.THE_WHEEL: 10,
+    Blind.THE_ARM: 11,
+    Blind.THE_PSYCHIC: 12,
+    Blind.THE_GOAD: 13,
+    Blind.THE_WATER: 14,
+    Blind.THE_SERPENT: 15,
+    Blind.THE_PILLAR: 16,
+    Blind.THE_EYE: 17,
+    Blind.THE_MOUTH: 18,
+    Blind.THE_PLANT: 19,
+    Blind.THE_NEEDLE: 20,
+    Blind.THE_HEAD: 21,
+    Blind.THE_TOOTH: 22,
+    Blind.THE_MARK: 23,
+    Blind.THE_FLINT: 24,
+    Blind.CRIMSON_HEART: 25,
+    Blind.CERULEAN_BELL: 26,
+    Blind.AMBER_ACORN: 27,
+    Blind.VERDANT_LEAF: 28,
+    Blind.VIOLET_VESSEL: 29,
+}
+CHIPS_COORDINATES = {
+    Stake.WHITE: [0, 0],
+    Stake.RED: [0, 1],
+    Stake.GREEN: [0, 2],
+    Stake.BLACK: [0, 3],
+    Stake.BLACK: [0, 4],
+    Stake.PURPLE: [1, 0],
+    Stake.ORANGE: [1, 1],
+    Stake.GOLD: [1, 3],
+}
 CONSUMABLE_COORDINATES = {
     Tarot.THE_FOOL: [0, 0],
     Tarot.THE_MAGICIAN: [0, 1],
@@ -263,6 +308,32 @@ PACK_COORDINATES = {
 }
 RANK_COLUMNS = {rank: i for i, rank in enumerate(reversed(Rank))}
 SUIT_ROWS = {Suit.HEARTS: 0, Suit.CLUBS: 1, Suit.DIAMONDS: 2, Suit.SPADES: 3}
+TAG_COORDINATES = {
+    Tag.UNCOMMON: [0, 0],
+    Tag.RARE: [0, 1],
+    Tag.NEGATIVE: [0, 2],
+    Tag.FOIL: [0, 3],
+    Tag.COUPON: [0, 4],
+    Tag.DOUBLE: [0, 5],
+    Tag.HOLOGRAPHIC: [1, 0],
+    Tag.POLYCHROME: [1, 1],
+    Tag.INVESTMENT: [1, 2],
+    Tag.VOUCHER: [1, 3],
+    Tag.TOP_UP: [1, 4],
+    Tag.JUGGLE: [1, 5],
+    Tag.BOSS: [2, 0],
+    Tag.STANDARD: [2, 1],
+    Tag.CHARM: [2, 2],
+    Tag.METEOR: [2, 3],
+    Tag.BUFFOON: [2, 4],
+    Tag.ORBITAL: [2, 5],
+    Tag.SPEED: [3, 0],
+    Tag.HANDY: [3, 1],
+    Tag.GARBAGE: [3, 2],
+    Tag.ETHEREAL: [3, 3],
+    Tag.ECONOMY: [3, 4],
+    Tag.DSIX: [3, 5],
+}
 VOUCHER_COORDINATES = {
     Voucher.OVERSTOCK: [0, 0],
     Voucher.TAROT_MERCHANT: [0, 1],
@@ -603,14 +674,14 @@ def _apply_polychrome(sprite: Image.Image) -> Image.Image:
             uv_scaled_centered_y = (floored_uv[1] - 0.5) * 50.0
             uv_scaled_centered = (uv_scaled_centered_x, uv_scaled_centered_y)
 
-            field_part1_x = uv_scaled_centered[0] + 50.0 * math.sin(0)  # time = 0
-            field_part1_y = uv_scaled_centered[1] + 50.0 * math.cos(0)  # time = 0
+            field_part1_x = uv_scaled_centered[0] + 50.0 * math.sin(0)
+            field_part1_y = uv_scaled_centered[1] + 50.0 * math.cos(0)
             field_part1 = (field_part1_x, field_part1_y)
-            field_part2_x = uv_scaled_centered[0] + 50.0 * math.cos(0)  # time = 0
-            field_part2_y = uv_scaled_centered[1] + 50.0 * math.cos(0)  # time = 0
+            field_part2_x = uv_scaled_centered[0] + 50.0 * math.cos(0)
+            field_part2_y = uv_scaled_centered[1] + 50.0 * math.cos(0)
             field_part2 = (field_part2_x, field_part2_y)
-            field_part3_x = uv_scaled_centered[0] + 50.0 * math.sin(0)  # time = 0
-            field_part3_y = uv_scaled_centered[1] + 50.0 * math.sin(0)  # time = 0
+            field_part3_x = uv_scaled_centered[0] + 50.0 * math.sin(0)
+            field_part3_y = uv_scaled_centered[1] + 50.0 * math.sin(0)
             field_part3 = (field_part3_x, field_part3_y)
 
             field = (
@@ -701,19 +772,20 @@ def get_sprite(
     match item:
         case BaseJoker():
             joker_sheet = Image.open("resources/textures/Jokers.png")
+            stickers_sheet = Image.open("resources/textures/stickers.png")
 
             match item.joker_type:
                 case JokerType.HALF_JOKER:
-                    WIDTH, HEIGHT = DEFAULT_WIDTH, DEFAULT_HEIGHT // 1.7
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT // 1.7
                 case JokerType.SQUARE_JOKER:
-                    WIDTH, HEIGHT = DEFAULT_WIDTH, DEFAULT_WIDTH
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_WIDTH
                 case JokerType.PHOTOGRAPH:
-                    WIDTH, HEIGHT = DEFAULT_WIDTH, DEFAULT_HEIGHT // 1.2
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT // 1.2
                 case _:
-                    WIDTH, HEIGHT = DEFAULT_WIDTH, DEFAULT_HEIGHT
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT
 
             i, j = JOKER_COORDINATES.get(item.joker_type, [0, 0])
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
             x2, y2 = x1 + WIDTH, y1 + HEIGHT
             sprite = joker_sheet.crop((x1, y1, x2, y2))
 
@@ -731,23 +803,35 @@ def get_sprite(
                     | JokerType.PERKEO
                 ):
                     i, j = i + 1, j
-                    x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+                    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     face_sprite = joker_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, face_sprite)
                 case JokerType.HOLOGRAM:
                     i, j = 9, 2
-                    x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
+                    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     face_sprite = joker_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, face_sprite)
 
             if item.eternal:
-                raise NotImplementedError
-            if item.perishable:
-                raise NotImplementedError
+                i, j = 0, 0
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                eternal_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(sprite, eternal_sprite)
+            elif item.perishable:
+                i, j = 2, 0
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                perishable_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(sprite, perishable_sprite)
             if item.rental:
-                raise NotImplementedError
+                i, j = 2, 1
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                rental_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                sprite = Image.alpha_composite(sprite, rental_sprite)
 
             if item.debuffed:
                 raise NotImplementedError
@@ -755,8 +839,8 @@ def get_sprite(
             consumable_sheet = Image.open("resources/textures/Tarots.png")
 
             i, j = CONSUMABLE_COORDINATES[item.card]
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = consumable_sheet.crop((x1, y1, x2, y2))
 
             sprite = _apply_edition(
@@ -766,8 +850,8 @@ def get_sprite(
             if item.card is Spectral.THE_SOUL:
                 enhancers_sheet = Image.open("resources/textures/Enhancers.png")
                 i, j = 1, 0
-                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
                 soul_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
                 sprite = Image.alpha_composite(sprite, soul_sprite)
         case Card():
@@ -775,14 +859,14 @@ def get_sprite(
             enhancers_sheet = Image.open("resources/textures/Enhancers.png")
 
             i, j = ENHANCER_COORDINATES.get(item.enhancement, (0, 1))
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             back_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
 
             if not item.is_stone_card:
                 i, j = SUIT_ROWS[item.suit], RANK_COLUMNS[item.rank]
-                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
                 card_sprite = deck_sheet.crop((x1, y1, x2, y2))
                 sprite = Image.alpha_composite(back_sprite, card_sprite)
             else:
@@ -792,8 +876,8 @@ def get_sprite(
 
             if item.seal is not None:
                 i, j = ENHANCER_COORDINATES[item.seal]
-                x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-                x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
                 seal_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
                 sprite = Image.alpha_composite(sprite, seal_sprite)
 
@@ -803,26 +887,45 @@ def get_sprite(
             voucher_sheet = Image.open("resources/textures/Vouchers.png")
 
             i, j = VOUCHER_COORDINATES[item]
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = voucher_sheet.crop((x1, y1, x2, y2))
+        case Stake():
+            chips_sheet = Image.open("resources/textures/chips.png")
+
+            i, j = CHIPS_COORDINATES[item]
+            x1, y1 = DEFAULT_CHIP_WIDTH * j, DEFAULT_CHIP_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CHIP_WIDTH, y1 + DEFAULT_CHIP_HEIGHT
+            sprite = chips_sheet.crop((x1, y1, x2, y2))
+        case Tag():
+            tags_sheet = Image.open("resources/textures/tags.png")
+
+            i, j = TAG_COORDINATES[item]
+            x1, y1 = DEFAULT_TAG_WIDTH * j, DEFAULT_TAG_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_TAG_WIDTH, y1 + DEFAULT_TAG_HEIGHT
+            sprite = tags_sheet.crop((x1, y1, x2, y2))
+        case Blind():
+            blind_chips_sheet = Image.open("resources/textures/BlindChips.png")
+
+            i, j = BLIND_ROWS[item], 0
+            x1, y1 = DEFAULT_BLIND_WIDTH * j, DEFAULT_BLIND_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_BLIND_WIDTH, y1 + DEFAULT_BLIND_HEIGHT
+            sprite = blind_chips_sheet.crop((x1, y1, x2, y2))
         case Deck():
             enhancers_sheet = Image.open("resources/textures/Enhancers.png")
 
             i, j = ENHANCER_COORDINATES[item]
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = enhancers_sheet.crop((x1, y1, x2, y2))
         case Pack():
             pack_sheet = Image.open("resources/textures/boosters.png")
 
             # i, j = r.choice(PACK_COORDINATES[item])
             i, j = PACK_COORDINATES[item][0]
-            x1, y1 = DEFAULT_WIDTH * j, DEFAULT_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_WIDTH, y1 + DEFAULT_HEIGHT
+            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = pack_sheet.crop((x1, y1, x2, y2))
-        case _:
-            raise NotImplementedError
 
     if as_image:
         return sprite

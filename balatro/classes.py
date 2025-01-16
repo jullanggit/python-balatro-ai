@@ -25,8 +25,11 @@ class BaseJoker(Sellable, ABC):
     rental: bool = False
 
     debuffed: bool = field(default=False, init=False, repr=False)
-    face_down: bool = field(default=False, init=False, repr=False)
+    flipped: bool = field(default=False, init=False, repr=False)
     perishable_rounds_left: int = field(default=5, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        assert not (self.eternal and self.perishable)
 
     def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
         match other:
@@ -355,31 +358,43 @@ class BaseJoker(Sellable, ABC):
 
 @dataclass(eq=False)
 class CopyJoker(BaseJoker):
+    _copy_loop: bool = field(default=False, init=False, repr=False)
+
     copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
 
     def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
         match other:
             case JokerType():
-                return self.copied_joker.__eq__(other)
+                return not self._copy_loop and self.copied_joker.__eq__(other)
             case BaseJoker() | Edition():
                 return super().__eq__(other)
 
         return NotImplemented
 
     def _blind_selected_ability(self) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._blind_selected_ability()
 
     def _card_held_ability(self, held_card: Card) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._card_held_ability(held_card)
 
     def _card_held_retriggers(self, held_card: Card) -> int:
-        return (
-            0
-            if self.copied_joker is None or self.copied_joker.debuffed
-            else self.copied_joker._card_held_retriggers(held_card)
-        )
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
+            return self.copied_joker._card_held_retriggers(held_card)
+        return 0
 
     def _card_scored_ability(
         self,
@@ -388,7 +403,11 @@ class CopyJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._card_scored_ability(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
@@ -400,20 +419,30 @@ class CopyJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> int:
-        return (
-            0
-            if self.copied_joker is None or self.copied_joker.debuffed
-            else self.copied_joker._card_scored_retriggers(
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
+            return self.copied_joker._card_scored_retriggers(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
-        )
+        return 0
 
     def _dependent_ability(self, other_joker: BaseJoker) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._dependent_ability(other_joker)
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._discard_ability(discarded_cards)
 
     def _hand_played_ability(
@@ -422,7 +451,11 @@ class CopyJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._hand_played_ability(
                 played_cards, scored_card_indices, poker_hands_played
             )
@@ -433,21 +466,37 @@ class CopyJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._independent_ability(
                 played_cards, scored_card_indices, poker_hands_played
             )
 
     def _item_sold_ability(self, sold_item: Sellable) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._item_sold_ability(sold_item)
 
     def _pack_opened_ability(self) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._pack_opened_ability()
 
     def _shop_exited_ability(self) -> None:
-        if self.copied_joker is not None and not self.copied_joker.debuffed:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
             self.copied_joker._shop_exited_ability()
 
     @property
@@ -489,7 +538,7 @@ class Card:
 
     bonus_chips: int = field(default=0, init=False, repr=False)
     debuffed: bool = field(default=False, init=False, repr=False)
-    face_down: bool = field(default=False, init=False, repr=False)
+    flipped: bool = field(default=False, init=False, repr=False)
 
     def __eq__(self, other: Card | Rank | Suit | Enhancement | Seal | Edition) -> bool:
         match other:

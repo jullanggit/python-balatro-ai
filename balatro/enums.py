@@ -305,6 +305,11 @@ class Stake(Enum):
 
         return NotImplemented
 
+    def _repr_png_(self) -> bytes:
+        from .sprites import get_sprite
+
+        return get_sprite(self, False)
+
 
 class Tag(Enum):
     UNCOMMON = "Uncommon"
@@ -331,6 +336,11 @@ class Tag(Enum):
     ORBITAL = "Orbital"
     ECONOMY = "Economy"
     ETHEREAL = "Ethereal"
+
+    def _repr_png_(self) -> bytes:
+        from .sprites import get_sprite
+
+        return get_sprite(self, False)
 
 
 class Blind(Enum):
@@ -364,6 +374,11 @@ class Blind(Enum):
     CERULEAN_BELL = "Cerulean Bell"
     VERDANT_LEAF = "Verdant Leaf"
     VIOLET_VESSEL = "Violet Vessel"
+
+    def _repr_png_(self) -> bytes:
+        from .sprites import get_sprite
+
+        return get_sprite(self, False)
 
 
 class Deck(Enum):

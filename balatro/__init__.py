@@ -300,7 +300,9 @@ class Run:
             pass
 
     def _disable_boss_blind(self) -> None:
-        self._boss_blind_disabled = True
+        for card in self._full_deck:
+            card.debuffed = False
+            # card.flipped = False
         raise NotImplementedError
 
     def _end_round(
@@ -319,6 +321,10 @@ class Run:
 
         for deck_card in self._full_deck:
             deck_card.debuffed = False
+            deck_card.flipped = False
+
+        for joker in self._jokers:
+            joker.flipped = False
 
         interest_amt = (
             0
@@ -1639,7 +1645,7 @@ class Run:
         # un-debuff cards
 
         for joker in self._jokers:
-            joker._on_end_hand()
+            joker._on_end_hand(played_cards, scored_card_indices, poker_hands_played)
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
@@ -1668,13 +1674,15 @@ class Run:
         else:
             self._deal()
 
-    def rearrange_jokers(self, new_positions: list[int]) -> None:
+    def move_joker(self, joker_index: int, new_index: int) -> None:
         assert self._state is not State.GAME_OVER
 
         assert self._jokers
-        assert sorted(new_positions) == list(range(len(self._jokers)))
+        assert 0 <= joker_index < len(self._jokers)
+        assert 0 <= new_index < len(self._jokers)
+        assert new_index != joker_index
 
-        self._jokers = [self._jokers[i] for i in new_positions]
+        self._jokers.insert(new_index, self._jokers.pop(joker_index))
 
         for joker in self._jokers:
             joker._on_jokers_moved()
@@ -1728,44 +1736,45 @@ class Run:
         self._first_hand = True
         self._first_discard = True
 
-        for joker in self._jokers:
-            joker._on_blind_selected()
-
-        if not self._boss_blind_disabled:
-            match self._blind:
-                case Blind.THE_CLUB:
-                    for card in self._full_deck:
-                        if card.suit is Suit.CLUBS:
-                            card.debuffed = True
-                case Blind.THE_GOAD:
-                    for card in self._full_deck:
-                        if card.suit is Suit.SPADES:
-                            card.debuffed = True
-                case Blind.THE_WATER:
-                    self._discards = 0
-                case Blind.THE_WINDOW:
-                    for card in self._full_deck:
-                        if card.suit is Suit.DIAMONDS:
-                            card.debuffed = True
-                case Blind.THE_PLANT:
-                    for card in self._full_deck:
-                        if self._is_face_card(card):
-                            card.debuffed = True
-                case Blind.THE_NEEDLE:
-                    self._hands = 1
-                case Blind.THE_HEAD:
-                    for card in self._full_deck:
-                        if card.suit is Suit.HEARTS:
-                            card.debuffed = True
-                case Blind.AMBER_ACORN:
-                    raise NotImplementedError
-                case Blind.VERDANT_LEAF:
-                    for card in self._full_deck:
+        match self._blind:
+            case Blind.THE_CLUB:
+                for card in self._full_deck:
+                    if card.suit is Suit.CLUBS:
                         card.debuffed = True
+            case Blind.THE_GOAD:
+                for card in self._full_deck:
+                    if card.suit is Suit.SPADES:
+                        card.debuffed = True
+            case Blind.THE_WATER:
+                self._discards = 0
+            case Blind.THE_WINDOW:
+                for card in self._full_deck:
+                    if card.suit is Suit.DIAMONDS:
+                        card.debuffed = True
+            case Blind.THE_PLANT:
+                for card in self._full_deck:
+                    if self._is_face_card(card):
+                        card.debuffed = True
+            case Blind.THE_NEEDLE:
+                self._hands = 1
+            case Blind.THE_HEAD:
+                for card in self._full_deck:
+                    if card.suit is Suit.HEARTS:
+                        card.debuffed = True
+            case Blind.AMBER_ACORN:
+                for joker in self._jokers:
+                    joker.flipped = True
+                r.shuffle(self._jokers)
+            case Blind.VERDANT_LEAF:
+                for card in self._full_deck:
+                    card.debuffed = True
 
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
             self._hands += 3
+
+        for joker in self._jokers:
+            joker._on_blind_selected()
 
         self._deal()
 
@@ -1971,6 +1980,10 @@ class Run:
     @property
     def deck(self) -> Deck:
         return self._deck
+
+    @property
+    def deck_cards_left(self) -> list[Card] | None:
+        return self._deck_cards_left
 
     @property
     def discards(self) -> int:
