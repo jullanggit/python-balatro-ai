@@ -111,6 +111,7 @@ class Run:
         self._num_ectoplasms_used: int = 0
         self._gros_michel_extinct: bool = False
         self._rerolled_boss_blind: bool = False
+        self._boss_blind_disabled: bool | None = None
 
         self._new_ante()
 
@@ -299,6 +300,7 @@ class Run:
             pass
 
     def _disable_boss_blind(self) -> None:
+        self._boss_blind_disabled = True
         raise NotImplementedError
 
     def _end_round(
@@ -710,6 +712,7 @@ class Run:
                 self._blind = Blind.BIG_BLIND
             case Blind.BIG_BLIND:
                 self._blind = self._boss_blind
+                self._boss_blind_disabled = False
             case _:
                 self._new_ante()
 
@@ -934,15 +937,15 @@ class Run:
     def _random_boss_blind(self) -> None:
         self._boss_blind: Blind = None
         if self._is_finisher_ante:
-            self._boss_blind = r.choice(self._finisher_blind_pool)
-            self._finisher_blind_pool.remove(self._boss_blind)
             if not self._finisher_blind_pool:
                 self._finisher_blind_pool = list(BLIND_INFO)[-5:]
+            self._boss_blind = r.choice(self._finisher_blind_pool)
+            self._finisher_blind_pool.remove(self._boss_blind)
         else:
-            self._boss_blind = r.choice(self._boss_blind_pool)
-            self._boss_blind_pool.remove(self._boss_blind)
             if not self._boss_blind_pool:
                 self._boss_blind_pool = list(BLIND_INFO)[2:-5]
+            self._boss_blind = r.choice(self._boss_blind_pool)
+            self._boss_blind_pool.remove(self._boss_blind)
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1728,6 +1731,38 @@ class Run:
         for joker in self._jokers:
             joker._on_blind_selected()
 
+        if not self._boss_blind_disabled:
+            match self._blind:
+                case Blind.THE_CLUB:
+                    for card in self._full_deck:
+                        if card.suit is Suit.CLUBS:
+                            card.debuffed = True
+                case Blind.THE_GOAD:
+                    for card in self._full_deck:
+                        if card.suit is Suit.SPADES:
+                            card.debuffed = True
+                case Blind.THE_WATER:
+                    self._discards = 0
+                case Blind.THE_WINDOW:
+                    for card in self._full_deck:
+                        if card.suit is Suit.DIAMONDS:
+                            card.debuffed = True
+                case Blind.THE_PLANT:
+                    for card in self._full_deck:
+                        if self._is_face_card(card):
+                            card.debuffed = True
+                case Blind.THE_NEEDLE:
+                    self._hands = 1
+                case Blind.THE_HEAD:
+                    for card in self._full_deck:
+                        if card.suit is Suit.HEARTS:
+                            card.debuffed = True
+                case Blind.AMBER_ACORN:
+                    raise NotImplementedError
+                case Blind.VERDANT_LEAF:
+                    for card in self._full_deck:
+                        card.debuffed = True
+
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
             self._hands += 3
@@ -1977,6 +2012,9 @@ class Run:
                     hand_size += 2
 
         hand_size -= self._hand_size_penalty
+
+        if self._blind is Blind.THE_MANACLE and not self._boss_blind_disabled:
+            hand_size -= 1
 
         return hand_size
 
