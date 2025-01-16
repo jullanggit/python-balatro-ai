@@ -35,7 +35,9 @@ class BaseJoker(Sellable, ABC):
             case JokerType():
                 return self.joker_type is other
             case Edition():
-                return not self.debuffed and self.edition is other
+                return (
+                    not self.debuffed or other is Edition.NEGATIVE
+                ) and self.edition is other
 
         return NotImplemented
 
@@ -359,8 +361,10 @@ class CopyJoker(BaseJoker):
         match other:
             case JokerType():
                 return self.copied_joker.__eq__(other)
-            case _:
+            case BaseJoker() | Edition():
                 return super().__eq__(other)
+
+        return NotImplemented
 
     def _blind_selected_ability(self) -> None:
         if self.copied_joker is not None and not self.copied_joker.debuffed:

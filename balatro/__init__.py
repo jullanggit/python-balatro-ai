@@ -32,7 +32,7 @@ class Run:
         self._deck: Deck = deck
         self._stake: Stake = stake
         self._money: int = 14 if self._deck is Deck.YELLOW else 4
-        self._ante: int = 1
+        self._ante: int = 0
         self._round: int = 0
 
         self._poker_hand_info: dict[PokerHand : list[int, int]] = {
@@ -103,14 +103,14 @@ class Run:
         self._pack_items: list[BaseJoker | Consumable | Card] | None = None
         self._pack_choices_left: int | None = None
         self._planet_cards_used: set[Planet] = set()
-        self._boss_blinds_defeated: set[Blind] = set()
-        self._finisher_blinds_defeated: set[Blind] = set()
+        self._boss_blind_pool: list[Blind] = []
+        self._finisher_blind_pool: list[Blind] = []
         self._num_tarot_cards_used: int = 0
         self._fool_next: Tarot | Planet | None = None
         self._hand_size_penalty: int = 0
         self._num_ectoplasms_used: int = 0
         self._gros_michel_extinct: bool = False
-        self._boss_blind_disabled: bool | None = None
+        self._rerolled_boss_blind: bool = False
 
         self._new_ante()
 
@@ -298,6 +298,9 @@ class Run:
         except ValueError:
             pass
 
+    def _disable_boss_blind(self) -> None:
+        raise NotImplementedError
+
     def _end_round(
         self, last_poker_hand_played: PokerHand, saved: bool = False
     ) -> None:
@@ -353,7 +356,6 @@ class Run:
         self._first_hand = None
         self._first_discard = None
         self._round_poker_hands = None
-        self._boss_blind_disabled = None
 
         self._next_blind()
 
@@ -677,6 +679,8 @@ class Run:
         return triggered
 
     def _new_ante(self) -> None:
+        self._ante += 1
+
         self._ante_tags: list[
             tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
         ] = [None, None]
@@ -696,6 +700,8 @@ class Run:
 
         self._random_boss_blind()
 
+        self._rerolled_boss_blind = False
+
         self._blind: Blind = Blind.SMALL_BLIND
 
     def _next_blind(self) -> None:
@@ -705,14 +711,6 @@ class Run:
             case Blind.BIG_BLIND:
                 self._blind = self._boss_blind
             case _:
-                if self._is_finisher_ante:
-                    self._finisher_blinds_defeated.add(self._blind)
-                    if len(self._finisher_blinds_defeated) == 5:
-                        self._finisher_blinds_defeated.clear()
-                else:
-                    self._boss_blinds_defeated.add(self._blind)
-                    if len(self._boss_blinds_defeated) == 23:
-                        self._boss_blinds_defeated.clear()
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
@@ -739,7 +737,16 @@ class Run:
                     if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
                         self._pack_items.append(Consumable(Spectral.THE_SOUL))
                     else:
-                        self._pack_items.append(self._get_random_consumable(Tarot))
+                        self._pack_items.append(
+                            self._get_random_consumable(
+                                (
+                                    Spectral
+                                    if Voucher.OMEN_GLOBE in self._vouchers
+                                    and r.random() < 0.2
+                                    else Tarot
+                                )
+                            )
+                        )
 
                 self._hand = []
                 self._deck_cards_left = self._full_deck.copy()
@@ -755,11 +762,15 @@ class Run:
                         self._pack_items.append(self._get_random_consumable(Spectral))
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
                 for _ in range(of_up_to - 1):
-                    roll = r.random()
-                    if Spectral.THE_SOUL not in self._pack_items and roll < 0.003:
-                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
-                    elif Spectral.BLACK_HOLE not in self._pack_items and roll < 0.006:
+                    if (
+                        Spectral.BLACK_HOLE not in self._pack_items
+                        and r.random() < 0.003
+                    ):
                         self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
+                    elif (
+                        Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003
+                    ):
+                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
                     else:
                         self._pack_items.append(self._get_random_consumable(Spectral))
 
@@ -923,18 +934,15 @@ class Run:
     def _random_boss_blind(self) -> None:
         self._boss_blind: Blind = None
         if self._is_finisher_ante:
-            while (
-                self._boss_blind is None
-                or self._boss_blind in self._finisher_blinds_defeated
-            ):
-                self._boss_blind = r.choice(list(BLIND_INFO)[-5:])
+            self._boss_blind = r.choice(self._finisher_blind_pool)
+            self._finisher_blind_pool.remove(self._boss_blind)
+            if not self._finisher_blind_pool:
+                self._finisher_blind_pool = list(BLIND_INFO)[-5:]
         else:
-            while (
-                self._boss_blind is None
-                or BLIND_INFO[self._boss_blind][0] > self._ante
-                or self._boss_blind in self._boss_blinds_defeated
-            ):
-                self._boss_blind = r.choice(list(BLIND_INFO)[2:-5])
+            self._boss_blind = r.choice(self._boss_blind_pool)
+            self._boss_blind_pool.remove(self._boss_blind)
+            if not self._boss_blind_pool:
+                self._boss_blind_pool = list(BLIND_INFO)[2:-5]
 
     def _shop_display_str(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -1099,8 +1107,18 @@ class Run:
                     self._consumables.append(Consumable(last_poker_hand_played.planet))
 
     def _use_consumable(
-        self, consumable: Consumable, selected_cards: list[Card]
+        self, consumable: Consumable, selected_card_indices: list[int] | None = None
     ) -> None:
+        if selected_card_indices is not None:
+            assert self._hand is not None
+            assert 1 <= len(selected_card_indices) <= 5
+            assert all(0 <= i < len(self._hand) for i in selected_card_indices)
+            assert len(set(selected_card_indices)) == len(selected_card_indices)
+
+            selected_cards = [self._hand[i] for i in selected_card_indices]
+        else:
+            selected_cards = []
+
         match consumable.card:
             case Tarot():
                 match consumable.card:
@@ -1361,11 +1379,11 @@ class Run:
                             copied_joker.perishable,
                             copied_joker.rental,
                         )
-                        self._add_joker(joker_copy)
                         for joker in self._jokers:
-                            if joker is copied_joker or joker is joker_copy:
+                            if joker is copied_joker:
                                 continue
                             self._destroy_joker(joker)
+                        self._add_joker(joker_copy)
                     case Spectral.DEJA_VU:
                         assert len(selected_cards) == 1
 
@@ -1414,7 +1432,7 @@ class Run:
     def buy_and_use_shop_item(self, section_index: int, item_index: int) -> None:
         item, cost = self._buy_shop_item(section_index, item_index)
         try:
-            self._use_consumable(item, [])
+            self._use_consumable(item)
         except AssertionError:
             [self._shop_cards, self._shop_vouchers, self._shop_packs][
                 section_index
@@ -1443,7 +1461,24 @@ class Run:
     ) -> None:
         assert self._state is State.OPENING_PACK
 
-        raise NotImplementedError
+        assert 0 <= item_index < len(self._pack_items)
+
+        item = self._pack_items[item_index]
+
+        match item:
+            case BaseJoker():
+                assert (
+                    len(self._jokers) < self.joker_slots
+                    or item.edition is Edition.NEGATIVE
+                )
+
+                self._add_joker(item)
+            case Consumable():
+                self._use_consumable(item, selected_card_indices)
+            case Card():
+                self._add_card(item)
+
+        self._pack_items.pop(item_index)
 
         self._pack_choices_left -= 1
         if self._pack_choices_left == 0:
@@ -1660,6 +1695,20 @@ class Run:
 
         self._populate_shop_cards()
 
+    def reroll_boss_blind(self) -> None:
+        assert self._state is State.SELECTING_BLIND
+
+        assert Voucher.DIRECTORS_CUT in self._vouchers
+        assert self._available_money >= 10
+        if Voucher.RETCON not in self._vouchers:
+            assert not self._rerolled_boss_blind
+
+        self._money -= 10
+
+        self._random_boss_blind()
+
+        self._rerolled_boss_blind = True
+
     def select_blind(self) -> None:
         assert self._state is State.SELECTING_BLIND
 
@@ -1675,8 +1724,6 @@ class Run:
         self._round_poker_hands = set()
         self._first_hand = True
         self._first_discard = True
-        if self._blind is self._boss_blind:
-            self._boss_blind_disabled = False
 
         for joker in self._jokers:
             joker._on_blind_selected()
@@ -1767,18 +1814,8 @@ class Run:
 
         assert 0 <= consumable_index < len(self._consumables)
 
-        if selected_card_indices is not None:
-            assert self._hand is not None
-            assert 1 <= len(selected_card_indices) <= 5
-            assert all(0 <= i < len(self._hand) for i in selected_card_indices)
-            assert len(set(selected_card_indices)) == len(selected_card_indices)
-
-            selected_cards = [self._hand[i] for i in selected_card_indices]
-        else:
-            selected_cards = []
-
         consumable = self._consumables[consumable_index]
-        self._use_consumable(consumable, selected_cards)
+        self._use_consumable(consumable, selected_card_indices)
         self._consumables.pop(consumable_index)
 
     @property
@@ -1852,7 +1889,14 @@ class Run:
 
     @property
     def ante(self) -> int:
-        return self._ante
+        ante = self._ante
+
+        if Voucher.HIEROGLYPH in self._vouchers:
+            ante -= 1
+        if Voucher.PETROGLYPH in self._vouchers:
+            ante -= 1
+
+        return ante
 
     @property
     def ante_tags(
@@ -1942,9 +1986,7 @@ class Run:
 
     @property
     def joker_slots(self) -> int:
-        joker_slots = 5 + sum(
-            joker.edition is Edition.NEGATIVE for joker in self._jokers
-        )
+        joker_slots = 5
 
         match self._deck:
             case Deck.BLACK:
@@ -1954,6 +1996,8 @@ class Run:
 
         if Voucher.ANTIMATTER in self._vouchers:
             joker_slots += 1
+
+        joker_slots += self._jokers.count(Edition.NEGATIVE)
 
         return joker_slots
 

@@ -2419,7 +2419,7 @@ class Rocket(BaseJoker):
 class Luchador(BaseJoker):
     def _item_sold_ability(self, sold_item: Sellable) -> None:
         if sold_item is self and self._run._blind is self._run._boss_blind:
-            self._run._boss_blind_disabled = True
+            self._run._disable_boss_blind()
 
     @property
     def joker_type(self) -> JokerType:
@@ -2620,7 +2620,7 @@ class Astronomer(BaseJoker):
 class Chicot(BaseJoker):
     def _blind_selected_action(self) -> None:
         if self._run._blind is self._run._boss_blind:
-            self._run._boss_blind_disabled = True
+            self._run._disable_boss_blind()
 
     @property
     def joker_type(self) -> JokerType:
