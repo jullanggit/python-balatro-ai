@@ -69,7 +69,11 @@ class Run:
                     card for card in self._full_deck if not self._is_face_card(card)
                 ]
             case Deck.CHECKERED:
-                self._full_deck = self._full_deck[:26] + deepcopy(self._full_deck[:26])
+                for card in self._full_deck:
+                    if card.suit is Suit.CLUBS:
+                        card.suit = Suit.SPADES
+                    elif card.suit is Suit.DIAMONDS:
+                        card.suit = Suit.HEARTS
             case Deck.ZODIAC:
                 self._vouchers.update(
                     [
@@ -82,7 +86,7 @@ class Run:
         self._num_played_hands: int = 0
         self._first_hand: bool | None = None
         self._first_discard: bool | None = None
-        self._round_poker_hands: set[PokerHand] | None = None
+        self._round_poker_hands: list[PokerHand] | None = None
         self._num_unused_discards: int = 0
         self._num_blinds_skipped: int = 0
 
@@ -110,7 +114,6 @@ class Run:
         self._hand_size_penalty: int = 0
         self._num_ectoplasms_used: int = 0
         self._gros_michel_extinct: bool = False
-        self._rerolled_boss_blind: bool = False
         self._boss_blind_disabled: bool | None = None
 
         self._new_ante()
@@ -269,7 +272,11 @@ class Run:
             and self._hands <= 0
         ):
             return False
-        num_cards = min(len(self._deck_cards_left), hand_size - len(self._hand))
+        num_cards = (
+            3
+            if self._boss_blind_disabled is False and self._blind is Blind.THE_SERPENT
+            else min(len(self._deck_cards_left), hand_size - len(self._hand))
+        )
         deal_indices = sorted(
             r.sample(range(len(self._deck_cards_left)), num_cards), reverse=True
         )
@@ -300,10 +307,41 @@ class Run:
             pass
 
     def _disable_boss_blind(self) -> None:
+        self._boss_blind_disabled = True
+
         for card in self._full_deck:
             card.debuffed = False
-            # card.flipped = False
+            card.flipped = False
+
         raise NotImplementedError
+
+    def _discard(self, discard_indices: list[int]) -> None:
+        for joker in self._jokers:
+            joker._on_discard([self._hand[i] for i in discard_indices])
+
+        for i in sorted(discard_indices, reverse=True):
+            self._hand.pop(i)
+
+    def _end_hand(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if self._round_score >= self._round_goal:
+            self._end_round(poker_hands_played[0])
+            return
+
+        if self._hands == 0:  # game over
+            if self._chips >= self._round_goal // 4:
+                for joker in self._active_jokers:
+                    if joker.joker_type is JokerType.MR_BONES:  # saved by mr. bones
+                        self._destroy_joker(joker)
+                        self._end_round(poker_hands_played[0], saved=True)
+                        return
+            self._game_over()
+        else:
+            self._deal()
 
     def _end_round(
         self, last_poker_hand_played: PokerHand, saved: bool = False
@@ -364,6 +402,7 @@ class Run:
         self._first_hand = None
         self._first_discard = None
         self._round_poker_hands = None
+        self._boss_blind_disabled = None
 
         self._next_blind()
 
@@ -383,6 +422,7 @@ class Run:
         self._first_hand = None
         self._first_discard = None
         self._round_poker_hands = None
+        self._boss_blind_disabled = None
 
         self._state = State.GAME_OVER
 
@@ -708,7 +748,8 @@ class Run:
 
         self._random_boss_blind()
 
-        self._rerolled_boss_blind = False
+        self._rerolled_boss_blind: bool = False
+        self._cards_played_ante: set[int] = set()
 
         self._blind: Blind = Blind.SMALL_BLIND
 
@@ -1501,11 +1542,7 @@ class Run:
         assert all(0 <= i < len(self._hand) for i in discard_indices)
         assert len(set(discard_indices)) == len(discard_indices)
 
-        for joker in self._jokers:
-            joker._on_discard([self._hand[i] for i in discard_indices])
-
-        for i in sorted(discard_indices, reverse=True):
-            self._hand.pop(i)
+        self._discard(discard_indices)
 
         self._discards -= 1
         self._first_discard = False
@@ -1551,11 +1588,6 @@ class Run:
             ]
         )
 
-        for joker in self._jokers:
-            joker._on_hand_played(played_cards, scored_card_indices, poker_hands_played)
-
-        self._poker_hand_info[poker_hands_played[0]][1] += 1
-
         poker_hand_level = self._poker_hand_info[poker_hands_played[0]][0]
         poker_hand_base_chips, poker_hand_base_mult = HAND_BASE_SCORE[
             poker_hands_played[0]
@@ -1569,6 +1601,47 @@ class Run:
         )
         self._chips = poker_hand_chips
         self._mult = poker_hand_mult
+
+        if self._boss_blind_disabled is False:
+            match self._blind:
+                case Blind.THE_OX:
+                    if self._poker_hand_info[poker_hands_played[0]][1] == max(
+                        times_played
+                        for hand_level, times_played in self._poker_hand_info.values()
+                    ):
+                        self._money = 0
+                case Blind.THE_ARM:
+                    self._poker_hand_info[poker_hands_played[0]][0] = min(
+                        1, self._poker_hand_info[poker_hands_played[0]][0]
+                    )
+                case Blind.THE_PSYCHIC:
+                    if len(played_cards) < 5:
+                        self._end_hand(
+                            played_cards, scored_card_indices, poker_hands_played
+                        )
+                case Blind.THE_EYE:
+                    if poker_hands_played[0] in self._round_poker_hands:
+                        self._end_hand(
+                            played_cards, scored_card_indices, poker_hands_played
+                        )
+                case Blind.THE_MOUTH:
+                    if (
+                        self._round_poker_hands
+                        and poker_hands_played[0] is not self._round_poker_hands[0]
+                    ):
+                        self._end_hand(
+                            played_cards, scored_card_indices, poker_hands_played
+                        )
+                case Blind.THE_TOOTH:
+                    self._money -= 1 * len(played_cards)
+                case Blind.THE_FLINT:
+                    self._chips //= 2
+                    self._mult //= 2
+
+        for joker in self._jokers:
+            joker._on_hand_played(played_cards, scored_card_indices, poker_hands_played)
+
+        self._poker_hand_info[poker_hands_played[0]][1] += 1
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
@@ -1654,25 +1727,20 @@ class Run:
                     if self._chance(1, 4):
                         self._destroy_card(scored_card)
 
-        self._round_poker_hands.add(poker_hands_played[0])
+        self._round_poker_hands.append(poker_hands_played[0])
         self._first_hand = False
 
-        # return  # leave in when testing
+        if self._boss_blind_disabled is False:
+            match self._blind:
+                case Blind.THE_HOOK:
+                    if len(self._hand) >= 2:
+                        self._discard(r.sample(range(len(self._hand)), 2))
+                    elif len(self._hand) == 1:
+                        self._discard([0])
 
-        if self._round_score >= self._round_goal:
-            self._end_round(poker_hands_played[0])
-            return
-
-        if self._hands == 0:  # game over
-            if self._chips >= self._round_goal // 4:
-                for joker in self._active_jokers:
-                    if joker.joker_type is JokerType.MR_BONES:  # saved by mr. bones
-                        self._destroy_joker(joker)
-                        self._end_round(poker_hands_played[0], saved=True)
-                        return
-            self._game_over()
-        else:
-            self._deal()
+        self._end_hand(
+            played_cards, scored_card_indices, poker_hands_played
+        )  # comment out when testing scores
 
     def move_joker(self, joker_index: int, new_index: int) -> None:
         assert self._state is not State.GAME_OVER
@@ -1732,7 +1800,7 @@ class Run:
         self._discards = self._discards_each_round
         self._hand = []
         self._deck_cards_left = self._full_deck.copy()
-        self._round_poker_hands = set()
+        self._round_poker_hands = []
         self._first_hand = True
         self._first_discard = True
 
@@ -1755,12 +1823,20 @@ class Run:
                 for card in self._full_deck:
                     if self._is_face_card(card):
                         card.debuffed = True
+            case Blind.THE_PILLAR:
+                for card in self._full_deck:
+                    if id(card) in self._cards_played_ante:
+                        card.debuffed = True
             case Blind.THE_NEEDLE:
                 self._hands = 1
             case Blind.THE_HEAD:
                 for card in self._full_deck:
                     if card.suit is Suit.HEARTS:
                         card.debuffed = True
+            case Blind.THE_MARK:
+                for card in self._full_deck:
+                    if self._is_face_card(card):
+                        card.flipped = True
             case Blind.AMBER_ACORN:
                 for joker in self._jokers:
                     joker.flipped = True
@@ -2026,7 +2102,7 @@ class Run:
 
         hand_size -= self._hand_size_penalty
 
-        if self._blind is Blind.THE_MANACLE and not self._boss_blind_disabled:
+        if self._boss_blind_disabled is False and self._blind is Blind.THE_MANACLE:
             hand_size -= 1
 
         return hand_size

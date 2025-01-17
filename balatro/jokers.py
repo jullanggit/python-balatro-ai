@@ -1981,7 +1981,8 @@ class Obelisk(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._poker_hand_info[poker_hands_played[0]][1] < max(
-            times_played for hand_level, times_played in self._run._poker_hand_info
+            times_played
+            for hand_level, times_played in self._run._poker_hand_info.values()
         ):
             self.xmult += 0.2
         else:
