@@ -663,7 +663,7 @@ class TheIdol(BaseJoker):
     def _set_random_card(self) -> None:
         valid_deck_cards = [
             deck_card
-            for deck_card in self._run._full_deck
+            for deck_card in self._run._deck_cards
             if not deck_card.is_stone_card
         ]
         if valid_deck_cards:
@@ -1081,7 +1081,7 @@ class SteelJoker(BaseJoker):
             0.2
             * sum(
                 deck_card.enhancement is Enhancement.STEEL
-                for deck_card in self._run._full_deck
+                for deck_card in self._run._deck_cards
             )
         )
 
@@ -1195,7 +1195,7 @@ class BlueJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._chips += 2 * len(self._run._full_deck_left)
+        self._run._chips += 2 * len(self._run._deck_cards_left)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1403,7 +1403,7 @@ class Erosion(BaseJoker):
     ) -> None:
         self._run._mult += 4 * max(
             0,
-            self._run._deck.starting_size - len(self._run._full_deck),
+            self._run._deck.starting_size - len(self._run._deck_cards),
         )
 
     @property
@@ -1435,7 +1435,7 @@ class StoneJoker(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         self._run._chips += 25 * sum(
-            deck_card.is_stone_card for deck_card in self._run._full_deck
+            deck_card.is_stone_card for deck_card in self._run._deck_cards
         )
 
     @property
@@ -1780,7 +1780,9 @@ class DriversLicense(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if (
-            sum(deck_card.enhancement is not None for deck_card in self._run._full_deck)
+            sum(
+                deck_card.enhancement is not None for deck_card in self._run._deck_cards
+            )
             >= 16
         ):
             self._run._mult *= 3
@@ -2096,7 +2098,7 @@ class Castle(BaseJoker):
     def _set_random_suit(self) -> None:
         valid_suits = [
             deck_card.suit
-            for deck_card in self._run._full_deck
+            for deck_card in self._run._deck_cards
             if not deck_card.is_stone_card
         ]
         self.suit = r.choice(valid_suits) if valid_suits else Suit.SPADES
@@ -2240,7 +2242,7 @@ class MailInRebate(BaseJoker):
     def _set_random_rank(self) -> None:
         valid_ranks = [
             deck_card.rank
-            for deck_card in self._run._full_deck
+            for deck_card in self._run._deck_cards
             if not deck_card.is_stone_card
         ]
         self.rank = r.choice(valid_ranks) if valid_ranks else Rank.ACE
@@ -2404,7 +2406,7 @@ class Shortcut(BaseJoker):
 @dataclass(eq=False)
 class CloudNine(BaseJoker):
     def _round_ended_action(self) -> None:
-        self._run._money += self._run._full_deck.count(Rank.NINE)
+        self._run._money += self._run._deck_cards.count(Rank.NINE)
 
     @property
     def joker_type(self) -> JokerType:

@@ -369,6 +369,13 @@ VOUCHER_COORDINATES = {
     Voucher.PALETTE: [3, 7],
 }
 
+with io.BytesIO() as buffer:
+    sprite = Image.open("resources/textures/ShopSignAnimation.png").crop(
+        (0, 0, 226, 114)
+    )
+    sprite.save(buffer, "png")
+    SHOP_SIGN = buffer.getvalue()
+
 
 def _apply_edition(sprite: Image.Image, edition: Edition) -> Image.Image:
     match edition:

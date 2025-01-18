@@ -16,6 +16,7 @@ class Sellable:
 
 @dataclass(eq=False)
 class BaseJoker(Sellable, ABC):
+    _perishable_rounds_left: int = field(default=5, init=False, repr=False)
     _run: Run | None = field(default=None, init=False, repr=False)
 
     edition: Edition = Edition.BASE
@@ -26,7 +27,6 @@ class BaseJoker(Sellable, ABC):
 
     debuffed: bool = field(default=False, init=False, repr=False)
     flipped: bool = field(default=False, init=False, repr=False)
-    perishable_rounds_left: int = field(default=5, init=False, repr=False)
 
     def __post_init__(self) -> None:
         assert not (self.eternal and self.perishable)
@@ -313,10 +313,11 @@ class BaseJoker(Sellable, ABC):
         if self.rental:
             self._run.money -= 3
 
-        self.perishable_rounds_left -= 1
-        if self.perishable_rounds_left == 0:
-            self.debuffed = True
-            return
+        if self.perishable:
+            self._perishable_rounds_left -= 1
+            if self._perishable_rounds_left == 0:
+                self.debuffed = True
+                return
 
         self._round_ended_action()
 

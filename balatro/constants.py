@@ -493,6 +493,16 @@ NON_PERISHABLE_JOKERS = {
     JokerType.OBELISK,
     JokerType.WEE_JOKER,
 }
+POKER_HAND_LEVEL_COLORS = [
+    None,
+    "WhiteSmoke",
+    "CornflowerBlue",
+    "LightGreen",
+    "PaleGoldenRod",
+    "Orange",
+    "Salmon",
+    "Plum",
+]
 PROHIBITED_ANTE_1_TAGS = {
     Tag.NEGATIVE,
     Tag.STANDARD,

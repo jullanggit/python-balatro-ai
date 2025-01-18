@@ -41,7 +41,7 @@ class Run:
         self._vouchers: set[Voucher] = set()
         self._tags: list[Tag] = []
 
-        self._full_deck: list[Card] = [
+        self._deck_cards: list[Card] = [
             (
                 self._get_random_card()
                 if self._deck is Deck.ERRATIC
@@ -65,11 +65,11 @@ class Run:
             case Deck.GHOST:
                 self._consumables.append(Consumable(Spectral.HEX))
             case Deck.ABANDONED:
-                self._full_deck = [
-                    card for card in self._full_deck if not self._is_face_card(card)
+                self._deck_cards = [
+                    card for card in self._deck_cards if not self._is_face_card(card)
                 ]
             case Deck.CHECKERED:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if card.suit is Suit.CLUBS:
                         card.suit = Suit.SPADES
                     elif card.suit is Suit.DIAMONDS:
@@ -115,6 +115,7 @@ class Run:
         self._num_ectoplasms_used: int = 0
         self._gros_michel_extinct: bool = False
         self._boss_blind_disabled: bool | None = None
+        self._forced_selected_card_index: int | None = None
 
         self._new_ante()
 
@@ -123,12 +124,14 @@ class Run:
     def _repr_html_(self) -> str:
         match self._state:
             case State.IN_SHOP:
-                return self._shop_display_str()
+                return self._repr_in_shop()
+            case State.PLAYING_BLIND:
+                return self._repr_playing_blind()
             case _:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
-        self._full_deck.append(card)
+        self._deck_cards.append(card)
         for joker in self._jokers:
             joker._on_card_added(card)
 
@@ -191,7 +194,7 @@ class Run:
                     case Tarot():
                         base_cost = 3
                     case Planet():
-                        if JokerType.ASTRONOMER in self._active_jokers:
+                        if JokerType.ASTRONOMER in self._abled_jokers:
                             return 0
                         base_cost = 3
                     case Spectral():
@@ -208,7 +211,7 @@ class Run:
             case Pack():
                 if (
                     item.name.endswith("CELESTIAL")
-                    and JokerType.ASTRONOMER in self._active_jokers
+                    and JokerType.ASTRONOMER in self._abled_jokers
                 ):
                     return 0
                 if item.name.startswith("MEGA"):
@@ -225,7 +228,7 @@ class Run:
         return max(1, self._calculate_buy_cost(item) // 2) + item.extra_sell_value
 
     def _chance(self, hit: int, pool: int) -> bool:
-        hit *= 2 ** self._active_jokers.count(JokerType.OOPS_ALL_SIXES)
+        hit *= 2 ** self._abled_jokers.count(JokerType.OOPS_ALL_SIXES)
         return hit >= pool or (r.randint(1, pool) <= hit)
 
     def _close_pack(self) -> None:
@@ -262,7 +265,7 @@ class Run:
         joker._on_created()
         return joker
 
-    def _deal(self) -> bool:
+    def _deal(self, force_num_cards: int | None = None) -> bool:
         hand_size = self.hand_size
 
         if (
@@ -273,8 +276,8 @@ class Run:
         ):
             return False
         num_cards = (
-            3
-            if self._boss_blind_disabled is False and self._blind is Blind.THE_SERPENT
+            force_num_cards
+            if force_num_cards is not None
             else min(len(self._deck_cards_left), hand_size - len(self._hand))
         )
         deal_indices = sorted(
@@ -285,11 +288,14 @@ class Run:
 
         self._sort_hand()
 
+        if self._boss_blind_disabled is False and self._blind is Blind.CERULEAN_BELL:
+            self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
+
         return True
 
     def _destroy_card(self, card: Card) -> None:
         try:
-            self._full_deck.remove(card)
+            self._deck_cards.remove(card)
         except ValueError:
             pass
         for joker in self._jokers:
@@ -309,7 +315,7 @@ class Run:
     def _disable_boss_blind(self) -> None:
         self._boss_blind_disabled = True
 
-        for card in self._full_deck:
+        for card in self._deck_cards:
             card.debuffed = False
             card.flipped = False
 
@@ -334,14 +340,19 @@ class Run:
 
         if self._hands == 0:  # game over
             if self._chips >= self._round_goal // 4:
-                for joker in self._active_jokers:
+                for joker in self._abled_jokers:
                     if joker.joker_type is JokerType.MR_BONES:  # saved by mr. bones
                         self._destroy_joker(joker)
                         self._end_round(poker_hands_played[0], saved=True)
                         return
             self._game_over()
         else:
-            self._deal()
+            self._deal(
+                3
+                if self._boss_blind_disabled is False
+                and self._blind is Blind.THE_SERPENT
+                else None
+            )
 
     def _end_round(
         self, last_poker_hand_played: PokerHand, saved: bool = False
@@ -357,7 +368,7 @@ class Run:
                 for _ in range(joker._on_card_held_retriggers(held_card)):
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
-        for deck_card in self._full_deck:
+        for deck_card in self._deck_cards:
             deck_card.debuffed = False
             deck_card.flipped = False
 
@@ -367,7 +378,7 @@ class Run:
         interest_amt = (
             0
             if self._deck is Deck.GREEN
-            else (1 + self._active_jokers.count(JokerType.TO_THE_MOON))
+            else (1 + self._abled_jokers.count(JokerType.TO_THE_MOON))
         )
         interest = min(
             (
@@ -383,7 +394,7 @@ class Run:
             joker._on_round_ended()
 
         cash_out = (
-            (0 if saved else BLIND_INFO[self._blind][2])
+            (0 if saved else self.blind_reward)
             + (2 if self._deck is Deck.GREEN else 1) * self._hands
             + (1 if self._deck is Deck.GREEN else 0) * self._discards
             + interest
@@ -403,6 +414,7 @@ class Run:
         self._first_discard = None
         self._round_poker_hands = None
         self._boss_blind_disabled = None
+        self._forced_selected_card_index = None
 
         self._next_blind()
 
@@ -423,6 +435,7 @@ class Run:
         self._first_discard = None
         self._round_poker_hands = None
         self._boss_blind_disabled = None
+        self._forced_selected_card_index = None
 
         self._state = State.GAME_OVER
 
@@ -431,7 +444,7 @@ class Run:
             return []
         if card == Enhancement.WILD:
             return list(Suit)
-        if JokerType.SMEARED_JOKER in self._active_jokers:
+        if JokerType.SMEARED_JOKER in self._abled_jokers:
             red_suits, black_suits = [Suit.HEARTS, Suit.DIAMONDS], [
                 Suit.SPADES,
                 Suit.CLUBS,
@@ -442,8 +455,8 @@ class Run:
     def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, set[int]]:
         poker_hands = {}
 
-        flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._active_jokers) else 5
-        max_straight_gap = 2 if (JokerType.SHORTCUT in self._active_jokers) else 1
+        flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._abled_jokers) else 5
+        max_straight_gap = 2 if (JokerType.SHORTCUT in self._abled_jokers) else 1
 
         suit_counts = Counter()
         for played_card in played_cards:
@@ -569,7 +582,7 @@ class Run:
                 card_pool = list(Spectral)[:-2]
 
         prohibited_consumable_cards = []
-        if JokerType.SHOWMAN not in self._active_jokers:
+        if JokerType.SHOWMAN not in self._abled_jokers:
             prohibited_consumable_cards.extend(
                 consumable.card for consumable in self.consumables
             )
@@ -608,7 +621,7 @@ class Run:
             )[0]
 
         prohibited_joker_types = []
-        if JokerType.SHOWMAN not in self._active_jokers:
+        if JokerType.SHOWMAN not in self._abled_jokers:
             prohibited_joker_types.extend(joker.joker_type for joker in self.jokers)
 
             if self._shop_cards is not None:
@@ -635,31 +648,31 @@ class Run:
             or (
                 joker_type is JokerType.GOLDEN_TICKET
                 and not any(
-                    card.enhancement is Enhancement.GOLD for card in self._full_deck
+                    card.enhancement is Enhancement.GOLD for card in self._deck_cards
                 )
             )
             or (
                 joker_type is JokerType.STEEL_JOKER
                 and not any(
-                    card.enhancement is Enhancement.STEEL for card in self._full_deck
+                    card.enhancement is Enhancement.STEEL for card in self._deck_cards
                 )
             )
             or (
                 joker_type is JokerType.STONE
                 and not any(
-                    card.enhancement is Enhancement.STONE for card in self._full_deck
+                    card.enhancement is Enhancement.STONE for card in self._deck_cards
                 )
             )
             or (
                 joker_type is JokerType.LUCKY_CAT
                 and not any(
-                    card.enhancement is Enhancement.LUCKY for card in self._full_deck
+                    card.enhancement is Enhancement.LUCKY for card in self._deck_cards
                 )
             )
             or (
                 joker_type is JokerType.GLASS_JOKER
                 and not any(
-                    card.enhancement is Enhancement.GLASS for card in self._full_deck
+                    card.enhancement is Enhancement.GLASS for card in self._deck_cards
                 )
             )
         ):
@@ -713,7 +726,7 @@ class Run:
                 Rank.QUEEN,
                 Rank.JACK,
             ]
-            or JokerType.PAREIDOLIA in self._active_jokers
+            or JokerType.PAREIDOLIA in self._abled_jokers
         )
 
     def _lucky_check(self) -> bool:
@@ -759,7 +772,6 @@ class Run:
                 self._blind = Blind.BIG_BLIND
             case Blind.BIG_BLIND:
                 self._blind = self._boss_blind
-                self._boss_blind_disabled = False
             case _:
                 self._new_ante()
 
@@ -799,7 +811,7 @@ class Run:
                         )
 
                 self._hand = []
-                self._deck_cards_left = self._full_deck.copy()
+                self._deck_cards_left = self._deck_cards.copy()
                 self._deal()
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
                 for _ in range(of_up_to):
@@ -825,7 +837,7 @@ class Run:
                         self._pack_items.append(self._get_random_consumable(Spectral))
 
                 self._hand = []
-                self._deck_cards_left = self._full_deck.copy()
+                self._deck_cards_left = self._deck_cards.copy()
                 self._deal()
             case Pack.STANDARD | Pack.JUMBO_STANDARD | Pack.MEGA_STANDARD:
                 edition_chances = (
@@ -846,7 +858,7 @@ class Run:
                     if r.random() < 0.4:
                         pack_card.enhancement = r.choice(list(Enhancement))
                     if r.random() < 0.2:
-                        pack_card.enhancement = r.choice(list(Seal))
+                        pack_card.seal = r.choice(list(Seal))
 
                     self._pack_items.append(pack_card)
 
@@ -881,7 +893,7 @@ class Run:
             voucher_list = list(Voucher)
             possible_vouchers = []
             for base_voucher, upgraded_voucher in zip(
-                voucher_list[:10], voucher_list[10:]
+                voucher_list[:16], voucher_list[16:]
             ):
                 if upgraded_voucher in self._vouchers:
                     continue
@@ -994,12 +1006,15 @@ class Run:
             self._boss_blind = r.choice(self._boss_blind_pool)
             self._boss_blind_pool.remove(self._boss_blind)
 
-    def _shop_display_str(self) -> str:
+    def _repr_frame(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
             font_base64 = base64.b64encode(f.read()).decode("utf-8")
 
-        reroll_cost = self.reroll_cost
-        can_reroll = self._available_money >= reroll_cost
+        blind_base64 = base64.b64encode(self._blind._repr_png_()).decode("utf-8")
+        stake_base64 = base64.b64encode(self._stake._repr_png_()).decode("utf-8")
+
+        blind_reward = self.blind_reward
+        no_reward = blind_reward == 0
 
         html = f"""
         <style>
@@ -1011,63 +1026,221 @@ class Run:
             font-family: 'm6x11plus', monospace;
         }}
         </style>
-        <div style='display: flex; flex-direction: column; width: 800px; background-color: #1d2829; border-radius: 20px;'>
-            <div style='display: flex;'>
-                <div style='width: 25%; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center;'>
-                    <div style='text-align: center; margin-bottom: 10px; width: 100%; height: 50%;'>
-                        <button style='background-color: #e35646; color: white; padding: 10px 10px; width: 100%; height: 100%; border-radius: 20px; font-size: 28px;'>Next<br/>Round</button>
-                    </div>
-                    <div style='text-align: center; width: 100%; height: 50%;'>
-                        <button style='background-color: {'#5cb284' if can_reroll else '#4f4f4f'}; color: {'white' if can_reroll else '#646464'}; padding: 10px 10px; width: 100%; height: 100%; border-radius: 20px; font-size: 28px;'>Reroll<br><span style='font-size: 56px;'>${reroll_cost}</span></button>
+        <div style='height: 546px; width: 1044px; display: flex; flex-direction: row; background-color: pink'>
+            <div style='height: 540px; width: 300px; background-color: #333b3d; padding: 6px 6px 0 6px;'>
+        """
+        if self._state is State.PLAYING_BLIND:
+            html += f"""
+                <div style='display: flex; height: 51.6px; width: 100%; background-color: #3a4b50; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 38.4px; text-shadow: 3.6px 3.6px rgba(0, 0, 0, 0.5)'>{self._blind.value}</div>
+                <div style='display: flex; height: 102px; width: 100%; background-color: #3a4b50; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 31.2px; margin-top: 6px'>
+                    <img style='filter: drop-shadow(6px 6px rgba(0, 0, 0, 0.5));' src='data:image/png;base64,{blind_base64}'/>
+                    <div style='display: flex; flex-direction: column; height: 60%; width: 40%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; margin-left: 6px; padding: 6px'>
+                        <div style='display: flex; align-items: center; justify-content: center; color: #e35646'>
+                            <img style='margin-right: 8.4px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                            {format_number(self._round_goal)}
+                        </div>
+                        <div style='font-size: 19.2px; display: flex; align-items: center; justify-content: center; width: 100%;'>
+                            {f'<span style="color: white;">No Reward</span>' if no_reward else f'<span style="color: white; font-size: {19.2 - max(0, blind_reward - 6) * 2.4}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}</span>'}
+                        </div>
                     </div>
                 </div>
-                <div style='width: 75%; background-color: #3a4b50; border-radius: 20px; padding: 10px; margin: 10px;'>
-                    <div style='display: flex; flex-wrap: wrap; justify-content: center;'>
+            """
+        elif self._state is State.IN_SHOP:
+            from .sprites import SHOP_SIGN
+
+            html += f"""
+                <img style='width: 280px; margin-left: 9px; margin-top: 16px' src='data:image/png;base64,{base64.b64encode(SHOP_SIGN).decode("utf-8")}'/>
+            """
+
+        html += f"""
+                <div style='display: flex; height: 60px; width: 100%; background-color: #172022; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 24px; margin-top: 6px'>
+                    Round<br/>score
+                    <div style='display: flex; height: 75%; width: 66%; background-color: #3a4b50; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: {43.2 - (0 if self.round_score < 1_000_000 else (len(format_number(self.round_score)) - 6) * 2.4)}px; margin-left: 18px;'>
+                        <img style='margin-right: 8.4px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                        {format_number(self.round_score)}
+                    </div>
+                </div>
+                <div style='display: flex; height: 300px; width: 100%; margin-top: 8.4px'>
+                    <div style='display: flex; flex-direction: column; align-items: center; height: 100%; width: 47%;'>
+        """
+
+        poker_hand_shorthand = {
+            PokerHand.FIVE_OF_A_KIND: "5 of a Kind",
+            PokerHand.STRAIGHT_FLUSH: "Str. Flush",
+            PokerHand.FOUR_OF_A_KIND: "4 of a Kind",
+            PokerHand.THREE_OF_A_KIND: "3 of a Kind",
+        }
+
+        for poker_hand in PokerHand:
+            html += f"""
+                        <div style="font-size: 15.6px; width: 100%; height: 31.2px; border-radius: 6px; color: white; background-color: DarkGray; margin: 2.4px; display: flex; align-items: center; justify-content: center; padding: 0 1.2px 0 1.2px; filter: drop-shadow(0 2.4px DimGray);">
+                            <span style="display: flex; justify-content: center; align-items: center; color: #172022; background-color: {POKER_HAND_LEVEL_COLORS[min(7, self._poker_hand_info[poker_hand][0])]}; border-radius: 6px; width: 33.6px;">lvl.{self._poker_hand_info[poker_hand][0]}</span>
+                            <span style="margin: 0 auto; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)">{poker_hand_shorthand.get(poker_hand, poker_hand.value)}</span>
+                            <span style="display: flex; justify-content: center; align-items: center; color: orange; background-color: #333b3d; border-radius: 6px; width: 20.4px;">{self._poker_hand_info[poker_hand][1]}</span>
+                        </div>
+            """
+
+        html += f"""
+                    </div>
+                    <div style="display: grid; grid-template-rows: auto auto auto; grid-template-columns: 50% 50%; gap: 7px; width: 53%; padding: 0 6px 0 6px; height: 192px;">
+                        <div style="height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #172022; border-radius: 12px; grid-column: 1; font-size: 19.2px; color: white;">
+                            Hands
+                            <div style='display: flex; align-items: center; justify-content: center; height: 60%; margin-bottom: 4.8px; width: 80%; background-color: #3a4b50; border-radius: 12px; margin-top: 2.4px; color: #3e8cf1; font-size: 43.2px; text-shadow: 2.4px 2.4px rgba(0, 0, 0, 0.65)'>
+                                {self.hands}
+                            </div>
+                        </div>
+                        <div style="height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #172022; border-radius: 12px; grid-column: 2; font-size: 19.2px; color: white;">
+                            Discards
+                            <div style='display: flex; align-items: center; justify-content: center; height: 60%; margin-bottom: 4.8px; width: 80%; background-color: #3a4b50; border-radius: 12px; margin-top: 2.4px; color: #e35646; font-size: 43.2px; text-shadow: 2.4px 2.4px rgba(0, 0, 0, 0.65)'>
+                                {self.discards}
+                            </div>
+                        </div>
+
+                        <div style="height: 60px; display: flex; align-items: center; justify-content: center; background-color: #172022; border-radius: 12px; grid-column: 1 / span 2;">
+                            <div style='display: flex; align-items: center; justify-content: center; height: 85%; width: 85%; background-color: #3a4b50; border-radius: 12px; color: #d7af54; font-size: 50.4px; text-shadow: 3.6px 3.6px rgba(0, 0, 0, 0.65)'>
+                                ${self._money}
+                            </div>
+                        </div>
+
+                        <div style="height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #172022; border-radius: 12px; grid-column: 1; font-size: 19.2px; color: white;">
+                            Ante
+                            <div style='display: flex; align-items: center; justify-content: center; height: 60%; margin-bottom: 4.8px; width: 80%; background-color: #3a4b50; border-radius: 12px; margin-top: 2.4px; font-size: 43.2px; text-shadow: 2.4px 2.4px rgba(0, 0, 0, 0.65)'>
+                                <span style='color: orange'>{self.ante}</span><span style='color: white; font-size: 19.2px; margin-left: 2.4px;'>/</span><span style='color: white; font-size: 19.2px; margin-left: 6px;'>8</span>
+                            </div>
+                        </div>
+                        <div style="height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #172022; border-radius: 12px; grid-column: 2; font-size: 19.2px; color: white;">
+                            Round
+                            <div style='display: flex; align-items: center; justify-content: center; height: 60%; margin-bottom: 4.8px; width: 80%; background-color: #3a4b50; border-radius: 12px; margin-top: 2.4px; color: orange; font-size: 43.2px; text-shadow: 2.4px 2.4px rgba(0, 0, 0, 0.65)'>
+                                {self._round}
+                            </div>
+                        </div>
+                    </div>
+                    <div style='position: absolute; height: 102px; width: 162px; bottom: 10px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 0px; margin: 3.6px 3.6px 3.6px 140.4px; background-color: #1d2829; border-radius: 12px'>
+        """
+
+        vouchers = list(Voucher)
+        slots_left = 8
+        for voucher1, voucher2 in zip(vouchers[:16], vouchers[16:]):
+            if slots_left == 0:
+                break
+            if voucher2 in self._vouchers:
+                html += f"""
+                        <div style='position: relative; display: flex; justify-content: center; align-items: center; height: 45.6px;'>
+                            <img src='data:image/png;base64,{base64.b64encode(voucher1._repr_png_()).decode("utf-8")}' style='filter: drop-shadow(2.4px 2.4px rgba(0, 0, 0, 0.5)); position: absolute; height: 45.6px; transform: rotate(-8deg) translate(-3.6px); z-index: 1;'/>
+                            <img src='data:image/png;base64,{base64.b64encode(voucher2._repr_png_()).decode("utf-8")}' style='filter: drop-shadow(2.4px 2.4px rgba(0, 0, 0, 0.5)); position: absolute; height: 45.6px; transform: rotate(8deg) translate(3.6px); z-index: 2;'/>
+                        </div>
+                """
+                slots_left -= 1
+
+        for voucher1, voucher2 in zip(vouchers[:16], vouchers[16:]):
+            if slots_left == 0:
+                break
+            if voucher1 in self._vouchers and voucher2 not in self._vouchers:
+                html += f"""
+                        <div style='position: relative; display: flex; justify-content: center; align-items: center; height: 45.6px;'>
+                            <img src='data:image/png;base64,{base64.b64encode(voucher1._repr_png_()).decode("utf-8")}' style='filter: drop-shadow(2.4px 2.4px rgba(0, 0, 0, 0.5)); height: 45.6px;'/>
+                        </div>
+                """
+                slots_left -= 1
+
+        joker_images = [
+            base64.b64encode(joker._repr_png_()).decode("utf-8")
+            for joker in self._jokers
+        ]
+        consumable_images = [
+            base64.b64encode(consumable._repr_png_()).decode("utf-8")
+            for consumable in self._consumables
+        ]
+
+        html += f"""
+                    </div>
+                </div>
+            </div>
+            <div style='height: 546px; width: 732px; background-color: #365a46'>
+                <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
+                    {' '.join(f"""
+                        <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
+                    """ for i, joker in enumerate(self._jokers))}
+                </div>
+                <span style='color: white; font-size: 14px; position: absolute; left: 348px; top: 175.2px'>{len(self._jokers)}/{self.joker_slots}</span>
+                <div style='position: absolute; height: 132px; width: 196.8px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 840px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
+                    {' '.join(f"""
+                        <img src='data:image/png;base64,{consumable_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._consumables) - 2))/(len(self._consumables) - 1) if i > 0 else 0}px; filter: drop-shadow(-6px 8.4px rgba(0, 0, 0, 0.5))'/>
+                    """ for i, consumable in enumerate(self._consumables))}
+                </div>
+                <span style='color: white; font-size: 14px; position: absolute; left: 1014px; top: 175.2px'>{len(self._consumables)}/{self.consumable_slots}</span>
+
+                <img src='data:image/png;base64,{base64.b64encode(self._deck._repr_png_()).decode("utf-8")}' style='position: absolute; bottom: 37px; left: 938.4px; width: 98.4px; filter: drop-shadow(-6px 6px Gray) drop-shadow(-3.6px 3.6px Gray) drop-shadow(-1.2px 1.2px Gray) drop-shadow(-14.4px 2.4px rgba(0, 0, 0, 0.2));'/>
+                <span style='color: white; font-size: 14px; position: absolute; left: 996px; bottom: 13px'>{len(self.deck_cards_left)}/{len(self._deck_cards)}</span>
+            </div>
+        </div>
+        """
+
+        return html
+
+    def _repr_in_shop(self) -> str:
+        reroll_cost = self.reroll_cost
+        can_reroll = self._available_money >= reroll_cost
+
+        html = f"""
+        <div style='position: absolute; display: flex; flex-direction: column; width: 564px; height: 348px; left: 342px; bottom: 9px; background-color: #1d2829; border-radius: 12px 12px 0 0; border-top: 1px solid #e35646; border-left: 1px solid #e35646; border-right: 1px solid #e35646;'>
+            <div style='display: flex; height: 50%'>
+                <div style='width: 25%; padding: 6px 0 6px 6px; display: flex; flex-direction: column; justify-content: center; align-items: center;'>
+                    <div style='text-align: center; margin-bottom: 2.4px; width: 100%; height: 50%;'>
+                        <button style='background-color: #e35646; color: white; padding: 1.2px 6px; width: 100%; height: 100%; border-radius: 12px; font-size: 19.2px; text-shadow: 0 1.2px rgba(0, 0, 0, 0.5)'>Next<br/>Round</button>
+                    </div>
+                    <div style='text-align: center; width: 100%; height: 50%;'>
+                        <button style='background-color: {'#5cb284' if can_reroll else '#4f4f4f'}; color: {'white' if can_reroll else '#646464'}; padding: 1.2px 6px; width: 100%; height: 100%; border-radius: 12px; font-size: 19.2px; text-shadow: 0 1.2px rgba(0, 0, 0, 0.5)'>Reroll<br><span style='font-size: 33.6px;'>${reroll_cost}</span></button>
+                    </div>
+                </div>
+                <div style='width: 75%; background-color: #3a4b50; border-radius: 12px; padding: 6px; margin: 6px;'>
+                    <div style='display: flex; flex-wrap: wrap; align-items: center; justify-content: space-evenly; transform: translateY(-13.2px)'>
         """
         for item, cost in self._shop_cards:
             png_bytes = item._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            item_html = f"<img src='data:image/png;base64,{png_base64}'/>"
+            item_html = f"<img style='width: 98.4px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
-                    <div style='display: flex; flex-direction: column; align-items: center; margin-right: 10px; padding-bottom: 20px; text-align: center;'>
-                        <div style='width: 50px; background-color: #333b3d; border-radius: 25%; border: 3px solid black'><strong style='color: #d7af54; font-size:28px;'>${cost}</strong></div>
+                    <div style='display: flex; flex-direction: column; align-items: center;'>
+                        <div style='display: flex; justify-content: center; align-items: center; width: 36px; height: 18px; background-color: #333b3d; border-radius: 6px 6px 0 0; border: 2.4px solid #172022';><strong style='color: #d7af54; font-size:19.2px;'>${cost}</strong></div>
                         <div style='text-align: center;'>{item_html}</div>
                     </div>
             """
-        html += """
+        html += f"""
                     </div>
                 </div>
             </div>
-            <div style='display: flex;'>
-                <div style='width: 50%; border: 10px solid #3a4b50; border-radius: 20px; padding: 10px; margin: 10px;'>
-                    <div style='display: flex; flex-wrap: wrap; justify-content: center;'>
+            <div style='position: absolute; color: #3a4b50; font-size: 20px; transform: rotate(-90deg); left: -32px; bottom: 77px;'>ANTE {self.ante} VOUCHER</div>
+            <div style='display: flex; height: 50%;'>
+                <div style='width: 50%; border: 6px solid #3a4b50; border-radius: 12px; padding: 6px; margin: 6px;'>
+                    <div style='display: flex; flex-wrap: wrap; justify-content: center; transform: translateY(-19.2px)'>
         """
         for voucher, cost in self._shop_vouchers:
             png_bytes = voucher._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            voucher_html = f"<img src='data:image/png;base64,{png_base64}'/>"
+            voucher_html = f"<img style='width: 98.4px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
-                        <div style='display: flex; flex-direction: column; align-items: center; margin-right: 10px; padding-bottom: 20px; text-align: center;'>
-                            <div style='width: 50px; background-color: #333b3d; border-radius: 25%; border: 3px solid black'><strong style='color: #d7af54; font-size:28px;'>${cost}</strong></div>
+                        <div style='display: flex; flex-direction: column; align-items: center;'>
+                            <div style='display: flex; justify-content: center; align-items: center; width: 36px; height: 18px; background-color: #333b3d; border-radius: 6px 6px 0 0; border: 2.4px solid #172022';><strong style='color: #d7af54; font-size:19.2px;'>${cost}</strong></div>
                             <div style='text-align: center;'>{voucher_html}</div>
                         </div>
             """
         html += """
                     </div>
                 </div>
-                <div style='width: 50%; background-color: #3a4b50; border-radius: 20px; padding: 10px; margin: 10px;'>
-                    <div style='display: flex; flex-wrap: wrap; justify-content: center;'>
+                <div style='width: 50%; background-color: #3a4b50; border-radius: 12px; padding: 6px; margin: 6px;'>
+                    <div style='display: flex; flex-wrap: wrap; justify-content: center; transform: translateY(-21.6px)'>
         """
         for pack, cost in self._shop_packs:
             png_bytes = pack._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            pack_html = f"<img src='data:image/png;base64,{png_base64}' style='height: 220px;'/>"
+            pack_html = f"<img src='data:image/png;base64,{png_base64}' style='height: 150px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))'/>"
 
             html += f"""
-                        <div style='display: flex; flex-direction: column; align-items: center; margin-right: 10px; padding-bottom: 20px; text-align: center;'>
-                            <div style='width: 50px; background-color: #333b3d; border-radius: 25%; border: 3px solid black'><strong style='color: #d7af54; font-size:28px;'>${cost}</strong></div>
+                        <div style='display: flex; flex-direction: column; align-items: center;'>
+                            <div style='display: flex; justify-content: center; align-items: center; width: 36px; height: 18px; background-color: #333b3d; border-radius: 6px 6px 0 0; border: 2.4px solid #172022';><strong style='color: #d7af54; font-size:19.2px;'>${cost}</strong></div>
                             <div style='text-align: center;'>{pack_html}</div>
                         </div>
             """
@@ -1078,7 +1251,22 @@ class Run:
         </div>
         """
 
-        return html
+        return html + self._repr_frame()
+
+    def _repr_playing_blind(self) -> str:
+        card_images = [
+            base64.b64encode(card._repr_png_()).decode("utf-8") for card in self._hand
+        ]
+
+        html = f"""
+            <div style='height: 132px; width: 574px; position: absolute; bottom: 50px; left: 335px; display: flex; align-items: center; justify-content: space-evenly;'>
+                    {' '.join(f"""
+                        <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 3}px)'/>
+                    """ for i, card in enumerate(self._hand))}
+            </div>
+            <span style='color: white; font-size: 14px; position: absolute; left: 604px; bottom: 31px'>{len(self._hand)}/{self.hand_size}</span>
+        """
+        return html + self._repr_frame()
 
     def _sort_hand(self, by_suit: bool = False) -> None:
         if by_suit:
@@ -1547,7 +1735,11 @@ class Run:
         self._discards -= 1
         self._first_discard = False
 
-        self._deal()
+        self._deal(
+            3
+            if self._boss_blind_disabled is False and self._blind is Blind.THE_SERPENT
+            else None
+        )
 
     def next_round(self) -> None:
         assert self._state is State.IN_SHOP
@@ -1566,6 +1758,10 @@ class Run:
         assert 1 <= len(card_indices) <= 5
         assert all(0 <= i < len(self._hand) for i in card_indices)
         assert len(set(card_indices)) == len(card_indices)
+        assert (
+            self._forced_selected_card_index is None
+            or self._forced_selected_card_index in card_indices
+        )
 
         self._hands -= 1
         self._num_played_hands += 1
@@ -1580,7 +1776,7 @@ class Run:
         poker_hand_card_indices = poker_hands[poker_hands_played[0]]
         scored_card_indices = (
             list(range(len(played_cards)))
-            if JokerType.SPLASH in self._active_jokers
+            if JokerType.SPLASH in self._abled_jokers
             else [
                 i
                 for i, card in enumerate(played_cards)
@@ -1619,11 +1815,13 @@ class Run:
                         self._end_hand(
                             played_cards, scored_card_indices, poker_hands_played
                         )
+                        return
                 case Blind.THE_EYE:
                     if poker_hands_played[0] in self._round_poker_hands:
                         self._end_hand(
                             played_cards, scored_card_indices, poker_hands_played
                         )
+                        return
                 case Blind.THE_MOUTH:
                     if (
                         self._round_poker_hands
@@ -1632,6 +1830,7 @@ class Run:
                         self._end_hand(
                             played_cards, scored_card_indices, poker_hands_played
                         )
+                        return
                 case Blind.THE_TOOTH:
                     self._money -= 1 * len(played_cards)
                 case Blind.THE_FLINT:
@@ -1737,6 +1936,11 @@ class Run:
                         self._discard(r.sample(range(len(self._hand)), 2))
                     elif len(self._hand) == 1:
                         self._discard([0])
+                case Blind.CRIMSON_HEART:
+                    for joker in self._jokers:
+                        if joker.debuffed and joker._perishable_rounds_left > 0:
+                            joker.debuffed = False
+                    r.choice(self._abled_jokers).debuffed = True
 
         self._end_hand(
             played_cards, scored_card_indices, poker_hands_played
@@ -1767,7 +1971,7 @@ class Run:
 
         self._money -= reroll_cost
 
-        if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._active_jokers:
+        if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._abled_jokers:
             self._used_chaos = True
         else:
             self._reroll_cost += 1
@@ -1793,48 +1997,50 @@ class Run:
 
         self._round += 1
         self._round_score = 0
-        self._round_goal = (
-            ANTE_BASE_CHIPS[self._ante] * BLIND_INFO[self._blind][1]
-        ) * (2 if self._deck is Deck.PLASMA else 1)
+        self._round_goal = (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[self._blind][1]) * (
+            2 if self._deck is Deck.PLASMA else 1
+        )
         self._hands = self._hands_each_round
         self._discards = self._discards_each_round
         self._hand = []
-        self._deck_cards_left = self._full_deck.copy()
+        self._deck_cards_left = self._deck_cards.copy()
         self._round_poker_hands = []
         self._first_hand = True
         self._first_discard = True
+        if self._is_boss_blind:
+            self._boss_blind_disabled = False
 
         match self._blind:
             case Blind.THE_CLUB:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if card.suit is Suit.CLUBS:
                         card.debuffed = True
             case Blind.THE_GOAD:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if card.suit is Suit.SPADES:
                         card.debuffed = True
             case Blind.THE_WATER:
                 self._discards = 0
             case Blind.THE_WINDOW:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if card.suit is Suit.DIAMONDS:
                         card.debuffed = True
             case Blind.THE_PLANT:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if self._is_face_card(card):
                         card.debuffed = True
             case Blind.THE_PILLAR:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if id(card) in self._cards_played_ante:
                         card.debuffed = True
             case Blind.THE_NEEDLE:
                 self._hands = 1
             case Blind.THE_HEAD:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if card.suit is Suit.HEARTS:
                         card.debuffed = True
             case Blind.THE_MARK:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     if self._is_face_card(card):
                         card.flipped = True
             case Blind.AMBER_ACORN:
@@ -1842,8 +2048,10 @@ class Run:
                     joker.flipped = True
                 r.shuffle(self._jokers)
             case Blind.VERDANT_LEAF:
-                for card in self._full_deck:
+                for card in self._deck_cards:
                     card.debuffed = True
+            case Blind.CRIMSON_HEART:
+                r.choice(self._abled_jokers).debuffed = True
 
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
@@ -1883,7 +2091,7 @@ class Run:
 
     def skip_blind(self) -> None:
         assert self._state is State.SELECTING_BLIND
-        assert self._blind in [Blind.SMALL_BLIND, Blind.BIG_BLIND]
+        assert not self._is_boss_blind
 
         self._next_blind()
 
@@ -1939,7 +2147,7 @@ class Run:
         self._consumables.pop(consumable_index)
 
     @property
-    def _active_jokers(self) -> list[BaseJoker]:
+    def _abled_jokers(self) -> list[BaseJoker]:
         return [joker for joker in self._jokers if not joker.debuffed]
 
     @property
@@ -1948,7 +2156,7 @@ class Run:
             0,
             (
                 (self._money + 20)
-                if JokerType.CREDIT_CARD in self._active_jokers
+                if JokerType.CREDIT_CARD in self._abled_jokers
                 else self._money
             ),
         )
@@ -1996,8 +2204,12 @@ class Run:
         return hands_each_round
 
     @property
+    def _is_boss_blind(self) -> bool:
+        return self._blind not in [Blind.SMALL_BLIND, Blind.BIG_BLIND]
+
+    @property
     def _is_finisher_ante(self) -> bool:
-        return self._ante % 8 == 0
+        return self.ante % 8 == 0
 
     @property
     def _unlocked_poker_hands(self) -> list[PokerHand]:
@@ -2029,6 +2241,14 @@ class Run:
         return self._blind
 
     @property
+    def blind_reward(self) -> int:
+        return (
+            0
+            if (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
+            else BLIND_INFO[self._blind][2]
+        )
+
+    @property
     def boss_blind(self) -> Blind:
         return self._boss_blind
 
@@ -2058,18 +2278,22 @@ class Run:
         return self._deck
 
     @property
-    def deck_cards_left(self) -> list[Card] | None:
-        return self._deck_cards_left
+    def deck_cards(self) -> list[Card]:
+        return self._deck_cards
+
+    @property
+    def deck_cards_left(self) -> list[Card]:
+        return (
+            self._deck_cards_left
+            if self._deck_cards_left is not None
+            else self._deck_cards
+        )
 
     @property
     def discards(self) -> int:
         return (
             self._discards if self._discards is not None else self._discards_each_round
         )
-
-    @property
-    def full_deck(self) -> list[Card]:
-        return self._full_deck
 
     @property
     def hand(self) -> list[Card] | None:
@@ -2146,7 +2370,7 @@ class Run:
             return None
         return (
             0
-            if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._active_jokers
+            if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._abled_jokers
             else self._reroll_cost
         )
 
@@ -2156,7 +2380,7 @@ class Run:
 
     @property
     def round_score(self) -> int:
-        return self._round_score
+        return self._round_score if self._round_score is not None else 0
 
     @property
     def shop_cards(self) -> list[tuple[BaseJoker | Consumable | Card, int]] | None:
