@@ -2,7 +2,8 @@ from __future__ import annotations
 import colorsys
 import io
 import math
-from PIL import Image
+from PIL import Image, ImageFilter, ImageEnhance
+import numpy as np
 import random as r
 
 from .classes import *
@@ -631,6 +632,70 @@ def _apply_holo(sprite: Image.Image) -> Image.Image:
     return Image.alpha_composite(sprite, holo_overlay)
 
 
+def _apply_hologram_to_sprite(
+    joker_sheet, i, j, DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT, WIDTH, HEIGHT
+):
+    def create_hologram_effect(image):
+        # Convert to RGBA if not already
+        image = image.convert("RGBA")
+
+        # Create glow effect
+        glow = image.filter(ImageFilter.GaussianBlur(3))
+        glow_data = np.array(glow)
+
+        # Create base cyan tint
+        cyan_overlay = Image.new("RGBA", image.size, (0, 255, 255, 0))
+
+        # Create the final composition
+        result = Image.new("RGBA", image.size, (0, 0, 0, 0))
+
+        # Get image data as numpy arrays
+        img_data = np.array(image)
+        cyan_data = np.array(cyan_overlay)
+
+        # Create the hologram effect
+        for y in range(image.height):
+            for x in range(image.width):
+                alpha = img_data[y, x, 3]
+                if alpha > 250:  # If pixel is fully opaque (card background)
+                    result.putpixel((x, y), (0, 0, 0, 0))
+                elif alpha < 1:  # If pixel is fully transparent
+                    # Add cyan glow
+                    glow_alpha = int(glow_data[y, x, 3] * 0.4)  # Reduce glow intensity
+                    result.putpixel((x, y), (0, 255, 255, glow_alpha))
+                else:
+                    # Semi-transparent pixels (card details)
+                    # Add slight cyan tint to existing colors
+                    r, g, b = img_data[y, x, 0:3]
+                    new_color = (
+                        int(r * 0.8),  # Reduce red
+                        int(g * 1.1),  # Boost green slightly
+                        int(b * 1.1),  # Boost blue slightly
+                        alpha,
+                    )
+                    result.putpixel((x, y), new_color)
+
+        # Add final glow
+        glow_layer = result.filter(ImageFilter.GaussianBlur(2))
+        glow_layer.putalpha(ImageEnhance.Brightness(glow_layer.split()[3]).enhance(0.3))
+
+        return Image.alpha_composite(result, glow_layer)
+
+    # Extract the card from the sheet
+    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+    x2, y2 = x1 + WIDTH, y1 + HEIGHT
+    face_sprite = joker_sheet.crop((x1, y1, x2, y2))
+
+    # Apply hologram effect
+    hologram_sprite = create_hologram_effect(face_sprite)
+
+    # Create new transparent image for composition
+    result = Image.new("RGBA", hologram_sprite.size, (0, 0, 0, 0))
+    result = Image.alpha_composite(result, hologram_sprite)
+
+    return result
+
+
 def _apply_polychrome(sprite: Image.Image) -> Image.Image:
     width, height = sprite.size
     polychrome_val = (0, 0)  # Static polychrome values (tilt0)
@@ -819,7 +884,16 @@ def get_sprite(
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     face_sprite = joker_sheet.crop((x1, y1, x2, y2))
-                    sprite = Image.alpha_composite(sprite, face_sprite)
+                    hologram_sprite = _apply_hologram_to_sprite(
+                        joker_sheet,
+                        i,
+                        j,
+                        DEFAULT_CARD_WIDTH,
+                        DEFAULT_CARD_HEIGHT,
+                        WIDTH,
+                        HEIGHT,
+                    )
+                    sprite = Image.alpha_composite(sprite, hologram_sprite)
 
             if item.eternal:
                 i, j = 0, 0

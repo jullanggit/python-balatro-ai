@@ -104,6 +104,7 @@ class Run:
         self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
         self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
+        self._opened_pack: Pack | None = None
         self._pack_items: list[BaseJoker | Consumable | Card] | None = None
         self._pack_choices_left: int | None = None
         self._planet_cards_used: set[Planet] = set()
@@ -125,6 +126,8 @@ class Run:
         match self._state:
             case State.IN_SHOP:
                 return self._repr_in_shop()
+            case State.OPENING_PACK:
+                return self._repr_opening_pack()
             case State.PLAYING_BLIND:
                 return self._repr_playing_blind()
             case _:
@@ -234,6 +237,7 @@ class Run:
     def _close_pack(self) -> None:
         self._hand = None
 
+        self._opened_pack = None
         self._pack_items = None
         self._pack_choices_left = None
         self._hand = None
@@ -595,7 +599,7 @@ class Run:
                     and isinstance(shop_card[0], Consumable)
                 )
 
-            if self._pack_items is not None:
+            if self._opened_pack is not None:
                 prohibited_consumable_cards.extend(
                     pack_item.card
                     for pack_item in self._pack_items
@@ -632,7 +636,7 @@ class Run:
                     and isinstance(shop_card[0], BaseJoker)
                 )
 
-            if self._pack_items is not None:
+            if self._opened_pack is not None:
                 prohibited_joker_types.extend(
                     pack_item.joker_type
                     for pack_item in self._pack_items
@@ -778,6 +782,8 @@ class Run:
     def _open_pack(self, pack: Pack) -> None:
         self._state = State.OPENING_PACK
 
+        self._opened_pack = pack
+
         for joker in self._jokers:
             joker._on_pack_opened()
 
@@ -821,7 +827,7 @@ class Run:
                     ):
                         self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
                     else:
-                        self._pack_items.append(self._get_random_consumable(Spectral))
+                        self._pack_items.append(self._get_random_consumable(Planet))
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
                 for _ in range(of_up_to - 1):
                     if (
@@ -1026,7 +1032,7 @@ class Run:
             font-family: 'm6x11plus', monospace;
         }}
         </style>
-        <div style='height: 546px; width: 1044px; display: flex; flex-direction: row; background-color: pink'>
+        <div style='height: 546px; width: 1044px; display: flex; flex-direction: row;'>
             <div style='height: 540px; width: 300px; background-color: #333b3d; padding: 6px 6px 0 6px;'>
         """
         if self._state is State.PLAYING_BLIND:
@@ -1045,7 +1051,7 @@ class Run:
                     </div>
                 </div>
             """
-        elif self._state is State.IN_SHOP:
+        elif self._shop_cards is not None:
             from .sprites import SHOP_SIGN
 
             html += f"""
@@ -1156,7 +1162,7 @@ class Run:
                     </div>
                 </div>
             </div>
-            <div style='height: 546px; width: 732px; background-color: #365a46'>
+            <div style='height: 546px; width: 732px; background-color: {PACK_BACKGROUND_COLORS[self._opened_pack.value] if self._opened_pack is not None else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
@@ -1251,6 +1257,42 @@ class Run:
         </div>
         """
 
+        return html + self._repr_frame()
+
+    def _repr_opening_pack(self) -> str:
+        pack_item_images = [
+            base64.b64encode(item._repr_png_()).decode("utf-8")
+            for item in self._pack_items
+        ]
+
+        html = f"""
+            <div style='position: absolute; height: 132px; width: 574px; left: 335px; bottom: 85px; display: flex; align-items: center; justify-content: center; gap: {5 if isinstance(self._pack_items[0], Consumable) else 15}px'>
+                {' '.join(f"""
+                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: 98.4px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
+                """ for i, item in enumerate(self._pack_items))}
+            </div>
+            <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
+                <span style='font-size: 26px; margin-top: 3px;'>{self._opened_pack.value}</span>
+                <span style='font-size: 20px; margin-top: 3px;'>Choose {self._pack_choices_left}</span>
+            </div>
+            <div style='display: flex; align-items: flex-start; justify-content: center; padding: 8px; font-size: 20px; color: white; height: 32px; width: 55px; background-color: #3f5357; border-radius: 10px; position: absolute; left: 724px; bottom: 17px; filter: drop-shadow(-2px 3px rgba(0, 0, 0, 0.5));'>
+                Skip
+            </div>
+        """
+
+        if self._hand is not None:
+            card_images = [
+                base64.b64encode(card._repr_png_()).decode("utf-8")
+                for card in self._hand
+            ]
+
+            html += f"""
+                <div style='height: 132px; width: 574px; position: absolute; bottom: 240px; left: 335px; display: flex; align-items: center; justify-content: space-evenly;'>
+                        {' '.join(f"""
+                            <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; filter: drop-shadow(0px 5px rgba(0, 0, 0, 0.5)); z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 3}px)'/>
+                        """ for i, card in enumerate(self._hand))}
+                </div>
+            """
         return html + self._repr_frame()
 
     def _repr_playing_blind(self) -> str:
