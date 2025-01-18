@@ -418,20 +418,20 @@ class Seal(Enum):
 
 class Pack(Enum):
     ARCANA = "Arcana Pack"
-    JUMBO_ARCANA = "Arcana Pack"
-    MEGA_ARCANA = "Arcana Pack"
+    JUMBO_ARCANA = "Jumbo Arcana Pack"
+    MEGA_ARCANA = "Mega Arcana Pack"
     CELESTIAL = "Celestial Pack"
-    JUMBO_CELESTIAL = "Celestial Pack"
-    MEGA_CELESTIAL = "Celestial Pack"
+    JUMBO_CELESTIAL = "Jumbo Celestial Pack"
+    MEGA_CELESTIAL = "Mega Celestial Pack"
     SPECTRAL = "Spectral Pack"
-    JUMBO_SPECTRAL = "Spectral Pack"
-    MEGA_SPECTRAL = "Spectral Pack"
+    JUMBO_SPECTRAL = "Jumbo Spectral Pack"
+    MEGA_SPECTRAL = "Mega Spectral Pack"
     STANDARD = "Standard Pack"
-    JUMBO_STANDARD = "Standard Pack"
-    MEGA_STANDARD = "Standard Pack"
+    JUMBO_STANDARD = "Jumbo Standard Pack"
+    MEGA_STANDARD = "Mega Standard Pack"
     BUFFOON = "Buffoon Pack"
-    JUMBO_BUFFOON = "Buffoon Pack"
-    MEGA_BUFFOON = "Buffoon Pack"
+    JUMBO_BUFFOON = "Jumbo Buffoon Pack"
+    MEGA_BUFFOON = "Mega Buffoon Pack"
 
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite

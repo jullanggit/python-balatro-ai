@@ -130,6 +130,8 @@ class Run:
                 return self._repr_opening_pack()
             case State.PLAYING_BLIND:
                 return self._repr_playing_blind()
+            case State.SELECTING_BLIND:
+                return self._repr_selecting_blind()
             case _:
                 raise NotImplementedError
 
@@ -246,7 +248,7 @@ class Run:
         if self._shop_cards is None:
             self._state = State.SELECTING_BLIND
 
-            if self._tags[-1] in TAG_PACKS:
+            if self._tags and self._tags[-1] in TAG_PACKS:
                 self._open_pack(TAG_PACKS[self._tags.pop()])
         else:
             self._state = State.IN_SHOP
@@ -1019,9 +1021,6 @@ class Run:
         blind_base64 = base64.b64encode(self._blind._repr_png_()).decode("utf-8")
         stake_base64 = base64.b64encode(self._stake._repr_png_()).decode("utf-8")
 
-        blind_reward = self.blind_reward
-        no_reward = blind_reward == 0
-
         html = f"""
         <style>
         @font-face {{
@@ -1036,17 +1035,20 @@ class Run:
             <div style='height: 540px; width: 300px; background-color: #333b3d; padding: 6px 6px 0 6px;'>
         """
         if self._state is State.PLAYING_BLIND:
+            round_goal = format_number(self._round_goal)
+            blind_reward = self.blind_reward
+
             html += f"""
-                <div style='display: flex; height: 51.6px; width: 100%; background-color: #3a4b50; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 38.4px; text-shadow: 3.6px 3.6px rgba(0, 0, 0, 0.5)'>{self._blind.value}</div>
-                <div style='display: flex; height: 102px; width: 100%; background-color: #3a4b50; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 31.2px; margin-top: 6px'>
+                <div style='display: flex; height: 51.6px; width: 100%; background-color: {BLIND_COLORS[self._blind]}; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 38.4px; text-shadow: 3.6px 3.6px rgba(0, 0, 0, 0.5)'>{self._blind.value}</div>
+                <div style='display: flex; height: 102px; width: 100%; background-color: {BLIND_COLORS[self._blind]+"55"}; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 31.2px; margin-top: 6px'>
                     <img style='filter: drop-shadow(6px 6px rgba(0, 0, 0, 0.5));' src='data:image/png;base64,{blind_base64}'/>
-                    <div style='display: flex; flex-direction: column; height: 60%; width: 40%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; margin-left: 6px; padding: 6px'>
-                        <div style='display: flex; align-items: center; justify-content: center; color: #e35646'>
-                            <img style='margin-right: 8.4px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
-                            {format_number(self._round_goal)}
+                    <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); display: flex; flex-direction: column; height: 60%; width: 50%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; margin-left: 6px; padding: 6px'>
+                        <div style='display: flex; align-items: center; justify-content: center; color: #e35646; font-size: {43.2 - max(0, len(round_goal) - 3) * 2.1}px'>
+                            <img style='margin-right: 5px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                            {round_goal}
                         </div>
                         <div style='font-size: 19.2px; display: flex; align-items: center; justify-content: center; width: 100%;'>
-                            {f'<span style="color: white;">No Reward</span>' if no_reward else f'<span style="color: white; font-size: {19.2 - max(0, blind_reward - 6) * 2.4}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}</span>'}
+                            {f'<span style="color: white;">No Reward</span>' if (blind_reward == 0) else f'<span style="color: white; font-size: {19.2 - max(0, blind_reward - 6) * 2.4}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}</span>'}
                         </div>
                     </div>
                 </div>
@@ -1057,6 +1059,16 @@ class Run:
             html += f"""
                 <img style='width: 280px; margin-left: 9px; margin-top: 16px' src='data:image/png;base64,{base64.b64encode(SHOP_SIGN).decode("utf-8")}'/>
             """
+        elif self._state is State.SELECTING_BLIND or self._state is State.OPENING_PACK:
+            html += f"""
+                <div style='display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 159.6px; width: 100%; color: white; font-size: 31.2px; text-shadow: 2px 2px rgba(0, 0, 0, 0.5)'>
+                    Choose your<br/>next Blind
+            """
+            if Voucher.DIRECTORS_CUT in self._vouchers:
+                html += f"""
+                    <button style='display: flex; justify-content: center; align-items: center; margin-top: 3px; background-color: {"#4f4f4f" if self._available_money < 10 or (Voucher.RETCON not in self._vouchers and self._rerolled_boss_blind) else"#e35646"}; border-radius: 12px; text-align: center; height: 50px; width: 150px; color: white; font-size: 19.2px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Reroll Boss<br/>$10</button>
+                """
+            html += "</div>"
 
         html += f"""
                 <div style='display: flex; height: 60px; width: 100%; background-color: #172022; border-radius: 12px; color: white; align-items: center; justify-content: center; font-size: 24px; margin-top: 6px'>
@@ -1167,7 +1179,7 @@ class Run:
                     </div>
                 </div>
             </div>
-            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[self._opened_pack.value] if self._opened_pack is not None else "#365a46"}'>
+            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._is_boss_blind else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
@@ -1283,7 +1295,7 @@ class Run:
                 """ for i, item in enumerate(self._pack_items))}
             </div>
             <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
-                <span style='font-size: 26px; margin-top: 3px;'>{self._opened_pack.value}</span>
+                <span style='font-size: 26px; margin-top: 3px;'>{" ".join(self._opened_pack.value.split(" ")[-2:])}</span>
                 <span style='font-size: 20px; margin-top: 3px;'>Choose {self._pack_choices_left}</span>
             </div>
             <div style='display: flex; align-items: flex-start; justify-content: center; padding: 8px; font-size: 20px; color: white; height: 32px; width: 55px; background-color: #3f5357; border-radius: 10px; position: absolute; left: 724px; bottom: 17px; filter: drop-shadow(-2px 3px rgba(0, 0, 0, 0.5));'>
@@ -1318,6 +1330,103 @@ class Run:
                     """ for i, card in enumerate(self._hand))}
             </div>
             <span style='color: white; font-size: 14px; position: absolute; left: 604px; bottom: 31px'>{len(self._hand)}/{self.hand_size}</span>
+        """
+        return html + self._repr_frame()
+
+    def _repr_selecting_blind(self) -> str:
+        stake_base64 = base64.b64encode(self._stake._repr_png_()).decode("utf-8")
+
+        round_goal = format_number(
+            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[Blind.SMALL_BLIND][1])
+            * (2 if self._deck is Deck.PLASMA else 1)
+        )
+        blind_reward = (
+            0 if (self._stake >= Stake.RED) else BLIND_INFO[Blind.SMALL_BLIND][2]
+        )
+
+        html = f"""
+            <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._blind is Blind.SMALL_BLIND else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 350px; border-top: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; border-left: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; border-right: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; opacity: {1 if self._blind is Blind.SMALL_BLIND else 0.75}'>
+                <button style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 75%; height: 30px; display: flex; align-items: center; justify-content: center; background-color: {"#dc8c32" if self._blind is Blind.SMALL_BLIND else "#4f4f4f"}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 10px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>Select</button>
+                <div style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 80%; height: 25px; display: flex; align-items: center; justify-content: center; background-color: {BLIND_COLORS[Blind.SMALL_BLIND]}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 46px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>Small Blind</div>
+                <img style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: absolute; top: 81px' src='data:image/png;base64,{base64.b64encode(Blind.SMALL_BLIND._repr_png_()).decode("utf-8")}'/>
+                <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 154px; display: flex; flex-direction: column; height: 50px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 6px'>
+                    <div style='display: flex; align-items: center; justify-content: center; color: #e35646; font-size: {36 - max(0, len(round_goal) - 3) * 1.8}px'>
+                        <img style='margin-right: 5px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                        {round_goal}
+                    </div>
+                    <div style='font-size: 17px; display: flex; align-items: center; justify-content: center; width: 100%;'>
+                        {f'' if (blind_reward == 0) else f'<span style="color: white; font-size: {17 - max(0, blind_reward - 6) * 2}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}+</span>'}
+                    </div>
+                </div>
+        """
+
+        if self._blind is Blind.SMALL_BLIND:
+            html += f"""
+                <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
+                    <div style='display: flex; align-items: center; justify-content: center;'>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[0][0]._repr_png_()).decode("utf-8")}'/>
+                        <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.SMALL_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
+                    </div>
+                </div>
+            """
+
+        html += "</div>"
+
+        round_goal = format_number(
+            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[Blind.BIG_BLIND][1])
+            * (2 if self._deck is Deck.PLASMA else 1)
+        )
+        blind_reward = BLIND_INFO[Blind.BIG_BLIND][2]
+
+        html += f"""
+            <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._blind is Blind.BIG_BLIND else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 540px; border-top: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; border-left: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; border-right: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; opacity: {1 if self._blind is Blind.BIG_BLIND else 0.75}'>
+                <button style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 75%; height: 30px; display: flex; align-items: center; justify-content: center; background-color: {"#dc8c32" if self._blind is Blind.BIG_BLIND else "#4f4f4f"}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 10px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>Select</button>
+                <div style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 80%; height: 25px; display: flex; align-items: center; justify-content: center; background-color: {BLIND_COLORS[Blind.BIG_BLIND]}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 46px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>Big Blind</div>
+                <img style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: absolute; top: 81px' src='data:image/png;base64,{base64.b64encode(Blind.BIG_BLIND._repr_png_()).decode("utf-8")}'/>
+                <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 154px; display: flex; flex-direction: column; height: 50px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 6px'>
+                    <div style='display: flex; align-items: center; justify-content: center; color: #e35646; font-size: {36 - max(0, len(round_goal) - 3) * 2}px'>
+                        <img style='margin-right: 5px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                        {round_goal}
+                    </div>
+                    <div style='font-size: 17px; display: flex; align-items: center; justify-content: center; width: 100%;'>
+                        {f'' if (blind_reward == 0) else f'<span style="color: white; font-size: {17 - max(0, blind_reward - 6) * 2}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}+</span>'}
+                    </div>
+                </div>
+        """
+
+        if not self._is_boss_blind:
+            html += f"""
+                <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
+                    <div style='display: flex; align-items: center; justify-content: center;'>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[1][0]._repr_png_()).decode("utf-8")}'/>
+                        <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.BIG_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
+                    </div>
+                </div>
+            """
+
+        html += "</div>"
+
+        round_goal = format_number(
+            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[self._boss_blind][1])
+            * (2 if self._deck is Deck.PLASMA else 1)
+        )
+        blind_reward = BLIND_INFO[self._boss_blind][2]
+
+        html += f"""
+            <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._is_boss_blind else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 730px; border-top: 2px solid {BLIND_COLORS[self._boss_blind]}; border-left: 2px solid {BLIND_COLORS[self._boss_blind]}; border-right: 2px solid {BLIND_COLORS[self._boss_blind]}; opacity: {1 if self._is_boss_blind else 0.75}'>
+                <button style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 75%; height: 30px; display: flex; align-items: center; justify-content: center; background-color: {"#dc8c32" if self._is_boss_blind else "#4f4f4f"}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 10px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>Select</button>
+                <div style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); width: 80%; height: 25px; display: flex; align-items: center; justify-content: center; background-color: {BLIND_COLORS[self._boss_blind]}; color: white; font-size: 19px; border-radius: 10px; position: absolute; top: 46px; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)'>{self._boss_blind.value}</div>
+                <img style='filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: absolute; top: 81px' src='data:image/png;base64,{base64.b64encode(self._boss_blind._repr_png_()).decode("utf-8")}'/>
+                <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 154px; display: flex; flex-direction: column; height: 50px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 6px'>
+                    <div style='display: flex; align-items: center; justify-content: center; color: #e35646; font-size: {36 - max(0, len(round_goal) - 3) * 2}px'>
+                        <img style='margin-right: 5px; height: 32.4px; width: 32.4px' src='data:image/png;base64,{stake_base64}'/>
+                        {round_goal}
+                    </div>
+                    <div style='font-size: 17px; display: flex; align-items: center; justify-content: center; width: 100%;'>
+                        {f'' if (blind_reward == 0) else f'<span style="color: white; font-size: {17 - max(0, blind_reward - 6) * 2}px">Reward:</span><span style="color: #d7af54; margin-left: 6px;">{"$" * blind_reward}+</span>'}
+                    </div>
+                </div>
+            </div>
         """
         return html + self._repr_frame()
 
@@ -2035,9 +2144,9 @@ class Run:
         assert self._state is State.SELECTING_BLIND
 
         assert Voucher.DIRECTORS_CUT in self._vouchers
-        assert self._available_money >= 10
         if Voucher.RETCON not in self._vouchers:
             assert not self._rerolled_boss_blind
+        assert self._available_money >= 10
 
         self._money -= 10
 
@@ -2146,11 +2255,11 @@ class Run:
         assert self._state is State.SELECTING_BLIND
         assert not self._is_boss_blind
 
+        tag, extra = self._ante_tags[self._blind is Blind.BIG_BLIND]
+
         self._next_blind()
 
         self._num_blinds_skipped += 1
-
-        tag, extra = self._ante_tags[self._blind is Blind.BIG_BLIND]
 
         num_tags = 1
         while tag is not Tag.DOUBLE and Tag.DOUBLE in self._tags:
@@ -2177,7 +2286,7 @@ class Run:
                 case _:
                     self._tags.append(tag)
 
-        if self._tags[-1] in TAG_PACKS:
+        if self._tags and self._tags[-1] in TAG_PACKS:
             self._open_pack(TAG_PACKS[self._tags.pop()])
 
     def skip_pack(self) -> None:
