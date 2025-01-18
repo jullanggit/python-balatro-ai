@@ -1032,7 +1032,7 @@ class Run:
             font-family: 'm6x11plus', monospace;
         }}
         </style>
-        <div style='height: 546px; width: 1044px; display: flex; flex-direction: row;'>
+        <div style='height: 546px; width: 1084px; display: flex; flex-direction: row;'>
             <div style='height: 540px; width: 300px; background-color: #333b3d; padding: 6px 6px 0 6px;'>
         """
         if self._state is State.PLAYING_BLIND:
@@ -1077,9 +1077,11 @@ class Run:
             PokerHand.THREE_OF_A_KIND: "3 of a Kind",
         }
 
+        unlocked_poker_hands = self._unlocked_poker_hands
+
         for poker_hand in PokerHand:
             html += f"""
-                        <div style="font-size: 15.6px; width: 100%; height: 31.2px; border-radius: 6px; color: white; background-color: DarkGray; margin: 2.4px; display: flex; align-items: center; justify-content: center; padding: 0 1.2px 0 1.2px; filter: drop-shadow(0 2.4px DimGray);">
+                        <div style="font-size: 15.6px; width: 100%; height: 31.2px; border-radius: 6px; color: white; background-color: DarkGray; margin: 2.4px; display: flex; align-items: center; justify-content: center; padding: 0 1.2px 0 1.2px; filter: drop-shadow(0 2.4px DimGray); opacity: {1 if poker_hand in unlocked_poker_hands else 0.33}">
                             <span style="display: flex; justify-content: center; align-items: center; color: #172022; background-color: {POKER_HAND_LEVEL_COLORS[min(7, self._poker_hand_info[poker_hand][0])]}; border-radius: 6px; width: 33.6px;">lvl.{self._poker_hand_info[poker_hand][0]}</span>
                             <span style="margin: 0 auto; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)">{poker_hand_shorthand.get(poker_hand, poker_hand.value)}</span>
                             <span style="display: flex; justify-content: center; align-items: center; color: orange; background-color: #333b3d; border-radius: 6px; width: 20.4px;">{self._poker_hand_info[poker_hand][1]}</span>
@@ -1157,12 +1159,15 @@ class Run:
             base64.b64encode(consumable._repr_png_()).decode("utf-8")
             for consumable in self._consumables
         ]
+        tag_images = [
+            base64.b64encode(tag._repr_png_()).decode("utf-8") for tag in self._tags
+        ]
 
         html += f"""
                     </div>
                 </div>
             </div>
-            <div style='height: 546px; width: 732px; background-color: {PACK_BACKGROUND_COLORS[self._opened_pack.value] if self._opened_pack is not None else "#365a46"}'>
+            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[self._opened_pack.value] if self._opened_pack is not None else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
@@ -1176,8 +1181,14 @@ class Run:
                 </div>
                 <span style='color: white; font-size: 14px; position: absolute; left: 1014px; top: 175.2px'>{len(self._consumables)}/{self.consumable_slots}</span>
 
-                <img src='data:image/png;base64,{base64.b64encode(self._deck._repr_png_()).decode("utf-8")}' style='position: absolute; bottom: 37px; left: 938.4px; width: 98.4px; filter: drop-shadow(-6px 6px Gray) drop-shadow(-3.6px 3.6px Gray) drop-shadow(-1.2px 1.2px Gray) drop-shadow(-14.4px 2.4px rgba(0, 0, 0, 0.2));'/>
-                <span style='color: white; font-size: 14px; position: absolute; left: 996px; bottom: 13px'>{len(self.deck_cards_left)}/{len(self._deck_cards)}</span>
+                <img src='data:image/png;base64,{base64.b64encode(self._deck._repr_png_()).decode("utf-8")}' style='position: absolute; bottom: 42px; left: 938.4px; width: 98.4px; filter: drop-shadow(-6px 6px Gray) drop-shadow(-3.6px 3.6px Gray) drop-shadow(-1.2px 1.2px Gray) drop-shadow(-14.4px 2.4px rgba(0, 0, 0, 0.2));'/>
+                <span style='color: white; font-size: 14px; position: absolute; left: 996px; bottom: 16px'>{len(self.deck_cards_left)}/{len(self._deck_cards)}</span>
+
+                <div style='display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; position: absolute; height: 500px; width: 37px; bottom: 35px; left: 1048px'>
+                    {' '.join(f"""
+                        <img src='data:image/png;base64,{tag_images[i]}' style='width: 37px; position: relative; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))'/>
+                    """ for i, tag in enumerate(self._tags))}
+                </div>
             </div>
         </div>
         """
@@ -2318,6 +2329,21 @@ class Run:
     @property
     def deck(self) -> Deck:
         return self._deck
+
+    @property
+    def deck_breakdown(self) -> dict[Suit | Rank, int]:
+        deck_breakdown = {
+            **{suit: 0 for suit in Suit},
+            **{rank: 0 for rank in Rank},
+        }
+
+        for deck_card in self.deck_cards_left:
+            if deck_card.flipped or deck_card.is_stone_card:
+                continue
+            deck_breakdown[deck_card.suit] += 1
+            deck_breakdown[deck_card.rank] += 1
+
+        return deck_breakdown
 
     @property
     def deck_cards(self) -> list[Card]:
