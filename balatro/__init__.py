@@ -284,7 +284,7 @@ class Run:
         num_cards = (
             force_num_cards
             if force_num_cards is not None
-            else min(len(self._deck_cards_left), hand_size - len(self._hand))
+            else min(len(self._deck_cards_left), max(0, hand_size - len(self._hand)))
         )
         deal_indices = sorted(
             r.sample(range(len(self._deck_cards_left)), num_cards), reverse=True
@@ -341,6 +341,7 @@ class Run:
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._round_score >= self._round_goal:
+            print(f"Round Ended: {format_number(self._round_score)}")
             self._end_round(poker_hands_played[0])
             return
 
@@ -723,6 +724,18 @@ class Run:
             perishable=perishable,
             rental=rental,
         )
+
+    def _get_round_goal(self, blind: Blind) -> int:
+        return (
+            ANTE_BASE_CHIPS[
+                (
+                    2
+                    if self._stake >= Stake.PURPLE
+                    else 1 if self._stake >= Stake.GREEN else 0
+                )
+            ][self.ante]
+            * BLIND_INFO[blind][1]
+        ) * (2 if self._deck is Deck.PLASMA else 1)
 
     def _is_face_card(self, card: Card) -> bool:
         return (
@@ -1179,7 +1192,7 @@ class Run:
                     </div>
                 </div>
             </div>
-            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._is_boss_blind else "#365a46"}'>
+            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
@@ -1336,10 +1349,7 @@ class Run:
     def _repr_selecting_blind(self) -> str:
         stake_base64 = base64.b64encode(self._stake._repr_png_()).decode("utf-8")
 
-        round_goal = format_number(
-            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[Blind.SMALL_BLIND][1])
-            * (2 if self._deck is Deck.PLASMA else 1)
-        )
+        round_goal = format_number(self._get_round_goal(Blind.SMALL_BLIND))
         blind_reward = (
             0 if (self._stake >= Stake.RED) else BLIND_INFO[Blind.SMALL_BLIND][2]
         )
@@ -1372,10 +1382,7 @@ class Run:
 
         html += "</div>"
 
-        round_goal = format_number(
-            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[Blind.BIG_BLIND][1])
-            * (2 if self._deck is Deck.PLASMA else 1)
-        )
+        round_goal = format_number(self._get_round_goal(Blind.BIG_BLIND))
         blind_reward = BLIND_INFO[Blind.BIG_BLIND][2]
 
         html += f"""
@@ -1406,10 +1413,7 @@ class Run:
 
         html += "</div>"
 
-        round_goal = format_number(
-            (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[self._boss_blind][1])
-            * (2 if self._deck is Deck.PLASMA else 1)
-        )
+        round_goal = format_number(self._get_round_goal(self._boss_blind))
         blind_reward = BLIND_INFO[self._boss_blind][2]
 
         html += f"""
@@ -2159,9 +2163,7 @@ class Run:
 
         self._round += 1
         self._round_score = 0
-        self._round_goal = (ANTE_BASE_CHIPS[self.ante] * BLIND_INFO[self._blind][1]) * (
-            2 if self._deck is Deck.PLASMA else 1
-        )
+        self._round_goal = self._get_round_goal(self._blind)
         self._hands = self._hands_each_round
         self._discards = self._discards_each_round
         self._hand = []
@@ -2241,12 +2243,13 @@ class Run:
         if joker_sold:
             assert not sold_item.eternal
 
-        section_items.pop(item_index)
-
         for joker in self._jokers:
             joker._on_item_sold(sold_item)
 
-            if joker_sold:
+        section_items.pop(item_index)
+
+        if joker_sold:
+            for joker in self._jokers:
                 joker._on_jokers_moved()
 
         self._money += self._calculate_sell_value(sold_item)
@@ -2329,6 +2332,9 @@ class Run:
 
         if self._deck is Deck.RED:
             discards_each_round += 1
+
+        if self._stake >= Stake.BLUE:
+            discards_each_round -= 1
 
         if Voucher.WASTEFUL in self._vouchers:
             discards_each_round += 1
