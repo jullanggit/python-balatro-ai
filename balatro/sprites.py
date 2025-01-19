@@ -893,75 +893,82 @@ def _get_hologram_sprite(face_sprite):
 
 def get_sprite(
     item: BaseJoker | Consumable | Card | Voucher | Stake | Tag | Blind | Deck | Pack,
+    card_back: Deck = Deck.RED,
     as_image: bool = True,
 ) -> bytes:
     match item:
         case BaseJoker():
-            joker_sheet = Image.open("resources/textures/Jokers.png")
-            stickers_sheet = Image.open("resources/textures/stickers.png")
-
             match item.joker_type:
                 case JokerType.HALF_JOKER:
-                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT // 1.7
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, int(DEFAULT_CARD_HEIGHT // 1.7)
                 case JokerType.SQUARE_JOKER:
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_WIDTH
                 case JokerType.PHOTOGRAPH:
-                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT // 1.2
+                    WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, int(DEFAULT_CARD_HEIGHT // 1.2)
                 case _:
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT
 
-            i, j = JOKER_COORDINATES.get(item.joker_type, [0, 0])
-            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-            x2, y2 = x1 + WIDTH, y1 + HEIGHT
-            sprite = joker_sheet.crop((x1, y1, x2, y2))
-
-            sprite = _apply_edition(sprite, item.edition)
-
-            match item.joker_type:
-                case JokerType.WEE_JOKER:
+            if item.flipped:
+                if item.joker_type is JokerType.WEE_JOKER:
                     WIDTH, HEIGHT = int(WIDTH * 0.7), int(HEIGHT * 0.7)
-                    sprite = sprite.resize((WIDTH, HEIGHT))
-                case (
-                    JokerType.CANIO
-                    | JokerType.TRIBOULET
-                    | JokerType.YORICK
-                    | JokerType.CHICOT
-                    | JokerType.PERKEO
-                ):
-                    i, j = i + 1, j
+                sprite = get_sprite(card_back)
+                sprite = sprite.resize((WIDTH, HEIGHT))
+            else:
+                joker_sheet = Image.open("resources/textures/Jokers.png")
+                stickers_sheet = Image.open("resources/textures/stickers.png")
+
+                i, j = JOKER_COORDINATES.get(item.joker_type, [0, 0])
+                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                sprite = joker_sheet.crop((x1, y1, x2, y2))
+
+                sprite = _apply_edition(sprite, item.edition)
+
+                match item.joker_type:
+                    case JokerType.WEE_JOKER:
+                        WIDTH, HEIGHT = int(WIDTH * 0.7), int(HEIGHT * 0.7)
+                        sprite = sprite.resize((WIDTH, HEIGHT))
+                    case (
+                        JokerType.CANIO
+                        | JokerType.TRIBOULET
+                        | JokerType.YORICK
+                        | JokerType.CHICOT
+                        | JokerType.PERKEO
+                    ):
+                        i, j = i + 1, j
+                        x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                        x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                        face_sprite = joker_sheet.crop((x1, y1, x2, y2))
+                        sprite = Image.alpha_composite(sprite, face_sprite)
+                    case JokerType.HOLOGRAM:
+                        i, j = 9, 2
+                        x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                        x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                        face_sprite = joker_sheet.crop((x1, y1, x2, y2))
+                        hologram_sprite = _get_hologram_sprite(face_sprite)
+                        sprite = Image.alpha_composite(sprite, hologram_sprite)
+
+                if item.eternal:
+                    i, j = 0, 0
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
-                    face_sprite = joker_sheet.crop((x1, y1, x2, y2))
-                    sprite = Image.alpha_composite(sprite, face_sprite)
-                case JokerType.HOLOGRAM:
-                    i, j = 9, 2
+                    eternal_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                    sprite = Image.alpha_composite(sprite, eternal_sprite)
+                elif item.perishable:
+                    i, j = 2, 0
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
-                    face_sprite = joker_sheet.crop((x1, y1, x2, y2))
-                    hologram_sprite = _get_hologram_sprite(face_sprite)
-                    sprite = Image.alpha_composite(sprite, hologram_sprite)
+                    perishable_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                    sprite = Image.alpha_composite(sprite, perishable_sprite)
+                if item.rental:
+                    i, j = 2, 1
+                    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                    x2, y2 = x1 + WIDTH, y1 + HEIGHT
+                    rental_sprite = stickers_sheet.crop((x1, y1, x2, y2))
+                    sprite = Image.alpha_composite(sprite, rental_sprite)
 
-            if item.eternal:
-                i, j = 0, 0
-                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-                x2, y2 = x1 + WIDTH, y1 + HEIGHT
-                eternal_sprite = stickers_sheet.crop((x1, y1, x2, y2))
-                sprite = Image.alpha_composite(sprite, eternal_sprite)
-            elif item.perishable:
-                i, j = 2, 0
-                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-                x2, y2 = x1 + WIDTH, y1 + HEIGHT
-                perishable_sprite = stickers_sheet.crop((x1, y1, x2, y2))
-                sprite = Image.alpha_composite(sprite, perishable_sprite)
-            if item.rental:
-                i, j = 2, 1
-                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-                x2, y2 = x1 + WIDTH, y1 + HEIGHT
-                rental_sprite = stickers_sheet.crop((x1, y1, x2, y2))
-                sprite = Image.alpha_composite(sprite, rental_sprite)
-
-            if item.debuffed:
-                sprite = _apply_debuff(sprite)
+                if item.debuffed:
+                    sprite = _apply_debuff(sprite)
         case Consumable():
             consumable_sheet = Image.open("resources/textures/Tarots.png")
 
@@ -982,34 +989,37 @@ def get_sprite(
                 soul_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
                 sprite = Image.alpha_composite(sprite, soul_sprite)
         case Card():
-            deck_sheet = Image.open("resources/textures/8BitDeck.png")
-            enhancers_sheet = Image.open("resources/textures/Enhancers.png")
-
-            i, j = ENHANCER_COORDINATES.get(item.enhancement, (0, 1))
-            x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-            x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
-            back_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
-
-            if not item.is_stone_card:
-                i, j = SUIT_ROWS[item.suit], RANK_COLUMNS[item.rank]
-                x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
-                x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
-                card_sprite = deck_sheet.crop((x1, y1, x2, y2))
-                sprite = Image.alpha_composite(back_sprite, card_sprite)
+            if item.flipped:
+                sprite = get_sprite(card_back)
             else:
-                sprite = back_sprite
+                deck_sheet = Image.open("resources/textures/8BitDeck.png")
+                enhancers_sheet = Image.open("resources/textures/Enhancers.png")
 
-            sprite = _apply_edition(sprite, item.edition)
-
-            if item.seal is not None:
-                i, j = ENHANCER_COORDINATES[item.seal]
+                i, j = ENHANCER_COORDINATES.get(item.enhancement, (0, 1))
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
-                seal_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
-                sprite = Image.alpha_composite(sprite, seal_sprite)
+                back_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
 
-            if item.debuffed:
-                sprite = _apply_debuff(sprite)
+                if not item.is_stone_card:
+                    i, j = SUIT_ROWS[item.suit], RANK_COLUMNS[item.rank]
+                    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                    x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
+                    card_sprite = deck_sheet.crop((x1, y1, x2, y2))
+                    sprite = Image.alpha_composite(back_sprite, card_sprite)
+                else:
+                    sprite = back_sprite
+
+                sprite = _apply_edition(sprite, item.edition)
+
+                if item.seal is not None:
+                    i, j = ENHANCER_COORDINATES[item.seal]
+                    x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
+                    x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
+                    seal_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
+                    sprite = Image.alpha_composite(sprite, seal_sprite)
+
+                if item.debuffed:
+                    sprite = _apply_debuff(sprite)
         case Voucher():
             voucher_sheet = Image.open("resources/textures/Vouchers.png")
 

@@ -14,6 +14,10 @@ __version__ = "1.0.0"
 
 
 def format_number(number: float) -> str:
+    if number != number:
+        return "nan"
+    if number == float("inf"):
+        return "naneinf"
     assert number >= 0
     if number >= 1e11:
         return f"{number:.3e}".replace("+", "")
@@ -91,7 +95,7 @@ class Run:
         self._num_blinds_skipped: int = 0
 
         self._round_score: int | None = None
-        self._round_goal: int | None = None
+        self._round_goal: float | None = None
         self._chips: int | None = None
         self._mult: float | None = None
         self._hands: int | None = None
@@ -132,7 +136,7 @@ class Run:
                 return self._repr_playing_blind()
             case State.SELECTING_BLIND:
                 return self._repr_selecting_blind()
-            case _:
+            case State.GAME_OVER:
                 raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
@@ -271,7 +275,7 @@ class Run:
         joker._on_created()
         return joker
 
-    def _deal(self, force_num_cards: int | None = None) -> bool:
+    def _deal(self, after_hand_played: bool = False) -> bool:
         hand_size = self.hand_size
 
         if (
@@ -282,8 +286,10 @@ class Run:
         ):
             return False
         num_cards = (
-            force_num_cards
-            if force_num_cards is not None
+            3
+            if self._boss_blind_disabled is False
+            and self._blind is Blind.THE_SERPENT
+            and (not self._first_hand or not self._first_discard)
             else min(len(self._deck_cards_left), max(0, hand_size - len(self._hand)))
         )
         deal_indices = sorted(
@@ -294,8 +300,21 @@ class Run:
 
         self._sort_hand()
 
-        if self._boss_blind_disabled is False and self._blind is Blind.CERULEAN_BELL:
-            self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
+        if self._boss_blind_disabled is False:
+            match self._blind:
+                case Blind.THE_HOUSE:
+                    if self._first_hand:
+                        for hand_card in self._hand:
+                            hand_card.flipped = True
+                case Blind.THE_WHEEL:
+                    for hand_card in self._hand:
+                        hand_card.flipped = self._chance(1, 7)
+                case Blind.THE_FISH:
+                    if after_hand_played:
+                        for hand_card in self._hand:
+                            hand_card.flipped = True
+                case Blind.CERULEAN_BELL:
+                    self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
 
         return True
 
@@ -318,14 +337,30 @@ class Run:
         except ValueError:
             pass
 
-    def _disable_boss_blind(self) -> None:
-        self._boss_blind_disabled = True
-
+    def _disable_boss_blind(self, end_of_round: bool = False) -> None:
         for card in self._deck_cards:
             card.debuffed = False
             card.flipped = False
 
-        raise NotImplementedError
+        for joker in self._jokers:
+            if joker._perishable_rounds_left > 0:
+                joker.debuffed = False
+            joker.flipped = False
+
+        if not end_of_round:
+            self._boss_blind_disabled = True
+
+            match self._blind:
+                case Blind.THE_WALL:
+                    self._round_goal //= 2
+                case Blind.THE_WATER:
+                    self._discards = self._discards_each_round
+                case Blind.THE_NEEDLE:
+                    self._hands = self._hands_each_round
+                case Blind.VIOLET_VESSEL:
+                    self._round_goal //= 3
+                case Blind.CERULEAN_BELL:
+                    self._forced_selected_card_index = None
 
     def _discard(self, discard_indices: list[int]) -> None:
         for joker in self._jokers:
@@ -341,7 +376,7 @@ class Run:
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._round_score >= self._round_goal:
-            print(f"Round Ended: {format_number(self._round_score)}")
+            # print(f"Round Ended: {format_number(self._round_score)}")
             self._end_round(poker_hands_played[0])
             return
 
@@ -354,12 +389,7 @@ class Run:
                         return
             self._game_over()
         else:
-            self._deal(
-                3
-                if self._boss_blind_disabled is False
-                and self._blind is Blind.THE_SERPENT
-                else None
-            )
+            self._deal(after_hand_played=True)
 
     def _end_round(
         self, last_poker_hand_played: PokerHand, saved: bool = False
@@ -375,12 +405,7 @@ class Run:
                 for _ in range(joker._on_card_held_retriggers(held_card)):
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
-        for deck_card in self._deck_cards:
-            deck_card.debuffed = False
-            deck_card.flipped = False
-
-        for joker in self._jokers:
-            joker.flipped = False
+        self._disable_boss_blind(end_of_round=True)
 
         interest_amt = (
             0
@@ -725,17 +750,21 @@ class Run:
             rental=rental,
         )
 
-    def _get_round_goal(self, blind: Blind) -> int:
-        return (
-            ANTE_BASE_CHIPS[
-                (
-                    2
-                    if self._stake >= Stake.PURPLE
-                    else 1 if self._stake >= Stake.GREEN else 0
-                )
-            ][self.ante]
+    def _get_round_goal(self, blind: Blind) -> float:
+        round_goal = (
+            float(
+                ANTE_BASE_CHIPS[
+                    (
+                        2
+                        if self._stake >= Stake.PURPLE
+                        else 1 if self._stake >= Stake.GREEN else 0
+                    )
+                ][self.ante]
+            )
             * BLIND_INFO[blind][1]
         ) * (2 if self._deck is Deck.PLASMA else 1)
+
+        return float("nan") if round_goal == float("inf") else round_goal
 
     def _is_face_card(self, card: Card) -> bool:
         return (
@@ -1024,7 +1053,13 @@ class Run:
         else:
             if not self._boss_blind_pool:
                 self._boss_blind_pool = list(BLIND_INFO)[2:-5]
-            self._boss_blind = r.choice(self._boss_blind_pool)
+            self._boss_blind = r.choice(
+                [
+                    blind
+                    for blind in self._boss_blind_pool
+                    if self.ante >= BLIND_INFO[blind][0]
+                ]
+            )
             self._boss_blind_pool.remove(self._boss_blind)
 
     def _repr_frame(self) -> str:
@@ -1177,7 +1212,7 @@ class Run:
                 slots_left -= 1
 
         joker_images = [
-            base64.b64encode(joker._repr_png_()).decode("utf-8")
+            base64.b64encode(joker._repr_png_(card_back=self._deck)).decode("utf-8")
             for joker in self._jokers
         ]
         consumable_images = [
@@ -1195,7 +1230,7 @@ class Run:
             <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
-                        <img src='data:image/png;base64,{joker_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
+                        <img src='data:image/png;base64,{joker_images[i]}' style='width: {68.88 if joker.joker_type is JokerType.WEE_JOKER else 98.4}px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
                     """ for i, joker in enumerate(self._jokers))}
                 </div>
                 <span style='color: white; font-size: 14px; position: absolute; left: 348px; top: 175.2px'>{len(self._jokers)}/{self.joker_slots}</span>
@@ -1241,7 +1276,7 @@ class Run:
         for item, cost in self._shop_cards:
             png_bytes = item._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            item_html = f"<img style='width: 98.4px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
+            item_html = f"<img style='width: {68.88 if isinstance(item, BaseJoker) and item.joker_type is JokerType.WEE_JOKER else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
                     <div style='display: flex; flex-direction: column; align-items: center;'>
@@ -1304,7 +1339,7 @@ class Run:
         html = f"""
             <div style='position: absolute; height: 132px; width: 574px; left: 335px; bottom: 85px; display: flex; align-items: center; justify-content: center; gap: {5 if isinstance(self._pack_items[0], Consumable) else 15}px'>
                 {' '.join(f"""
-                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: 98.4px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
+                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BaseJoker) and item.joker_type is JokerType.WEE_JOKER else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
                 """ for i, item in enumerate(self._pack_items))}
             </div>
             <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
@@ -1333,7 +1368,8 @@ class Run:
 
     def _repr_playing_blind(self) -> str:
         card_images = [
-            base64.b64encode(card._repr_png_()).decode("utf-8") for card in self._hand
+            base64.b64encode(card._repr_png_(card_back=self._deck)).decode("utf-8")
+            for card in self._hand
         ]
 
         html = f"""
@@ -1901,11 +1937,7 @@ class Run:
         self._discards -= 1
         self._first_discard = False
 
-        self._deal(
-            3
-            if self._boss_blind_disabled is False and self._blind is Blind.THE_SERPENT
-            else None
-        )
+        self._deal()
 
     def next_round(self) -> None:
         assert self._state is State.IN_SHOP

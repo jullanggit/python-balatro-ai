@@ -200,7 +200,7 @@ class Voucher(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 class Tarot(Enum):
@@ -308,7 +308,7 @@ class Stake(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 class Tag(Enum):
@@ -340,7 +340,7 @@ class Tag(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 class Blind(Enum):
@@ -378,7 +378,7 @@ class Blind(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 class Deck(Enum):
@@ -402,7 +402,7 @@ class Deck(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
     @property
     def starting_size(self) -> int:
@@ -436,7 +436,7 @@ class Pack(Enum):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 class Suit(Enum):

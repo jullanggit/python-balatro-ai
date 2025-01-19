@@ -47,10 +47,10 @@ class BaseJoker(Sellable, ABC):
     def __str__(self) -> str:
         return f"{self.joker_type}"
 
-    def _repr_png_(self) -> bytes:
+    def _repr_png_(self, card_back: Deck = Deck.RED) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, card_back=card_back, as_image=False)
 
     def _blind_selected_ability(self) -> None:
         pass
@@ -524,7 +524,7 @@ class Consumable(Sellable):
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, as_image=False)
 
 
 @total_ordering
@@ -572,10 +572,10 @@ class Card:
     def __str__(self) -> str:
         return f"{self.rank} of {self.suit}"
 
-    def _repr_png_(self) -> bytes:
+    def _repr_png_(self, card_back: Deck = Deck.RED) -> bytes:
         from .sprites import get_sprite
 
-        return get_sprite(self, False)
+        return get_sprite(self, card_back=card_back, as_image=False)
 
     @property
     def chips(self) -> int:
