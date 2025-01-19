@@ -1048,7 +1048,16 @@ class Run:
                 case Card.__name__:
                     card = self._get_random_card()
                     if Voucher.ILLUSION in self._vouchers:
-                        raise NotImplementedError
+                        card.edition = r.choices(
+                            list(CARD_EDITION_CHANCES_ILLUSION),
+                            weights=CARD_EDITION_CHANCES_ILLUSION.values(),
+                            k=1,
+                        )[0]
+                        if r.random() < 0.4:
+                            card.enhancement = r.choice(list(Enhancement))
+                        # not in the game code despite it being in the voucher description (bug?)
+                        # if r.random() < 0.2:
+                        #     card.seal = r.choice(list(Seal))
                     buy_cost = self._calculate_buy_cost(card, coupon=coupon)
                     self._shop_cards[i] = (card, buy_cost)
 

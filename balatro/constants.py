@@ -199,17 +199,23 @@ CARD_EDITION_CHANCES = {
     Edition.HOLO: 2.8,
     Edition.FOIL: 4,
 }
+CARD_EDITION_CHANCES_GLOW_UP = {
+    Edition.BASE: 68,
+    Edition.POLYCHROME: 4.8,
+    Edition.HOLO: 11.2,
+    Edition.FOIL: 16,
+}
 CARD_EDITION_CHANCES_HONE = {
     Edition.BASE: 84,
     Edition.POLYCHROME: 2.4,
     Edition.HOLO: 5.6,
     Edition.FOIL: 8,
 }
-CARD_EDITION_CHANCES_GLOW_UP = {
-    Edition.BASE: 68,
-    Edition.POLYCHROME: 4.8,
-    Edition.HOLO: 11.2,
-    Edition.FOIL: 16,
+CARD_EDITION_CHANCES_ILLUSION = {
+    Edition.BASE: 80,
+    Edition.POLYCHROME: 3,
+    Edition.HOLO: 7,
+    Edition.FOIL: 10,
 }
 EDITION_COSTS = {
     Edition.BASE: 0,
