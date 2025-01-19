@@ -960,9 +960,9 @@ class JokerStencil(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._mult *= (
-            self._run.joker_slots - len(self._run._jokers)
-        ) + self._run._jokers.count(JokerType.JOKER_STENCIL)
+        self._run._mult *= (self._run.joker_slots - len(self._run._jokers)) + sum(
+            joker.joker_type is JokerType.JOKER_STENCIL for joker in self._run._jokers
+        )
 
     @property
     def joker_type(self) -> JokerType:
@@ -1652,24 +1652,8 @@ class SeeingDouble(BaseJoker):
 
 @dataclass(eq=False)
 class Matador(BaseJoker):
-    will_earn: bool = field(default=False, init=False, repr=False)
-
-    def _hand_played_action(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        raise NotImplementedError
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        if self.will_earn:
-            self._run._money += 8
+    def _boss_blind_triggered_ability(self) -> None:
+        self._run._money += 8
 
     @property
     def joker_type(self) -> JokerType:

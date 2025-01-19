@@ -106,7 +106,6 @@ class Run:
         self._reroll_cost: int | None = None
         self._used_chaos: bool | None = None
         self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
-        self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
         self._opened_pack: Pack | None = None
         self._pack_items: list[BaseJoker | Consumable | Card] | None = None
@@ -203,7 +202,7 @@ class Run:
                     case Tarot():
                         base_cost = 3
                     case Planet():
-                        if JokerType.ASTRONOMER in self._abled_jokers:
+                        if JokerType.ASTRONOMER in self._jokers:
                             return 0
                         base_cost = 3
                     case Spectral():
@@ -220,7 +219,7 @@ class Run:
             case Pack():
                 if (
                     item.name.endswith("CELESTIAL")
-                    and JokerType.ASTRONOMER in self._abled_jokers
+                    and JokerType.ASTRONOMER in self._jokers
                 ):
                     return 0
                 if item.name.startswith("MEGA"):
@@ -237,7 +236,7 @@ class Run:
         return max(1, self._calculate_buy_cost(item) // 2) + item.extra_sell_value
 
     def _chance(self, hit: int, pool: int) -> bool:
-        hit *= 2 ** self._abled_jokers.count(JokerType.OOPS_ALL_SIXES)
+        hit *= 2 ** self._jokers.count(JokerType.OOPS_ALL_SIXES)
         return hit >= pool or (r.randint(1, pool) <= hit)
 
     def _close_pack(self) -> None:
@@ -337,7 +336,12 @@ class Run:
         except ValueError:
             pass
 
-    def _disable_boss_blind(self, end_of_round: bool = False) -> None:
+    def _disable_boss_blind(self) -> None:
+        if self._boss_blind_disabled:
+            return
+
+        self._boss_blind_disabled = True
+
         for card in self._deck_cards:
             card.debuffed = False
             card.flipped = False
@@ -347,20 +351,17 @@ class Run:
                 joker.debuffed = False
             joker.flipped = False
 
-        if not end_of_round:
-            self._boss_blind_disabled = True
-
-            match self._blind:
-                case Blind.THE_WALL:
-                    self._round_goal //= 2
-                case Blind.THE_WATER:
-                    self._discards = self._discards_each_round
-                case Blind.THE_NEEDLE:
-                    self._hands = self._hands_each_round
-                case Blind.VIOLET_VESSEL:
-                    self._round_goal //= 3
-                case Blind.CERULEAN_BELL:
-                    self._forced_selected_card_index = None
+        match self._blind:
+            case Blind.THE_WALL:
+                self._round_goal //= 2
+            case Blind.THE_WATER:
+                self._discards = self._discards_each_round
+            case Blind.THE_NEEDLE:
+                self._hands = self._hands_each_round
+            case Blind.VIOLET_VESSEL:
+                self._round_goal //= 3
+            case Blind.CERULEAN_BELL:
+                self._forced_selected_card_index = None
 
     def _discard(self, discard_indices: list[int]) -> None:
         for joker in self._jokers:
@@ -374,7 +375,12 @@ class Run:
         played_cards: list[Card],
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
+        hand_not_allowed: bool = False,
     ) -> None:
+        if hand_not_allowed:
+            for joker in self._jokers:
+                joker._on_boss_blind_triggered()
+
         if self._round_score >= self._round_goal:
             # print(f"Round Ended: {format_number(self._round_score)}")
             self._end_round(poker_hands_played[0])
@@ -382,8 +388,8 @@ class Run:
 
         if self._hands == 0:  # game over
             if self._chips >= self._round_goal // 4:
-                for joker in self._abled_jokers:
-                    if joker.joker_type is JokerType.MR_BONES:  # saved by mr. bones
+                for joker in self._jokers:
+                    if joker == JokerType.MR_BONES:  # saved by mr. bones
                         self._destroy_joker(joker)
                         self._end_round(poker_hands_played[0], saved=True)
                         return
@@ -410,7 +416,7 @@ class Run:
         interest_amt = (
             0
             if self._deck is Deck.GREEN
-            else (1 + self._abled_jokers.count(JokerType.TO_THE_MOON))
+            else (1 + self._jokers.count(JokerType.TO_THE_MOON))
         )
         interest = min(
             (
@@ -476,7 +482,7 @@ class Run:
             return []
         if card == Enhancement.WILD:
             return list(Suit)
-        if JokerType.SMEARED_JOKER in self._abled_jokers:
+        if JokerType.SMEARED_JOKER in self._jokers:
             red_suits, black_suits = [Suit.HEARTS, Suit.DIAMONDS], [
                 Suit.SPADES,
                 Suit.CLUBS,
@@ -487,8 +493,8 @@ class Run:
     def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, set[int]]:
         poker_hands = {}
 
-        flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._abled_jokers) else 5
-        max_straight_gap = 2 if (JokerType.SHORTCUT in self._abled_jokers) else 1
+        flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._jokers) else 5
+        max_straight_gap = 2 if (JokerType.SHORTCUT in self._jokers) else 1
 
         suit_counts = Counter()
         for played_card in played_cards:
@@ -614,7 +620,7 @@ class Run:
                 card_pool = list(Spectral)[:-2]
 
         prohibited_consumable_cards = []
-        if JokerType.SHOWMAN not in self._abled_jokers:
+        if JokerType.SHOWMAN not in self._jokers:
             prohibited_consumable_cards.extend(
                 consumable.card for consumable in self.consumables
             )
@@ -653,7 +659,7 @@ class Run:
             )[0]
 
         prohibited_joker_types = []
-        if JokerType.SHOWMAN not in self._abled_jokers:
+        if JokerType.SHOWMAN not in self._jokers:
             prohibited_joker_types.extend(joker.joker_type for joker in self.jokers)
 
             if self._shop_cards is not None:
@@ -774,7 +780,7 @@ class Run:
                 Rank.QUEEN,
                 Rank.JACK,
             ]
-            or JokerType.PAREIDOLIA in self._abled_jokers
+            or JokerType.PAREIDOLIA in self._jokers
         )
 
     def _lucky_check(self) -> bool:
@@ -809,6 +815,7 @@ class Run:
 
         self._random_boss_blind()
 
+        self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._rerolled_boss_blind: bool = False
         self._cards_played_ante: set[int] = set()
 
@@ -1945,7 +1952,6 @@ class Run:
         self._reroll_cost = None
         self._used_chaos = None
         self._shop_cards = None
-        self._shop_vouchers = None
         self._shop_packs = None
 
         self._state = State.SELECTING_BLIND
@@ -1969,12 +1975,15 @@ class Run:
         for i in sorted(card_indices, reverse=True):
             self._hand.pop(i)
 
+        for played_card in played_cards:
+            played_card.flipped = False
+
         poker_hands = self._get_poker_hands(played_cards)
         poker_hands_played = sorted(poker_hands, reverse=True)
         poker_hand_card_indices = poker_hands[poker_hands_played[0]]
         scored_card_indices = (
             list(range(len(played_cards)))
-            if JokerType.SPLASH in self._abled_jokers
+            if JokerType.SPLASH in self._jokers
             else [
                 i
                 for i, card in enumerate(played_cards)
@@ -1996,6 +2005,8 @@ class Run:
         self._chips = poker_hand_chips
         self._mult = poker_hand_mult
 
+        boss_blind_triggered = False
+
         if self._boss_blind_disabled is False:
             match self._blind:
                 case Blind.THE_OX:
@@ -2004,20 +2015,29 @@ class Run:
                         for hand_level, times_played in self._poker_hand_info.values()
                     ):
                         self._money = 0
+                        boss_blind_triggered = True
                 case Blind.THE_ARM:
-                    self._poker_hand_info[poker_hands_played[0]][0] = min(
-                        1, self._poker_hand_info[poker_hands_played[0]][0]
+                    if self._poker_hand_info[poker_hands_played[0]][0] > 1:
+                        boss_blind_triggered = True
+                    self._poker_hand_info[poker_hands_played[0]][0] = max(
+                        1, self._poker_hand_info[poker_hands_played[0]][0] - 1
                     )
                 case Blind.THE_PSYCHIC:
                     if len(played_cards) < 5:
                         self._end_hand(
-                            played_cards, scored_card_indices, poker_hands_played
+                            played_cards,
+                            scored_card_indices,
+                            poker_hands_played,
+                            hand_not_allowed=True,
                         )
                         return
                 case Blind.THE_EYE:
                     if poker_hands_played[0] in self._round_poker_hands:
                         self._end_hand(
-                            played_cards, scored_card_indices, poker_hands_played
+                            played_cards,
+                            scored_card_indices,
+                            poker_hands_played,
+                            hand_not_allowed=True,
                         )
                         return
                 case Blind.THE_MOUTH:
@@ -2026,7 +2046,10 @@ class Run:
                         and poker_hands_played[0] is not self._round_poker_hands[0]
                     ):
                         self._end_hand(
-                            played_cards, scored_card_indices, poker_hands_played
+                            played_cards,
+                            scored_card_indices,
+                            poker_hands_played,
+                            hand_not_allowed=True,
                         )
                         return
                 case Blind.THE_TOOTH:
@@ -2034,6 +2057,7 @@ class Run:
                 case Blind.THE_FLINT:
                     self._chips //= 2
                     self._mult //= 2
+                    boss_blind_triggered = True
 
         for joker in self._jokers:
             joker._on_hand_played(played_cards, scored_card_indices, poker_hands_played)
@@ -2042,6 +2066,9 @@ class Run:
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
+
+            if scored_card.debuffed:
+                boss_blind_triggered = True
 
             self._trigger_scored_card(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
@@ -2091,6 +2118,8 @@ class Run:
                     self._mult += 10
 
             joker._on_independent(played_cards, scored_card_indices, poker_hands_played)
+            if boss_blind_triggered:
+                joker._on_boss_blind_triggered()
 
             for other_joker in self._jokers:
                 other_joker._on_dependent(joker)
@@ -2138,7 +2167,9 @@ class Run:
                     for joker in self._jokers:
                         if joker.debuffed and joker._perishable_rounds_left > 0:
                             joker.debuffed = False
-                    r.choice(self._abled_jokers).debuffed = True
+                    r.choice(
+                        [joker for joker in self._jokers if not joker.debuffed]
+                    ).debuffed = True
 
         self._end_hand(
             played_cards, scored_card_indices, poker_hands_played
@@ -2169,7 +2200,7 @@ class Run:
 
         self._money -= reroll_cost
 
-        if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._abled_jokers:
+        if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._jokers:
             self._used_chaos = True
         else:
             self._reroll_cost += 1
@@ -2247,7 +2278,9 @@ class Run:
                 for card in self._deck_cards:
                     card.debuffed = True
             case Blind.CRIMSON_HEART:
-                r.choice(self._abled_jokers).debuffed = True
+                r.choice(
+                    [joker for joker in self._jokers if not joker.debuffed]
+                ).debuffed = True
 
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
@@ -2274,6 +2307,9 @@ class Run:
 
         if joker_sold:
             assert not sold_item.eternal
+
+            if self._boss_blind_disabled is False and self._blind is Blind.VERDANT_LEAF:
+                self._disable_boss_blind()
 
         for joker in self._jokers:
             joker._on_item_sold(sold_item)
@@ -2344,19 +2380,8 @@ class Run:
         self._consumables.pop(consumable_index)
 
     @property
-    def _abled_jokers(self) -> list[BaseJoker]:
-        return [joker for joker in self._jokers if not joker.debuffed]
-
-    @property
     def _available_money(self) -> int:
-        return max(
-            0,
-            (
-                (self._money + 20)
-                if JokerType.CREDIT_CARD in self._abled_jokers
-                else self._money
-            ),
-        )
+        return max(0, self._money + 20 * self._jokers.count(JokerType.CREDIT_CARD))
 
     @property
     def _discards_each_round(self) -> int:
@@ -2585,7 +2610,7 @@ class Run:
             return None
         return (
             0
-            if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._abled_jokers
+            if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._jokers
             else self._reroll_cost
         )
 

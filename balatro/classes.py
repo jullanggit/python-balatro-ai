@@ -36,7 +36,7 @@ class BaseJoker(Sellable, ABC):
             case BaseJoker():
                 return self is other
             case JokerType():
-                return self.joker_type is other
+                return not self.debuffed and self.joker_type is other
             case Edition():
                 return (
                     not self.debuffed or other is Edition.NEGATIVE
@@ -56,6 +56,9 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _blind_selected_action(self) -> None:
+        pass
+
+    def _boss_blind_triggered_ability(self) -> None:
         pass
 
     def _boss_defeated_action(self) -> None:
@@ -159,6 +162,12 @@ class BaseJoker(Sellable, ABC):
 
         self._blind_selected_ability()
         self._blind_selected_action()
+
+    def _on_boss_blind_triggered(self) -> None:
+        if self.debuffed:
+            return
+
+        self._boss_blind_triggered_ability()
 
     def _on_boss_defeated(self) -> None:
         if self.debuffed:
@@ -363,15 +372,6 @@ class CopyJoker(BaseJoker):
 
     copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
 
-    def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
-        match other:
-            case JokerType():
-                return not self._copy_loop and self.copied_joker.__eq__(other)
-            case BaseJoker() | Edition():
-                return super().__eq__(other)
-
-        return NotImplemented
-
     def _blind_selected_ability(self) -> None:
         if (
             not self._copy_loop
@@ -379,6 +379,14 @@ class CopyJoker(BaseJoker):
             and not self.copied_joker.debuffed
         ):
             self.copied_joker._blind_selected_ability()
+
+    def _boss_blind_triggered_ability(self) -> None:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
+            self.copied_joker._boss_blind_triggered_ability()
 
     def _card_held_ability(self, held_card: Card) -> None:
         if (
