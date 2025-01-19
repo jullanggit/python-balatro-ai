@@ -364,8 +364,10 @@ class Run:
                 self._forced_selected_card_index = None
 
     def _discard(self, discard_indices: list[int]) -> None:
-        for joker in self._jokers:
-            joker._on_discard([self._hand[i] for i in discard_indices])
+        discarded_cards = [self._hand[i] for i in discard_indices]
+
+        for joker in self._jokers[:]:
+            joker._on_discard(discarded_cards)
 
         for i in sorted(discard_indices, reverse=True):
             self._hand.pop(i)
@@ -428,7 +430,7 @@ class Run:
             (max(0, self._money) // 5 * interest_amt),
         )
 
-        for joker in self._jokers:
+        for joker in self._jokers[:]:
             joker._on_round_ended()
 
         cash_out = (
@@ -2143,7 +2145,7 @@ class Run:
 
         # un-debuff cards
 
-        for joker in self._jokers:
+        for joker in self._jokers[:]:
             joker._on_end_hand(played_cards, scored_card_indices, poker_hands_played)
 
         for i in scored_card_indices:
@@ -2286,8 +2288,9 @@ class Run:
             self._tags.remove(Tag.JUGGLE)
             self._hands += 3
 
-        for joker in self._jokers:
-            joker._on_blind_selected()
+        for joker in self._jokers[:]:
+            if joker in self._jokers:
+                joker._on_blind_selected()
 
         self._deal()
 
