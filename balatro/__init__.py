@@ -94,7 +94,7 @@ class Run:
         self._num_unused_discards: int = 0
         self._num_blinds_skipped: int = 0
 
-        self._round_score: int | None = None
+        self._round_score: float | None = None
         self._round_goal: float | None = None
         self._chips: int | None = None
         self._mult: float | None = None
@@ -1717,10 +1717,12 @@ class Run:
             case Spectral():
                 match consumable.card:
                     case Spectral.FAMILIAR:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
 
-                        self._destroy_card(r.choice(self._hand))
+                        i = r.randint(0, len(self._hand) - 1)
+                        self._destroy_card(self._hand[i])
+                        self._hand.pop(i)
+
                         for _ in range(3):
                             random_face_card = self._get_random_card(
                                 restricted_ranks=[Rank.KING, Rank.QUEEN, Rank.JACK]
@@ -1729,10 +1731,12 @@ class Run:
                             self._add_card(random_face_card)
                             self._hand.append(random_face_card)
                     case Spectral.GRIM:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
 
-                        self._destroy_card(r.choice(self._hand))
+                        i = r.randint(0, len(self._hand) - 1)
+                        self._destroy_card(self._hand[i])
+                        self._hand.pop(i)
+
                         for _ in range(2):
                             random_ace = self._get_random_card(
                                 restricted_ranks=[Rank.ACE]
@@ -1741,10 +1745,12 @@ class Run:
                             self._add_card(random_ace)
                             self._hand.append(random_ace)
                     case Spectral.INCANTATION:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
 
-                        self._destroy_card(r.choice(self._hand))
+                        i = r.randint(0, len(self._hand) - 1)
+                        self._destroy_card(self._hand[i])
+                        self._hand.pop(i)
+
                         for _ in range(4):
                             random_numbered_card = self._get_random_card(
                                 restricted_ranks=[
@@ -1782,15 +1788,13 @@ class Run:
                         self._add_joker(self._get_random_joker(rarity=Rarity.RARE))
                         self._money = 0
                     case Spectral.SIGIL:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
 
                         random_suit = r.choice(list(Suit))
                         for card in self._hand:
                             card.suit = random_suit
                     case Spectral.OUIJA:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
                         assert self.hand_size > 1
 
                         random_rank = r.choice(list(Rank))
@@ -1805,13 +1809,14 @@ class Run:
                         self._hand_size_penalty += 1 + self._num_ectoplasms_used
                         self._num_ectoplasms_used += 1
                     case Spectral.IMMOLATE:
-                        assert self._hand is not None
-                        assert len(self._hand) > 1
+                        assert self._hand
 
                         for _ in range(5):
                             if not self._hand:
                                 break
-                            self._destroy_card(r.choice(self._hand))
+                            i = r.randint(0, len(self._hand) - 1)
+                            self._destroy_card(self._hand[i])
+                            self._hand.pop(i)
                         self._money += 20
                     case Spectral.ANKH:
                         assert self._jokers
@@ -2136,8 +2141,8 @@ class Run:
                     self._mult *= 1.5
 
         self._mult = round(self._mult, 9)  # floating-point imprecision
-        score = int(
-            ((self._chips + self._mult) // 2) ** 2
+        score = (
+            ((self._chips + self._mult) / 2) ** 2
             if self._deck is Deck.PLASMA
             else self._chips * self._mult
         )
@@ -2622,7 +2627,7 @@ class Run:
         return self._round
 
     @property
-    def round_score(self) -> int:
+    def round_score(self) -> float:
         return self._round_score if self._round_score is not None else 0
 
     @property

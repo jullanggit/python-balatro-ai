@@ -978,7 +978,7 @@ class CeremonialDagger(BaseJoker):
         if i < len(self._run._jokers) - 1:
             right_joker = self._run._jokers[i + 1]
             if not right_joker.eternal:
-                self.mult += self._run._calculate_sell_value(right_joker)
+                self.mult += self._run._calculate_sell_value(right_joker) * 2
                 self._run._destroy_joker(right_joker)
 
     def _independent_ability(
