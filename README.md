@@ -6,6 +6,8 @@ A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk.
 
 **Note:** This is a work in progress. While some core features are functional, there are likely bugs and things left to be tested.
 
+![game preview](game-preview.png)
+
 ## Important Considerations
 
 -   **Not a 1:1 Translation:** This project is a _Pythonic_ interpretation of Balatro's mechanics, not a direct Lua-to-Python port.
@@ -60,9 +62,6 @@ for i, joker in enumerate(jokers):
 # Rearrange them
 run.move_joker(3, 0)
 ```
-
-You can display a render of the game when using a Jupyter Notebook
-![game preview](game-preview.png)
 
 ## Disclaimer
 
