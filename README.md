@@ -41,10 +41,10 @@ run.discard([3, 4, 5, 6, 7])
 
 ...
 
-# Buy the first Buffoon pack in the shop
+# Buy the first pack in the shop
 run.buy_shop_item(2, 0)
 
-# Pick the first joker
+# Pick the first item
 run.choose_pack_item(0)
 # Or skip the pack
 run.skip_pack()
@@ -59,8 +59,7 @@ run.sell_item(1, 1)
 ...
 
 # See your jokers
-jokers = run.jokers
-for i, joker in enumerate(jokers):
+for i, joker in enumerate(run.jokers):
     print(f"{i}: {joker.joker_type} ({joker.edition})")
 # Rearrange them
 run.move_joker(3, 0)

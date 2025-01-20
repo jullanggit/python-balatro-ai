@@ -834,7 +834,7 @@ def _get_hologram_sprite(face_sprite):
         image = image.convert("RGBA")
 
         # Create glow effect
-        glow = image.filter(ImageFilter.GaussianBlur(3))
+        glow = image.filter(ImageFilter.GaussianBlur(10))
         glow_data = np.array(glow)
 
         # Create base cyan tint
@@ -870,12 +870,14 @@ def _get_hologram_sprite(face_sprite):
                     result.putpixel((x, y), new_color)
 
         # Add final glow
-        glow_layer = result.filter(ImageFilter.GaussianBlur(2))
+        glow_layer = result.filter(ImageFilter.GaussianBlur(10))
         glow_layer.putalpha(ImageEnhance.Brightness(glow_layer.split()[3]).enhance(0.3))
 
         return Image.alpha_composite(result, glow_layer)
 
+    # Boost brightness of face
     hologram_sprite = create_hologram_effect(face_sprite)
+    hologram_sprite = ImageEnhance.Brightness(hologram_sprite).enhance(1.1)
 
     # Create new transparent image for composition
     result = Image.new("RGBA", hologram_sprite.size, (0, 0, 0, 0))
@@ -936,6 +938,11 @@ def get_sprite(
                         x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                         x2, y2 = x1 + WIDTH, y1 + HEIGHT
                         face_sprite = joker_sheet.crop((x1, y1, x2, y2))
+                        face_shadow_sprite = Image.new(
+                            "RGBA", face_sprite.size, (0, 0, 0, 0)
+                        )
+                        face_shadow_sprite.paste((0, 0, 0, 70), (0, 5), face_sprite)
+                        sprite = Image.alpha_composite(sprite, face_shadow_sprite)
                         sprite = Image.alpha_composite(sprite, face_sprite)
                     case JokerType.HOLOGRAM:
                         i, j = 9, 2
@@ -988,6 +995,9 @@ def get_sprite(
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
                 soul_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
+                soul_shadow_sprite = Image.new("RGBA", soul_sprite.size, (0, 0, 0, 0))
+                soul_shadow_sprite.paste((0, 0, 0, 70), (0, 5), soul_sprite)
+                sprite = Image.alpha_composite(sprite, soul_shadow_sprite)
                 sprite = Image.alpha_composite(sprite, soul_sprite)
         case Card():
             if item.flipped:
