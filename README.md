@@ -13,7 +13,7 @@ A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk.
 
 -   **Not a 1:1 Translation:** This project is a _Pythonic_ interpretation of Balatro's mechanics, not a direct Lua-to-Python port.
 -   **Bugs/Edge Cases:** While I strive for accuracy, there are likely many subtle differences from the actual game.
--   **Seed Incompatibility:** Due to fundamental implementation differences, seeds are **not** compatible between this module and the original game.
+-   **Seed Incompatibility:** Due to fundamental implementation differences, seeds are **not** compatible between this module and the original game. This is disappointing, but it would take much work to ensure compatibility, maybe work for a future date.
 
 ## Getting Started
 
