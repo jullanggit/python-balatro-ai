@@ -1251,13 +1251,13 @@ class Run:
                 </div>
             </div>
             <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
-                <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
+                <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: {68.88 if joker.joker_type is JokerType.WEE_JOKER else 98.4}px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
                     """ for i, joker in enumerate(self._jokers))}
                 </div>
                 <span style='color: white; font-size: 14px; position: absolute; left: 348px; top: 175.2px'>{len(self._jokers)}/{self.joker_slots}</span>
-                <div style='position: absolute; height: 132px; width: 196.8px; background-color: rgba(0, 0, 0, 0.25); border-radius: 12px; left: 840px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
+                <div style='position: absolute; height: 132px; width: 196.8px; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; left: 840px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{consumable_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._consumables) - 2))/(len(self._consumables) - 1) if i > 0 else 0}px; filter: drop-shadow(-6px 8.4px rgba(0, 0, 0, 0.5))'/>
                     """ for i, consumable in enumerate(self._consumables))}
@@ -1396,9 +1396,9 @@ class Run:
         ]
 
         html = f"""
-            <div style='height: 132px; width: 574px; position: absolute; bottom: 50px; left: 335px; display: flex; align-items: center; justify-content: space-evenly;'>
+            <div style='height: 132px; width: 574px; position: absolute; bottom: 50px; left: 335px; display: flex; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
-                        <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 3}px)'/>
+                        <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 2 - 8}px)'/>
                     """ for i, card in enumerate(self._hand))}
             </div>
             <span style='color: white; font-size: 14px; position: absolute; left: 604px; bottom: 31px'>{len(self._hand)}/{self.hand_size}</span>
