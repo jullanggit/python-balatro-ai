@@ -3,15 +3,23 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-python-balatro documentation
-============================
+Welcome to Python-Balatro's documentation!
+===========================================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+This is the documentation for Python-Balatro, a Python library for simulating the game Balatro.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   getting_started
+   api_reference
+   enums
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
