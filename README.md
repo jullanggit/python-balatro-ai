@@ -1,6 +1,6 @@
 # python-balatro
 
-[![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
+![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow) ![Python](https://img.shields.io/badge/python-3.13-blue)
 
 A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python implementation for uses such as machine learning.
 
@@ -65,4 +65,4 @@ run.move_joker(3, 0)
 
 ## Disclaimer
 
-This project is an independent fan creation and is not affiliated with or endorsed by LocalThunk, the creator of Balatro. All rights to Balatro belong to LocalThunk. This module is intended for educational and recreational purposes only.
+This project is an independent fan creation and is not affiliated with or endorsed by LocalThunk, the creator of Balatro. This module is intended for educational and non-commercial purposes only. All rights to Balatro, including its art and design, belong to LocalThunk.
