@@ -1398,7 +1398,7 @@ class Run:
         html = f"""
             <div style='height: 132px; width: 574px; position: absolute; bottom: 50px; left: 335px; display: flex; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
-                        <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 2 - 8}px)'/>
+                        <img src='data:image/png;base64,{card_images[i]}' style='width: 98.4px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._hand) - 5))/(len(self._hand) - 1) if i > 0 else 0}px; transform: rotate({-((len(self._hand) - 1) / 2 - i) * 1}deg) translateY({abs((len(self._hand) - 1) / 2 - i) * 2 - 8 - (30 if self._forced_selected_card_index == i else 0)}px)'/>
                     """ for i, card in enumerate(self._hand))}
             </div>
             <span style='color: white; font-size: 14px; position: absolute; left: 604px; bottom: 31px'>{len(self._hand)}/{self.hand_size}</span>
