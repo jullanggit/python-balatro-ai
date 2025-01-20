@@ -30,7 +30,6 @@ class Run:
     def __init__(
         self, deck: Deck, stake: Stake = Stake.WHITE, seed: str | None = None
     ) -> None:
-        # TODO: seeding
         r.seed(seed)
 
         self._deck: Deck = deck
@@ -149,7 +148,7 @@ class Run:
             other_joker._on_jokers_moved()
 
     def _buy_shop_item(
-        self, section_index: int, item_index: int
+        self, section_index: int, item_index: int, buy_and_use: bool = False
     ) -> tuple[BaseJoker | Consumable | Card | Pack | Voucher, int]:
         assert self._state is State.IN_SHOP
 
@@ -165,14 +164,17 @@ class Run:
 
         assert self._available_money >= cost
 
-        match item:
-            case BaseJoker():
-                assert (
-                    len(self._jokers) < self.joker_slots
-                    or item.edition is Edition.NEGATIVE
-                )
-            case Consumable():
-                assert len(self._consumables) < self.consumable_slots
+        if buy_and_use:
+            assert isinstance(item, Consumable)
+        else:
+            match item:
+                case BaseJoker():
+                    assert (
+                        len(self._jokers) < self.joker_slots
+                        or item.edition is Edition.NEGATIVE
+                    )
+                case Consumable():
+                    assert len(self._consumables) < self.consumable_slots
 
         self._money -= cost
         return section_items.pop(item_index)
@@ -192,7 +194,7 @@ class Run:
 
         match item:
             case BaseJoker():
-                if item.rental:
+                if item.is_rental:
                     return 1
 
                 base_cost = JOKER_BASE_COSTS[item.joker_type]
@@ -260,15 +262,15 @@ class Run:
         self,
         joker_type: JokerType,
         edition: Edition = Edition.BASE,
-        eternal: bool = False,
-        perishable: bool = False,
-        rental: bool = False,
+        is_eternal: bool = False,
+        is_perishable: bool = False,
+        is_rental: bool = False,
     ) -> BaseJoker:
         joker = JOKER_CLASSES[joker_type](
             edition=edition,
-            eternal=eternal,
-            perishable=perishable,
-            rental=rental,
+            is_eternal=is_eternal,
+            is_perishable=is_perishable,
+            is_rental=is_rental,
         )
         joker._on_created(self)
         return joker
@@ -283,6 +285,7 @@ class Run:
             and self._hands <= 0
         ):
             return False
+
         num_cards = (
             3
             if self._boss_blind_disabled is False
@@ -319,13 +322,14 @@ class Run:
     def _destroy_card(self, card: Card) -> None:
         try:
             self._deck_cards.remove(card)
+
+            for joker in self._jokers:
+                joker._on_card_destroyed(card)
         except ValueError:
             pass
-        for joker in self._jokers:
-            joker._on_card_destroyed(card)
 
     def _destroy_joker(self, joker: BaseJoker) -> None:
-        if joker.eternal:
+        if joker.is_eternal:
             return
         try:
             i = self._jokers.index(joker)
@@ -554,9 +558,9 @@ class Run:
         # rank-matching checks
         for rank, n in rank_counts.most_common():
             if n == 5:  # 5oak
-                poker_hands[PokerHand.FIVE_OF_A_KIND] = [0, 1, 2, 3, 4]
+                poker_hands[PokerHand.FIVE_OF_A_KIND] = list(range(5))
                 if PokerHand.FLUSH in poker_hands:  # flush five
-                    poker_hands[PokerHand.FLUSH_FIVE] = [0, 1, 2, 3, 4]
+                    poker_hands[PokerHand.FLUSH_FIVE] = list(range(5))
             if n >= 4:  # 4oak
                 poker_hands[PokerHand.FOUR_OF_A_KIND] = [
                     i for i, card in enumerate(played_cards) if card.rank is rank
@@ -571,9 +575,9 @@ class Run:
                     and played_cards[poker_hands[PokerHand.THREE_OF_A_KIND][0]].rank
                     is not rank
                 ):  # full house
-                    poker_hands[PokerHand.FULL_HOUSE] = [0, 1, 2, 3, 4]
+                    poker_hands[PokerHand.FULL_HOUSE] = list(range(5))
                     if PokerHand.FLUSH in poker_hands:  # flush house
-                        poker_hands[PokerHand.FLUSH_HOUSE] = [0, 1, 2, 3, 4]
+                        poker_hands[PokerHand.FLUSH_HOUSE] = list(range(5))
                 if (
                     PokerHand.PAIR in poker_hands
                     and played_cards[poker_hands[PokerHand.PAIR][0]] != rank
@@ -720,7 +724,7 @@ class Run:
             list(edition_chances), weights=edition_chances.values(), k=1
         )[0]
 
-        eternal, perishable, rental = False, False, False
+        is_eternal, is_perishable, is_rental = False, False, False
         if allow_stickers:
             roll = r.random()
             if (
@@ -728,23 +732,23 @@ class Run:
                 and joker_type not in NON_ETERNAL_JOKERS
                 and roll < 0.3
             ):
-                eternal = True
+                is_eternal = True
             elif (
                 self._stake >= Stake.ORANGE
                 and joker_type not in NON_PERISHABLE_JOKERS
                 and roll < 0.6
             ):
-                perishable = True
+                is_perishable = True
 
             if self._stake is Stake.GOLD and r.random() < 0.3:
-                rental = True
+                is_rental = True
 
         return self._create_joker(
             joker_type,
             edition=edition,
-            eternal=eternal,
-            perishable=perishable,
-            rental=rental,
+            is_eternal=is_eternal,
+            is_perishable=is_perishable,
+            is_rental=is_rental,
         )
 
     def _get_round_goal(self, blind: Blind) -> float:
@@ -987,24 +991,33 @@ class Run:
         if self._deck is Deck.GHOST:
             shop_card_weights[Spectral] = 2
 
-        self._shop_cards = r.choices(
-            list(shop_card_weights),
-            weights=shop_card_weights.values(),
-            k=(
-                4
-                if Voucher.OVERSTOCK_PLUS in self._vouchers
-                else 3 if Voucher.OVERSTOCK in self._vouchers else 2
-            ),
+        if self._shop_cards is None:
+            self._shop_cards = []
+
+        k = (
+            4
+            if Voucher.OVERSTOCK_PLUS in self._vouchers
+            else 3 if Voucher.OVERSTOCK in self._vouchers else 2
+        ) - len(self._shop_cards)
+
+        self._shop_cards.extend(
+            r.choices(
+                list(shop_card_weights),
+                weights=shop_card_weights.values(),
+                k=k,
+            )
         )
         joker_tags_used = 0
         for tag in self._tags:
+            if joker_tags_used == k:
+                break
             if tag is Tag.UNCOMMON or tag is Tag.RARE:
-                self._shop_cards[joker_tags_used] = BaseJoker
+                self._shop_cards[len(self._shop_cards) - k + joker_tags_used] = (
+                    BaseJoker
+                )
                 joker_tags_used += 1
-                if joker_tags_used == 2:
-                    break
 
-        for i in range(len(self._shop_cards)):
+        for i in range(len(self._shop_cards) - k, len(self._shop_cards)):
             match self._shop_cards[i].__name__:
                 case BaseJoker.__name__:
                     buy_cost = None
@@ -1556,6 +1569,17 @@ class Run:
                 if self.consumable_slots > len(self._consumables):
                     self._consumables.append(Consumable(last_poker_hand_played.planet))
 
+    def _update_shop_costs(self) -> None:
+        for i, (shop_card, cost) in enumerate(self._shop_cards):
+            updated_cost = self._calculate_buy_cost(shop_card)
+            if updated_cost < cost:
+                self._shop_cards[i] = (shop_card, updated_cost)
+
+        for i, (pack, cost) in enumerate(self._shop_packs):
+            updated_cost = self._calculate_buy_cost(pack)
+            if updated_cost < cost:
+                self._shop_packs[i] = (pack, updated_cost)
+
     def _use_consumable(
         self, consumable: Consumable, selected_card_indices: list[int] | None = None
     ) -> None:
@@ -1830,9 +1854,9 @@ class Run:
                                 if copied_joker.edition is Edition.NEGATIVE
                                 else copied_joker.edition
                             ),
-                            copied_joker.eternal,
-                            copied_joker.perishable,
-                            copied_joker.rental,
+                            copied_joker.is_eternal,
+                            copied_joker.is_perishable,
+                            copied_joker.is_rental,
                         )
                         for joker in self._jokers:
                             if joker is copied_joker:
@@ -1885,7 +1909,7 @@ class Run:
                             self._poker_hand_info[poker_hand][0] += 1
 
     def buy_and_use_shop_item(self, section_index: int, item_index: int) -> None:
-        item, cost = self._buy_shop_item(section_index, item_index)
+        item, cost = self._buy_shop_item(section_index, item_index, buy_and_use=True)
         try:
             self._use_consumable(item)
         except AssertionError:
@@ -1910,6 +1934,13 @@ class Run:
                 self._open_pack(item)
             case Voucher():
                 self._vouchers.add(item)
+                match item:
+                    case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
+                        self._populate_shop_cards()
+                    case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
+                        self._update_shop_costs()
+                    case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
+                        self._reroll_cost = max(0, self._reroll_cost - 2)
 
     def choose_pack_item(
         self, item_index: int, selected_card_indices: list[int] | None = None
@@ -2214,6 +2245,7 @@ class Run:
         else:
             self._reroll_cost += 1
 
+        self._shop_cards = None
         self._populate_shop_cards()
 
     def reroll_boss_blind(self) -> None:
@@ -2317,7 +2349,7 @@ class Run:
         joker_sold = isinstance(sold_item, BaseJoker)
 
         if joker_sold:
-            assert not sold_item.eternal
+            assert not sold_item.is_eternal
 
             if self._boss_blind_disabled is False and self._blind is Blind.VERDANT_LEAF:
                 self._disable_boss_blind()

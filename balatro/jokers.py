@@ -974,7 +974,7 @@ class CeremonialDagger(BaseJoker):
         i = self._run._jokers.index(self)
         if i < len(self._run._jokers) - 1:
             right_joker = self._run._jokers[i + 1]
-            if not right_joker.eternal:
+            if not right_joker.is_eternal:
                 self.mult += self._run._calculate_sell_value(right_joker) * 2
                 self._run._destroy_joker(right_joker)
 
@@ -1304,7 +1304,7 @@ class Madness(BaseJoker):
             valid_destroys = [
                 joker
                 for joker in self._run._jokers
-                if joker is not self and not joker.eternal
+                if joker is not self and not joker.is_eternal
             ]
             if valid_destroys:
                 self._run._destroy_joker(r.choice(valid_destroys))

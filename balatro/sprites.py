@@ -945,19 +945,19 @@ def get_sprite(
                         hologram_sprite = _get_hologram_sprite(face_sprite)
                         sprite = Image.alpha_composite(sprite, hologram_sprite)
 
-                if item.eternal:
+                if item.is_eternal:
                     i, j = 0, 0
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     eternal_sprite = stickers_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, eternal_sprite)
-                elif item.perishable:
+                elif item.is_perishable:
                     i, j = 2, 0
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT
                     perishable_sprite = stickers_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, perishable_sprite)
-                if item.rental:
+                if item.is_rental:
                     i, j = 2, 1
                     x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                     x2, y2 = x1 + WIDTH, y1 + HEIGHT

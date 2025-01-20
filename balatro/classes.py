@@ -21,15 +21,15 @@ class BaseJoker(Sellable, ABC):
 
     edition: Edition = Edition.BASE
 
-    eternal: bool = False
-    perishable: bool = False
-    rental: bool = False
+    is_eternal: bool = False
+    is_perishable: bool = False
+    is_rental: bool = False
 
     debuffed: bool = field(default=False, init=False, repr=False)
     flipped: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        assert not (self.eternal and self.perishable)
+        assert not (self.is_eternal and self.is_perishable)
 
     def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
         match other:
@@ -317,10 +317,10 @@ class BaseJoker(Sellable, ABC):
         if self.debuffed:
             return
 
-        if self.rental:
+        if self.is_rental:
             self._run.money -= 3
 
-        if self.perishable:
+        if self.is_perishable:
             self._perishable_rounds_left -= 1
             if self._perishable_rounds_left == 0:
                 self.debuffed = True
