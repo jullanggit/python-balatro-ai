@@ -78,7 +78,7 @@ class JokerType(Enum):
     STEEL_JOKER = "Steel Joker"
     HACK = "Hack"
     PAREIDOLIA = "Pareidolia"
-    SPACE = "Space Joker"
+    SPACE_JOKER = "Space Joker"
     BURGLAR = "Burglar"
     BLACKBOARD = "Blackboard"
     SIXTH_SENSE = "Sixth Sense"

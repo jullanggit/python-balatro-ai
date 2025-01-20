@@ -109,7 +109,7 @@ class Run:
         self._opened_pack: Pack | None = None
         self._pack_items: list[BaseJoker | Consumable | Card] | None = None
         self._pack_choices_left: int | None = None
-        self._planet_cards_used: set[Planet] = set()
+        self._unique_planet_cards_used: set[Planet] = set()
         self._boss_blind_pool: list[Blind] = []
         self._finisher_blind_pool: list[Blind] = []
         self._num_tarot_cards_used: int = 0
@@ -824,6 +824,8 @@ class Run:
             case Blind.BIG_BLIND:
                 self._blind = self._boss_blind
             case _:
+                for joker in self._jokers:
+                    joker._on_boss_defeated()
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
@@ -1739,6 +1741,7 @@ class Run:
                     joker._on_planet_used()
 
                 self._fool_next = consumable.card
+                self._unique_planet_cards_used.add(consumable.card)
             case Spectral():
                 match consumable.card:
                     case Spectral.FAMILIAR:
@@ -1948,6 +1951,7 @@ class Run:
         assert self._state is State.OPENING_PACK
 
         assert 0 <= item_index < len(self._pack_items)
+        assert selected_card_indices is None or self._hand is not None
 
         item = self._pack_items[item_index]
 
@@ -2417,6 +2421,7 @@ class Run:
         assert self._state is not State.GAME_OVER
 
         assert 0 <= consumable_index < len(self._consumables)
+        assert selected_card_indices is None or self._hand is not None
 
         consumable = self._consumables[consumable_index]
         self._use_consumable(consumable, selected_card_indices)

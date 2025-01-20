@@ -194,7 +194,7 @@ JOKER_COORDINATES = {
     JokerType.EIGHT_BALL: [5, 0],
     JokerType.FIBONACCI: [5, 1],
     JokerType.JOKER_STENCIL: [5, 2],
-    JokerType.SPACE: [5, 3],
+    JokerType.SPACE_JOKER: [5, 3],
     JokerType.MATADOR: [5, 4],
     JokerType.CEREMONIAL_DAGGER: [5, 5],
     JokerType.SHOWMAN: [5, 6],

@@ -15,7 +15,7 @@ Here's a simple example to get you started:
 
 .. code-block:: python
 
-    from balatro import *
+   from balatro import *
 
     # Create a new run with the Red Deck on White Stake
     run = Run(Deck.RED, stake=Stake.WHITE)

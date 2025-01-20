@@ -325,7 +325,7 @@ JOKER_BASE_COSTS = {
     JokerType.STEEL_JOKER: 7,
     JokerType.HACK: 6,
     JokerType.PAREIDOLIA: 5,
-    JokerType.SPACE: 5,
+    JokerType.SPACE_JOKER: 5,
     JokerType.BURGLAR: 6,
     JokerType.BLACKBOARD: 6,
     JokerType.SIXTH_SENSE: 6,
@@ -429,7 +429,7 @@ JOKER_BASE_RARITY_WEIGHTS = {Rarity.COMMON: 70, Rarity.UNCOMMON: 25, Rarity.RARE
 JOKER_CLASSES = {
     JokerType.BLUEPRINT: Blueprint,
     JokerType.BRAINSTORM: Brainstorm,
-    JokerType.SPACE: SpaceJoker,
+    JokerType.SPACE_JOKER: SpaceJoker,
     JokerType.DNA: DNA,
     JokerType.TODO_LIST: ToDoList,
     JokerType.MIDAS_MASK: MidasMask,

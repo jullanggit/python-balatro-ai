@@ -59,7 +59,7 @@ class SpaceJoker(BaseJoker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.SPACE
+        return JokerType.SPACE_JOKER
 
 
 @dataclass(eq=False)
@@ -2598,7 +2598,7 @@ class InvisibleJoker(BaseJoker):
 @dataclass(eq=False)
 class Satellite(BaseJoker):
     def _round_ended_action(self) -> None:
-        self._run._money += len(self._run._planet_cards_used)
+        self._run._money += len(self._run._unique_planet_cards_used)
 
     @property
     def joker_type(self) -> JokerType:
