@@ -3,7 +3,7 @@
 ![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 
-A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python implementation for uses such as machine learning.
+A Python implementation of the hit roguelike deckbuilder Balatro by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python package for uses such as machine learning.
 
 **Note:** This is a work in progress. While some core features are functional, there are likely bugs and things left to be tested.
 
@@ -11,9 +11,9 @@ A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk.
 
 ## Important Considerations
 
--   **Not a 1:1 Translation:** This project is a _Pythonic_ interpretation of Balatro's mechanics, not a direct Lua-to-Python port.
--   **Bugs/Edge Cases:** While I strive for accuracy, there are likely many subtle differences from the actual game.
--   **Seed Incompatibility:** Due to fundamental implementation differences, seeds are **not** compatible between this module and the original game. This is disappointing, but it would take much work to ensure compatibility, maybe work for a future date.
+-   **Not a 1:1 Translation:** This project is a _Pythonic implementation_ of Balatro, not a direct Lua-to-Python port.
+-   **Bugs/Edge Cases:** While I strive for accuracy, with the nature of Balatro's many Jokers and complex interactions there are likely subtle differences between this module and the actual game.
+-   **Seed Incompatibility:** Seeds are **not** compatible between this module and the original game. This is disappointing, but it would take much work to ensure compatibility, maybe work for a future date.
 
 ## Getting Started
 
