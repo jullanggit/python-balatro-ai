@@ -4,6 +4,7 @@ import io
 import math
 from PIL import Image, ImageFilter, ImageEnhance, ImageDraw
 import numpy as np
+import base64
 import random as r
 
 from .classes import *
@@ -371,23 +372,15 @@ VOUCHER_COORDINATES = {
 }
 
 with io.BytesIO() as buffer:
-    sprite = Image.open("resources/textures/ShopSignAnimation.png").crop(
-        (0, 0, 226, 114)
-    )
-    sprite.save(buffer, "png")
-    SHOP_SIGN = buffer.getvalue()
+    with open("resources/textures/ShopSignAnimation.txt") as file:
+        sprite = Image.open(io.BytesIO(base64.b64decode(file.read()))).crop(
+            (0, 0, 226, 114)
+        )
+        sprite.save(buffer, "png")
+        SHOP_SIGN = buffer.getvalue()
 
 
-def _apply_debuff(image):
-    """
-    Apply a debuff effect to a card image similar to Balatro's shader effect.
-    Creates a reddish X pattern and slightly desaturates the image.
-
-    Args:
-        image: PIL Image object
-    Returns:
-        PIL Image with debuff effect applied
-    """
+def _apply_debuff(image: Image.Image) -> Image.Image:
     # Convert image to numpy array for processing
     img_array = np.array(image).astype(float) / 255.0
 
@@ -914,8 +907,12 @@ def get_sprite(
                 sprite = get_sprite(card_back)
                 sprite = sprite.resize((WIDTH, HEIGHT))
             else:
-                joker_sheet = Image.open("resources/textures/Jokers.png")
-                stickers_sheet = Image.open("resources/textures/stickers.png")
+                with open("resources/textures/Jokers.txt") as file:
+                    joker_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
+                with open("resources/textures/stickers.txt") as file:
+                    stickers_sheet = Image.open(
+                        io.BytesIO(base64.b64decode(file.read()))
+                    )
 
                 i, j = JOKER_COORDINATES.get(item.joker_type, [0, 0])
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
@@ -970,7 +967,8 @@ def get_sprite(
                 if item.debuffed:
                     sprite = _apply_debuff(sprite)
         case Consumable():
-            consumable_sheet = Image.open("resources/textures/Tarots.png")
+            with open("resources/textures/Tarots.txt") as file:
+                consumable_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             i, j = CONSUMABLE_COORDINATES[item.card]
             x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
@@ -982,7 +980,10 @@ def get_sprite(
             )
 
             if item.card is Spectral.THE_SOUL:
-                enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+                with open("resources/textures/Enhancers.txt") as file:
+                    enhancers_sheet = Image.open(
+                        io.BytesIO(base64.b64decode(file.read()))
+                    )
                 i, j = 1, 0
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
@@ -992,8 +993,12 @@ def get_sprite(
             if item.flipped:
                 sprite = get_sprite(card_back)
             else:
-                deck_sheet = Image.open("resources/textures/8BitDeck.png")
-                enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+                with open("resources/textures/8BitDeck.txt") as file:
+                    deck_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
+                with open("resources/textures/Enhancers.txt") as file:
+                    enhancers_sheet = Image.open(
+                        io.BytesIO(base64.b64decode(file.read()))
+                    )
 
                 i, j = ENHANCER_COORDINATES.get(item.enhancement, (0, 1))
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
@@ -1021,42 +1026,50 @@ def get_sprite(
                 if item.debuffed:
                     sprite = _apply_debuff(sprite)
         case Voucher():
-            voucher_sheet = Image.open("resources/textures/Vouchers.png")
+            with open("resources/textures/Vouchers.txt") as file:
+                voucher_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             i, j = VOUCHER_COORDINATES[item]
             x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
             x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = voucher_sheet.crop((x1, y1, x2, y2))
         case Stake():
-            chips_sheet = Image.open("resources/textures/chips.png")
+            with open("resources/textures/chips.txt") as file:
+                chips_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             i, j = CHIPS_COORDINATES[item]
             x1, y1 = DEFAULT_CHIP_WIDTH * j, DEFAULT_CHIP_HEIGHT * i
             x2, y2 = x1 + DEFAULT_CHIP_WIDTH, y1 + DEFAULT_CHIP_HEIGHT
             sprite = chips_sheet.crop((x1, y1, x2, y2))
         case Tag():
-            tags_sheet = Image.open("resources/textures/tags.png")
+            with open("resources/textures/tags.txt") as file:
+                tags_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             i, j = TAG_COORDINATES[item]
             x1, y1 = DEFAULT_TAG_WIDTH * j, DEFAULT_TAG_HEIGHT * i
             x2, y2 = x1 + DEFAULT_TAG_WIDTH, y1 + DEFAULT_TAG_HEIGHT
             sprite = tags_sheet.crop((x1, y1, x2, y2))
         case Blind():
-            blind_chips_sheet = Image.open("resources/textures/BlindChips.png")
+            with open("resources/textures/BlindChips.txt") as file:
+                blind_chips_sheet = Image.open(
+                    io.BytesIO(base64.b64decode(file.read()))
+                )
 
             i, j = BLIND_ROWS[item], 0
             x1, y1 = DEFAULT_BLIND_WIDTH * j, DEFAULT_BLIND_HEIGHT * i
             x2, y2 = x1 + DEFAULT_BLIND_WIDTH, y1 + DEFAULT_BLIND_HEIGHT
             sprite = blind_chips_sheet.crop((x1, y1, x2, y2))
         case Deck():
-            enhancers_sheet = Image.open("resources/textures/Enhancers.png")
+            with open("resources/textures/Enhancers.txt") as file:
+                enhancers_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             i, j = ENHANCER_COORDINATES[item]
             x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
             x2, y2 = x1 + DEFAULT_CARD_WIDTH, y1 + DEFAULT_CARD_HEIGHT
             sprite = enhancers_sheet.crop((x1, y1, x2, y2))
         case Pack():
-            pack_sheet = Image.open("resources/textures/boosters.png")
+            with open("resources/textures/boosters.txt") as file:
+                pack_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
 
             # i, j = r.choice(PACK_COORDINATES[item])
             i, j = PACK_COORDINATES[item][0]

@@ -4,7 +4,7 @@
 
 A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python implementation for uses such as Machine Learning.
 
-**Note:** This is a work in progress. While some core features are functional, this module is not to be used yet.
+**Note:** This is a work in progress. While some core features are functional, there are likely bugs and things left to be tested.
 
 ## Important Considerations
 
@@ -17,29 +17,52 @@ A Python module inspired by the hit roguelike deckbuilder Balatro by LocalThunk.
 ```python
 from balatro import *
 
-# Create a new run with the Red Deck
-run = Run(Deck.RED)
+# Create a new run with the Red Deck on White Stake
+run = Run(Deck.RED, stake=Stake.WHITE)
 
 # Get information about the current state
 print(f"Current Ante: {run.ante}")
 print(f"Current Blind: {run.blind}")
 print(f"Available Money: {run.money}")
 
+# Select the Small Blind
 run.select_blind()
+# Or skip it
+run.skip_blind()
 
-# Play a hand (example: playing the first two cards in your hand)
-run.play_hand([0, 1])
+# Play a hand (example: playing the first five cards in your hand)
+run.play_hand([0, 1, 2, 3, 4])
 
-# Discard cards (example: discarding the first card in your hand)
-run.discard([0])
+# Discard cards (example: discarding the last five cards in your hand)
+run.discard([3, 4, 5, 6, 7])
+
+...
+
+# Buy the first Buffoon pack in the shop
+run.buy_shop_item(2, 0)
+
+# Pick the first joker
+run.choose_pack_item(0)
+# Or skip the pack
+run.skip_pack()
+
+...
+
+# Use a consumable on some cards in your hand
+run.use_consumable(1, [1, 3, 7])
+# Or sell it
+run.sell_item(1, 1)
 
 # See your jokers
 jokers = run.jokers
 for i, joker in enumerate(jokers):
     print(f"{i}: {joker.joker_type} ({joker.edition})")
-
-...
+# Rearrange them
+run.move_joker(3, 0)
 ```
+
+You can display a render of the game when using a Jupyter Notebook
+![game preview](game-preview.png)
 
 ## Disclaimer
 

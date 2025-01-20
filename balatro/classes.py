@@ -228,10 +228,8 @@ class BaseJoker(Sellable, ABC):
             scored_card, played_cards, scored_card_indices, poker_hands_played
         )
 
-    def _on_created(self) -> None:
-        if self.debuffed:
-            return
-
+    def _on_created(self, run: Run) -> None:
+        self._run = run
         self._created_action()
 
     def _on_dependent(self, other_joker: BaseJoker) -> None:

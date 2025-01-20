@@ -443,10 +443,7 @@ class AncientJoker(BaseJoker):
         self._set_random_suit()
 
     def _set_random_suit(self) -> None:
-        new_suit = None
-        while new_suit is None or new_suit is self.suit:
-            new_suit = r.choice(list(Suit))
-        self.suit = new_suit
+        self.suit = r.choice([suit for suit in Suit if suit is not self.suit])
 
     @property
     def joker_type(self) -> JokerType:
@@ -2241,7 +2238,8 @@ class TradingCard(BaseJoker):
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         if self._run._first_discard and len(discarded_cards) == 1:
             self._run._money += 3
-            self._run._destroy_card(self._run._hand[discarded_cards[0]])
+            self._run._destroy_card(discarded_cards[0])
+            discarded_cards.pop()
 
     @property
     def joker_type(self) -> JokerType:
@@ -2363,6 +2361,8 @@ class SixthSense(BaseJoker):
                 self._run._consumables.append(
                     self._run._get_random_consumable(Spectral)
                 )
+            played_cards.pop()
+            scored_card_indices.pop()
 
     @property
     def joker_type(self) -> JokerType:
@@ -2417,7 +2417,7 @@ class Luchador(BaseJoker):
     def _item_sold_ability(self, sold_item: Sellable) -> None:
         if (
             sold_item is self
-            and self._state is State.PLAYING_BLIND
+            and self._run._state is State.PLAYING_BLIND
             and self._run._blind is self._run._boss_blind
         ):
             self._run._disable_boss_blind()
@@ -2576,12 +2576,18 @@ class InvisibleJoker(BaseJoker):
             self.rounds_remaining -= 1
 
     def _item_sold_action(self, sold_item: Sellable) -> None:
-        if sold_item is self and self.rounds_remaining == 0 and self._run._jokers:
-            duplicated_joker = replace(r.choice(self._run._jokers))
+        if (
+            sold_item is self
+            and self.rounds_remaining == 0
+            and len(self._run._jokers) > 1
+        ):
+            duplicated_joker = replace(
+                r.choice([joker for joker in self._run._jokers if joker is not self])
+            )
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
-                if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:
-                    duplicated_joker.rounds_remaining = 2
+            if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:
+                duplicated_joker.rounds_remaining = 2
             self._run._add_joker(duplicated_joker)
 
     @property

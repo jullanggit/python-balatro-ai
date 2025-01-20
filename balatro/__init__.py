@@ -270,8 +270,7 @@ class Run:
             perishable=perishable,
             rental=rental,
         )
-        joker._run = self
-        joker._on_created()
+        joker._on_created(self)
         return joker
 
     def _deal(self, after_hand_played: bool = False) -> bool:
@@ -397,7 +396,8 @@ class Run:
                         return
             self._game_over()
         else:
-            self._deal(after_hand_played=True)
+            if not self._deal(after_hand_played=True):
+                self._game_over()
 
     def _end_round(
         self, last_poker_hand_played: PokerHand, saved: bool = False
@@ -413,7 +413,7 @@ class Run:
                 for _ in range(joker._on_card_held_retriggers(held_card)):
                     self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
-        self._disable_boss_blind(end_of_round=True)
+        self._disable_boss_blind()
 
         interest_amt = (
             0
@@ -621,14 +621,14 @@ class Run:
             case Spectral.__name__:
                 card_pool = list(Spectral)[:-2]
 
-        prohibited_consumable_cards = []
+        prohibited_consumable_cards = set()
         if JokerType.SHOWMAN not in self._jokers:
-            prohibited_consumable_cards.extend(
+            prohibited_consumable_cards.update(
                 consumable.card for consumable in self.consumables
             )
 
             if self._shop_cards is not None:
-                prohibited_consumable_cards.extend(
+                prohibited_consumable_cards.update(
                     shop_card[0].card
                     for shop_card in self._shop_cards
                     if isinstance(shop_card, tuple)
@@ -636,17 +636,19 @@ class Run:
                 )
 
             if self._opened_pack is not None:
-                prohibited_consumable_cards.extend(
+                prohibited_consumable_cards.update(
                     pack_item.card
                     for pack_item in self._pack_items
                     if isinstance(pack_item, Consumable)
                 )
 
-        card = None
-        while card is None or (card in prohibited_consumable_cards):
-            card = r.choice(card_pool)
-
-        return Consumable(card)
+        return Consumable(
+            r.choice(
+                [card for card in card_pool if card not in prohibited_consumable_cards]
+            )
+            if len(prohibited_consumable_cards) < len(card_pool)
+            else card_pool[0]
+        )
 
     def _get_random_joker(
         self,
@@ -660,12 +662,12 @@ class Run:
                 k=1,
             )[0]
 
-        prohibited_joker_types = []
+        prohibited_joker_types = set()
         if JokerType.SHOWMAN not in self._jokers:
-            prohibited_joker_types.extend(joker.joker_type for joker in self.jokers)
+            prohibited_joker_types.update(joker.joker_type for joker in self.jokers)
 
             if self._shop_cards is not None:
-                prohibited_joker_types.extend(
+                prohibited_joker_types.update(
                     shop_card[0].joker_type
                     for shop_card in self._shop_cards
                     if isinstance(shop_card, tuple)
@@ -673,50 +675,37 @@ class Run:
                 )
 
             if self._opened_pack is not None:
-                prohibited_joker_types.extend(
+                prohibited_joker_types.update(
                     pack_item.joker_type
                     for pack_item in self._pack_items
                     if isinstance(pack_item, BaseJoker)
                 )
 
-        joker_type = None
-        while (
-            joker_type is None
-            or joker_type in prohibited_joker_types
-            or (joker_type is JokerType.GROS_MICHEL and self._gros_michel_extinct)
-            or (joker_type is JokerType.CAVENDISH and not self._gros_michel_extinct)
-            or (
-                joker_type is JokerType.GOLDEN_TICKET
-                and not any(
-                    card.enhancement is Enhancement.GOLD for card in self._deck_cards
-                )
-            )
-            or (
-                joker_type is JokerType.STEEL_JOKER
-                and not any(
-                    card.enhancement is Enhancement.STEEL for card in self._deck_cards
-                )
-            )
-            or (
-                joker_type is JokerType.STONE
-                and not any(
-                    card.enhancement is Enhancement.STONE for card in self._deck_cards
-                )
-            )
-            or (
-                joker_type is JokerType.LUCKY_CAT
-                and not any(
-                    card.enhancement is Enhancement.LUCKY for card in self._deck_cards
-                )
-            )
-            or (
-                joker_type is JokerType.GLASS_JOKER
-                and not any(
-                    card.enhancement is Enhancement.GLASS for card in self._deck_cards
-                )
-            )
-        ):
-            joker_type = r.choice(JOKER_TYPE_RARITIES[rarity])
+        if self._gros_michel_extinct:
+            prohibited_joker_types.add(JokerType.GROS_MICHEL)
+        if not self._gros_michel_extinct:
+            prohibited_joker_types.add(JokerType.CAVENDISH)
+        deck_card_enhancements = {
+            deck_card.enhancement for deck_card in self._deck_cards
+        }
+        if Enhancement.GOLD not in deck_card_enhancements:
+            prohibited_joker_types.add(JokerType.GOLDEN_TICKET)
+        if Enhancement.STEEL not in deck_card_enhancements:
+            prohibited_joker_types.add(JokerType.STEEL_JOKER)
+        if Enhancement.STONE not in deck_card_enhancements:
+            prohibited_joker_types.add(JokerType.STONE)
+        if Enhancement.LUCKY not in deck_card_enhancements:
+            prohibited_joker_types.add(JokerType.LUCKY_CAT)
+        if Enhancement.GLASS not in deck_card_enhancements:
+            prohibited_joker_types.add(JokerType.GLASS_JOKER)
+
+        joker_type = r.choice(
+            [
+                joker_type
+                for joker_type in JOKER_TYPE_RARITIES[rarity]
+                if joker_type not in prohibited_joker_types
+            ]
+        )
 
         edition_chances = (
             JOKER_EDITION_CHANCES_GLOW_UP
@@ -802,18 +791,19 @@ class Run:
             tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
         ] = [None, None]
         for i in range(2):
-            while (
-                self._ante_tags[i] is None
-                or self._ante == 1
-                and self._ante_tags[i][0] in PROHIBITED_ANTE_1_TAGS
-            ):
-                tag = r.choice(list(Tag))
-                extra = None
+            tag = r.choice(
+                [
+                    tag
+                    for tag in Tag
+                    if self._ante > 1 or tag not in PROHIBITED_ANTE_1_TAGS
+                ]
+            )
+            extra = None
 
-                if tag is Tag.ORBITAL:
-                    extra = r.choice(self._unlocked_poker_hands)
+            if tag is Tag.ORBITAL:
+                extra = r.choice(self._unlocked_poker_hands)
 
-                self._ante_tags[i] = (tag, extra)
+            self._ante_tags[i] = (tag, extra)
 
         self._random_boss_blind()
 
@@ -871,7 +861,8 @@ class Run:
 
                 self._hand = []
                 self._deck_cards_left = self._deck_cards.copy()
-                self._deal()
+                if not self._deal():
+                    self._game_over()
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
                 for _ in range(of_up_to):
                     if (
@@ -897,7 +888,8 @@ class Run:
 
                 self._hand = []
                 self._deck_cards_left = self._deck_cards.copy()
-                self._deal()
+                if not self._deal():
+                    self._game_over()
             case Pack.STANDARD | Pack.JUMBO_STANDARD | Pack.MEGA_STANDARD:
                 edition_chances = (
                     CARD_EDITION_CHANCES_GLOW_UP
@@ -1960,7 +1952,8 @@ class Run:
         self._discards -= 1
         self._first_discard = False
 
-        self._deal()
+        if not self._deal():
+            self._game_over()
 
     def next_round(self) -> None:
         assert self._state is State.IN_SHOP
@@ -2306,9 +2299,10 @@ class Run:
             if joker in self._jokers:
                 joker._on_blind_selected()
 
-        self._deal()
-
-        self._state = State.PLAYING_BLIND
+        if not self._deal():
+            self._game_over()
+        else:
+            self._state = State.PLAYING_BLIND
 
     def sell_item(self, section_index: int, item_index: int) -> None:
         assert self._state is not State.GAME_OVER
