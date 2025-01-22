@@ -848,10 +848,10 @@ class Run:
 
         match pack:
             case Pack.BUFFOON | Pack.JUMBO_BUFFOON | Pack.MEGA_BUFFOON:
-                for _ in range(of_up_to - 1):
+                while len(self._pack_items) < (of_up_to - 1):
                     self._pack_items.append(self._get_random_joker(allow_stickers=True))
             case Pack.ARCANA | Pack.JUMBO_ARCANA | Pack.MEGA_ARCANA:
-                for _ in range(of_up_to):
+                while len(self._pack_items) < of_up_to:
                     if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
                         self._pack_items.append(Consumable(Spectral.THE_SOUL))
                     else:
@@ -871,7 +871,12 @@ class Run:
                 if not self._deal():
                     self._game_over()
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
-                for _ in range(of_up_to):
+                if Voucher.TELESCOPE in self._vouchers:
+                    self._pack_items.append(
+                        Consumable(r.choice(self._most_played_hands).planet)
+                    )
+
+                while len(self._pack_items) < of_up_to:
                     if (
                         Spectral.BLACK_HOLE not in self._pack_items
                         and r.random() < 0.003
@@ -880,7 +885,7 @@ class Run:
                     else:
                         self._pack_items.append(self._get_random_consumable(Planet))
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
-                for _ in range(of_up_to - 1):
+                while len(self._pack_items) < (of_up_to - 1):
                     if (
                         Spectral.BLACK_HOLE not in self._pack_items
                         and r.random() < 0.003
@@ -908,7 +913,7 @@ class Run:
                     )
                 )
 
-                for _ in range(of_up_to):
+                while len(self._pack_items) < of_up_to:
                     pack_card = self._get_random_card()
                     pack_card.edition = r.choices(
                         list(edition_chances), weights=edition_chances.values(), k=1
@@ -1090,17 +1095,7 @@ class Run:
             self._boss_blind_pool.remove(self._boss_blind)
 
             if self._boss_blind is Blind.THE_OX:
-                most_times_played = max(
-                    times_played
-                    for hand_level, times_played in self._poker_hand_info.values()
-                )
-                self._ox_poker_hand = r.choice(
-                    [
-                        poker_hand
-                        for poker_hand in self._unlocked_poker_hands
-                        if self._poker_hand_info[poker_hand][1] == most_times_played
-                    ]
-                )
+                self._ox_poker_hand = r.choice(self._most_played_hands)
 
     def _repr_frame(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -2495,6 +2490,17 @@ class Run:
     @property
     def _is_finisher_ante(self) -> bool:
         return self.ante % 8 == 0
+
+    @property
+    def _most_played_hands(self) -> list[PokerHand]:
+        most_times_played = max(
+            times_played for hand_level, times_played in self._poker_hand_info.values()
+        )
+        return [
+            poker_hand
+            for poker_hand in self._unlocked_poker_hands
+            if self._poker_hand_info[poker_hand][1] == most_times_played
+        ]
 
     @property
     def _unlocked_poker_hands(self) -> list[PokerHand]:
