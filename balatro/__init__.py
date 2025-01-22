@@ -119,6 +119,7 @@ class Run:
         self._gros_michel_extinct: bool = False
         self._boss_blind_disabled: bool | None = None
         self._forced_selected_card_index: int | None = None
+        self._ox_poker_hand: PokerHand | None = None
 
         self._new_ante()
 
@@ -1070,6 +1071,7 @@ class Run:
 
     def _random_boss_blind(self) -> None:
         self._boss_blind: Blind = None
+        self._ox_poker_hand: PokerHand | None = None
         if self._is_finisher_ante:
             if not self._finisher_blind_pool:
                 self._finisher_blind_pool = list(BLIND_INFO)[-5:]
@@ -1086,6 +1088,19 @@ class Run:
                 ]
             )
             self._boss_blind_pool.remove(self._boss_blind)
+
+            if self._boss_blind is Blind.THE_OX:
+                most_times_played = max(
+                    times_played
+                    for hand_level, times_played in self._poker_hand_info.values()
+                )
+                self._ox_poker_hand = r.choice(
+                    [
+                        poker_hand
+                        for poker_hand in self._unlocked_poker_hands
+                        if self._poker_hand_info[poker_hand][1] == most_times_played
+                    ]
+                )
 
     def _repr_frame(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -2054,10 +2069,7 @@ class Run:
         if self._boss_blind_disabled is False:
             match self._blind:
                 case Blind.THE_OX:
-                    if self._poker_hand_info[poker_hands_played[0]][1] == max(
-                        times_played
-                        for hand_level, times_played in self._poker_hand_info.values()
-                    ):
+                    if poker_hands_played[0] is self._ox_poker_hand:
                         self._money = 0
                         boss_blind_triggered = True
                 case Blind.THE_ARM:
@@ -2550,20 +2562,20 @@ class Run:
     def deck(self) -> Deck:
         return self._deck
 
-    @property
-    def deck_breakdown(self) -> dict[Suit | Rank, int]:
-        deck_breakdown = {
-            **{suit: 0 for suit in Suit},
-            **{rank: 0 for rank in Rank},
-        }
+    # @property
+    # def deck_breakdown(self) -> dict[Suit | Rank, int]:
+    #     deck_breakdown = {
+    #         **{suit: 0 for suit in Suit},
+    #         **{rank: 0 for rank in Rank},
+    #     }
 
-        for deck_card in self.deck_cards_left:
-            if deck_card.flipped or deck_card.is_stone_card:
-                continue
-            deck_breakdown[deck_card.suit] += 1
-            deck_breakdown[deck_card.rank] += 1
+    #     for deck_card in self.deck_cards_left:
+    #         if deck_card.flipped or deck_card.is_stone_card:
+    #             continue
+    #         deck_breakdown[deck_card.suit] += 1
+    #         deck_breakdown[deck_card.rank] += 1
 
-        return deck_breakdown
+    #     return deck_breakdown
 
     @property
     def deck_cards(self) -> list[Card]:
