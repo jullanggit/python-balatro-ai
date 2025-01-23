@@ -2414,10 +2414,9 @@ class Rocket(BaseJoker):
 
 @dataclass(eq=False)
 class Luchador(BaseJoker):
-    def _item_sold_ability(self, sold_item: Sellable) -> None:
+    def _sold_ability(self) -> None:
         if (
-            sold_item is self
-            and self._run._state is State.PLAYING_BLIND
+            self._run._state is State.PLAYING_BLIND
             and self._run._blind is self._run._boss_blind
         ):
             self._run._disable_boss_blind()
@@ -2500,9 +2499,8 @@ class GoldenJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DietCola(BaseJoker):
-    def _item_sold_ability(self, sold_item: Sellable) -> None:
-        if sold_item is self:
-            self._run._tags.append(Tag.DOUBLE)
+    def _sold_ability(self) -> None:
+        self._run._tags.append(Tag.DOUBLE)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2575,12 +2573,8 @@ class InvisibleJoker(BaseJoker):
         if self.rounds_remaining > 0:
             self.rounds_remaining -= 1
 
-    def _item_sold_action(self, sold_item: Sellable) -> None:
-        if (
-            sold_item is self
-            and self.rounds_remaining == 0
-            and len(self._run._jokers) > 1
-        ):
+    def _sold_action(self) -> None:
+        if self.rounds_remaining == 0 and len(self._run._jokers) > 1:
             duplicated_joker = replace(
                 r.choice([joker for joker in self._run._jokers if joker is not self])
             )

@@ -147,9 +147,6 @@ class BaseJoker(Sellable, ABC):
     ) -> None:
         pass
 
-    def _item_sold_ability(self, sold_item: Sellable) -> None:
-        pass
-
     def _item_sold_action(self, sold_item: Sellable) -> None:
         pass
 
@@ -284,7 +281,6 @@ class BaseJoker(Sellable, ABC):
             return
 
         self._item_sold_action(sold_item)
-        self._item_sold_ability(sold_item)
 
     def _on_jokers_moved(self) -> None:
         pass
@@ -340,6 +336,13 @@ class BaseJoker(Sellable, ABC):
 
         self._shop_rerolled_action()
 
+    def _on_sold(self) -> None:
+        if self.debuffed:
+            return
+
+        self._sold_action()
+        self._sold_ability()
+
     def _pack_opened_ability(self) -> None:
         pass
 
@@ -356,6 +359,12 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _shop_rerolled_action(self) -> None:
+        pass
+
+    def _sold_ability(self) -> None:
+        pass
+
+    def _sold_action(self) -> None:
         pass
 
     @property
@@ -482,14 +491,6 @@ class CopyJoker(BaseJoker):
                 played_cards, scored_card_indices, poker_hands_played
             )
 
-    def _item_sold_ability(self, sold_item: Sellable) -> None:
-        if (
-            not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
-        ):
-            self.copied_joker._item_sold_ability(sold_item)
-
     def _pack_opened_ability(self) -> None:
         if (
             not self._copy_loop
@@ -505,6 +506,14 @@ class CopyJoker(BaseJoker):
             and not self.copied_joker.debuffed
         ):
             self.copied_joker._shop_exited_ability()
+
+    def _sold_ability(self) -> None:
+        if (
+            not self._copy_loop
+            and self.copied_joker is not None
+            and not self.copied_joker.debuffed
+        ):
+            self.copied_joker._sold_ability()
 
     @property
     @abstractmethod

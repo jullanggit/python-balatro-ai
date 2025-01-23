@@ -388,7 +388,6 @@ class Run:
                 joker._on_boss_blind_triggered()
 
         if self._round_score >= self._round_goal:
-            # print(f"Round Ended: {format_number(self._round_score)}")
             self._end_round(poker_hands_played[0])
             return
 
@@ -872,9 +871,7 @@ class Run:
                     self._game_over()
             case Pack.CELESTIAL | Pack.JUMBO_CELESTIAL | Pack.MEGA_CELESTIAL:
                 if Voucher.TELESCOPE in self._vouchers:
-                    self._pack_items.append(
-                        Consumable(r.choice(self._most_played_hands).planet)
-                    )
+                    self._pack_items.append(Consumable(self._most_played_hand.planet))
 
                 while len(self._pack_items) < of_up_to:
                     if (
@@ -1095,7 +1092,7 @@ class Run:
             self._boss_blind_pool.remove(self._boss_blind)
 
             if self._boss_blind is Blind.THE_OX:
-                self._ox_poker_hand = r.choice(self._most_played_hands)
+                self._ox_poker_hand = self._most_played_hand
 
     def _repr_frame(self) -> str:
         with open("resources/fonts/m6x11plus.ttf", "rb") as f:
@@ -2365,13 +2362,14 @@ class Run:
             if self._boss_blind_disabled is False and self._blind is Blind.VERDANT_LEAF:
                 self._disable_boss_blind()
 
-        for joker in self._jokers:
-            joker._on_item_sold(sold_item)
+            sold_item._on_sold()
 
         section_items.pop(item_index)
 
-        if joker_sold:
-            for joker in self._jokers:
+        for joker in self._jokers:
+            joker._on_item_sold(sold_item)
+
+            if joker_sold:
                 joker._on_jokers_moved()
 
         self._money += self._calculate_sell_value(sold_item)
@@ -2492,15 +2490,11 @@ class Run:
         return self.ante % 8 == 0
 
     @property
-    def _most_played_hands(self) -> list[PokerHand]:
-        most_times_played = max(
-            times_played for hand_level, times_played in self._poker_hand_info.values()
+    def _most_played_hand(self) -> PokerHand:
+        return max(
+            self._unlocked_poker_hands,
+            key=lambda poker_hand: self._poker_hand_info[poker_hand][1],
         )
-        return [
-            poker_hand
-            for poker_hand in self._unlocked_poker_hands
-            if self._poker_hand_info[poker_hand][1] == most_times_played
-        ]
 
     @property
     def _unlocked_poker_hands(self) -> list[PokerHand]:
