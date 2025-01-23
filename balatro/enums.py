@@ -526,6 +526,7 @@ class Rarity(Enum):
 
 
 class State(Enum):
+    CASHING_OUT = auto()
     GAME_OVER = auto()
     IN_SHOP = auto()
     OPENING_PACK = auto()

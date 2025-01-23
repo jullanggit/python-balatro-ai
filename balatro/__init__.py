@@ -120,6 +120,7 @@ class Run:
         self._boss_blind_disabled: bool | None = None
         self._forced_selected_card_index: int | None = None
         self._ox_poker_hand: PokerHand | None = None
+        self._cash_out_money: list[tuple[int, ...]] | None = None
 
         self._new_ante()
 
@@ -127,6 +128,10 @@ class Run:
 
     def _repr_html_(self) -> str:
         match self._state:
+            case State.CASHING_OUT:
+                raise NotImplementedError
+            case State.GAME_OVER:
+                raise NotImplementedError
             case State.IN_SHOP:
                 return self._repr_in_shop()
             case State.OPENING_PACK:
@@ -135,8 +140,6 @@ class Run:
                 return self._repr_playing_blind()
             case State.SELECTING_BLIND:
                 return self._repr_selecting_blind()
-            case State.GAME_OVER:
-                raise NotImplementedError
 
     def _add_card(self, card: Card) -> None:
         self._deck_cards.append(card)
@@ -424,9 +427,10 @@ class Run:
 
         self._cash_out_money = []
 
-        if not saved:
-            self._cash_out_money.append(self.blind_reward)
-        
+        self._cash_out_money.append(
+            (self.blind_reward if not saved else 0, self._blind)
+        )
+
         if self._deck is Deck.GREEN:
             self._cash_out_money.append((2 * self._hands, 2))
             self._cash_out_money.append((1 * self._discards, 1))
@@ -434,51 +438,33 @@ class Run:
             self._cash_out_money.append((1 * self._hands, 1))
             self._cash_out_money.append((0 * self._discards, 0))
 
-        interest_per = (
-                20
-                if Voucher.MONEY_TREE in self._vouchers
-                else 10 if Voucher.SEED_MONEY in self._vouchers else 5
-            )
-        interest_amt = (
-            0
-            if self._deck is Deck.GREEN
-            else (1 + self._jokers.count(JokerType.TO_THE_MOON))
-        )
-        self._cash_out_money.append(min(
-            interest_amt * interest_per,
-            (max(0, self._money) // 5 * interest_amt),
-        ))
-        
         for joker in self._jokers:
             round_end_money = joker._on_round_ended_money()
             if round_end_money > 0:
                 self._cash_out_money.append((round_end_money, joker.joker_type))
 
-        cash_out = (
-            + (2 if self._deck is Deck.GREEN else 1) * self._hands
-            + (1 if self._deck is Deck.GREEN else 0) * self._discards
-            + interest
+        if self._is_boss_blind:
+            while Tag.INVESTMENT in self._tags:
+                self._cash_out_money.append((25, Tag.INVESTMENT))
+                self._tags.remove(Tag.INVESTMENT)
+
+        interest_amt, interest_cap = (
+            0
+            if self._deck is Deck.GREEN
+            else (1 + self._jokers.count(JokerType.TO_THE_MOON))
+        ), (
+            20
+            if Voucher.MONEY_TREE in self._vouchers
+            else 10 if Voucher.SEED_MONEY in self._vouchers else 5
         )
-        self._money += cash_out
-        self._round_score = None
-        self._hands = None
-        self._discards = None
-        self._round_goal = None
-        self._num_unused_discards += self._discards
-        self._hand = None
-        self._deck_cards_left = None
-        self._chips = None
-        self._mult = None
-        self._first_hand = None
-        self._first_discard = None
-        self._round_poker_hands = None
-        self._boss_blind_disabled = None
-        self._forced_selected_card_index = None
+        interest = min(
+            (max(0, self._money) // 5 * interest_amt),
+            interest_amt * interest_cap,
+        )
+        if interest > 0:
+            self._cash_out_money.append((interest, interest_amt, interest_cap))
 
-        self._next_blind()
-
-        self._populate_shop()
-        self._state = State.IN_SHOP
+        self._state = State.CASHING_OUT
 
     def _game_over(self) -> None:
         self._round_score = None
@@ -1967,6 +1953,30 @@ class Run:
                     case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
                         self._reroll_cost = max(0, self._reroll_cost - 2)
 
+    def cash_out(self) -> None:
+        assert self._state is State.CASHING_OUT
+
+        self._money += self._cash_out_total
+        self._round_score = None
+        self._round_goal = None
+        self._num_unused_discards += self._discards
+        self._hands = None
+        self._discards = None
+        self._hand = None
+        self._deck_cards_left = None
+        self._chips = None
+        self._mult = None
+        self._first_hand = None
+        self._first_discard = None
+        self._round_poker_hands = None
+        self._boss_blind_disabled = None
+        self._forced_selected_card_index = None
+
+        self._next_blind()
+
+        self._populate_shop()
+        self._state = State.IN_SHOP
+
     def choose_pack_item(
         self, item_index: int, selected_card_indices: list[int] | None = None
     ) -> None:
@@ -2192,9 +2202,7 @@ class Run:
                     self._mult *= 1.5
 
         if Voucher.OBSERVATORY in self._vouchers:
-            for consumable in self._consumables:
-                if consumable.card is poker_hands_played[0].planet:
-                    self._mult *= 1.5
+            self._mult *= 1.5 ** self._consumables.count(poker_hands_played[0].planet)
 
         self._mult = round(self._mult, 9)  # floating-point imprecision
         score = (
@@ -2203,6 +2211,9 @@ class Run:
             else self._chips * self._mult
         )
         self._round_score += score
+
+        self._chips = None
+        self._mult = None
 
         # un-debuff cards
 
@@ -2234,9 +2245,7 @@ class Run:
                         [joker for joker in self._jokers if not joker.debuffed]
                     ).debuffed = True
 
-        self._end_hand(
-            played_cards, scored_card_indices, poker_hands_played
-        )  # comment out when testing scores
+        self._end_hand(played_cards, scored_card_indices, poker_hands_played)
 
     def move_joker(self, joker_index: int, new_index: int) -> None:
         assert self._state is not State.GAME_OVER
@@ -2450,6 +2459,10 @@ class Run:
     @property
     def _available_money(self) -> int:
         return max(0, self._money + 20 * self._jokers.count(JokerType.CREDIT_CARD))
+
+    @property
+    def _cash_out_total(self) -> int:
+        return sum(money for money, *_ in self._cash_out_money)
 
     @property
     def _discards_each_round(self) -> int:
