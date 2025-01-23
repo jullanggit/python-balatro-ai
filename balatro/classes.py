@@ -221,6 +221,7 @@ class BaseJoker(Sellable, ABC):
     ) -> int:
         if self.debuffed:
             return 0
+        
         return self._card_scored_retriggers(
             scored_card, played_cards, scored_card_indices, poker_hands_played
         )
@@ -323,6 +324,12 @@ class BaseJoker(Sellable, ABC):
                 return
 
         self._round_ended_action()
+    
+    def _on_round_ended_money(self) -> int:
+        if self.debuffed:
+            return 0
+        
+        return self._round_ended_money()
 
     def _on_shop_exited(self) -> None:
         if self.debuffed:
@@ -354,6 +361,9 @@ class BaseJoker(Sellable, ABC):
 
     def _round_ended_action(self) -> None:
         pass
+
+    def _round_ended_money(self) -> int:
+        return 0
 
     def _shop_exited_ability(self) -> None:
         pass

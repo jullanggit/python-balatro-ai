@@ -2299,9 +2299,8 @@ class ChaosTheClown(BaseJoker):
 
 @dataclass(eq=False)
 class DelayedGratification(BaseJoker):
-    def _round_ended_action(self) -> None:
-        if self._run._first_discard:
-            self._run._money += 2 * self._run._discards
+    def _round_ended_money(self) -> int:
+        return 2 * self._run._discards if self._run._first_discard else 0
 
     @property
     def joker_type(self) -> JokerType:
@@ -2389,8 +2388,8 @@ class Shortcut(BaseJoker):
 
 @dataclass(eq=False)
 class CloudNine(BaseJoker):
-    def _round_ended_action(self) -> None:
-        self._run._money += self._run._deck_cards.count(Rank.NINE)
+    def _round_ended_money(self) -> int:
+        return self._run._deck_cards.count(Rank.NINE)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2404,8 +2403,8 @@ class Rocket(BaseJoker):
     def _boss_defeated_action(self) -> None:
         self.payout += 2
 
-    def _round_ended_action(self) -> None:
-        self._run._money += self.payout
+    def _round_ended_money(self) -> int:
+        return self.payout
 
     @property
     def joker_type(self) -> JokerType:
@@ -2489,8 +2488,8 @@ class Drunkard(BaseJoker):
 
 @dataclass(eq=False)
 class GoldenJoker(BaseJoker):
-    def _round_ended_action(self) -> None:
-        self._run._money += 4
+    def _round_ended_money(self) -> int:
+        return 4
 
     @property
     def joker_type(self) -> JokerType:
@@ -2591,8 +2590,8 @@ class InvisibleJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Satellite(BaseJoker):
-    def _round_ended_action(self) -> None:
-        self._run._money += len(self._run._unique_planet_cards_used)
+    def _round_ended_money(self) -> int:
+        return len(self._run._unique_planet_cards_used)
 
     @property
     def joker_type(self) -> JokerType:

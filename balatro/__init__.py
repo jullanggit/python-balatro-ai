@@ -419,37 +419,52 @@ class Run:
 
         self._disable_boss_blind()
 
+        for joker in self._jokers[:]:
+            joker._on_round_ended()
+
+        self._cash_out_money = []
+
+        if not saved:
+            self._cash_out_money.append(self.blind_reward)
+        
+        if self._deck is Deck.GREEN:
+            self._cash_out_money.append((2 * self._hands, 2))
+            self._cash_out_money.append((1 * self._discards, 1))
+        else:
+            self._cash_out_money.append((1 * self._hands, 1))
+            self._cash_out_money.append((0 * self._discards, 0))
+
+        interest_per = (
+                20
+                if Voucher.MONEY_TREE in self._vouchers
+                else 10 if Voucher.SEED_MONEY in self._vouchers else 5
+            )
         interest_amt = (
             0
             if self._deck is Deck.GREEN
             else (1 + self._jokers.count(JokerType.TO_THE_MOON))
         )
-        interest = min(
-            (
-                20
-                if Voucher.MONEY_TREE in self._vouchers
-                else 10 if Voucher.SEED_MONEY in self._vouchers else 5
-            )
-            * interest_amt,
+        self._cash_out_money.append(min(
+            interest_amt * interest_per,
             (max(0, self._money) // 5 * interest_amt),
-        )
-
-        for joker in self._jokers[:]:
-            joker._on_round_ended()
+        ))
+        
+        for joker in self._jokers:
+            round_end_money = joker._on_round_ended_money()
+            if round_end_money > 0:
+                self._cash_out_money.append((round_end_money, joker.joker_type))
 
         cash_out = (
-            (0 if saved else self.blind_reward)
             + (2 if self._deck is Deck.GREEN else 1) * self._hands
             + (1 if self._deck is Deck.GREEN else 0) * self._discards
             + interest
         )
         self._money += cash_out
-
         self._round_score = None
-        self._round_goal = None
         self._hands = None
-        self._num_unused_discards += self._discards
         self._discards = None
+        self._round_goal = None
+        self._num_unused_discards += self._discards
         self._hand = None
         self._deck_cards_left = None
         self._chips = None
