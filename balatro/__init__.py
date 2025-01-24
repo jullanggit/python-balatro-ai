@@ -792,7 +792,7 @@ class Run:
     def _new_ante(self) -> None:
         self._ante += 1
 
-        self._ante_tags: list[
+        self._skip_tags: list[
             tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
         ] = [None, None]
         for i in range(2):
@@ -808,7 +808,7 @@ class Run:
             if tag is Tag.ORBITAL:
                 extra = r.choice(self._unlocked_poker_hands)
 
-            self._ante_tags[i] = (tag, extra)
+            self._skip_tags[i] = (tag, extra)
 
         self._random_boss_blind()
 
@@ -1443,7 +1443,7 @@ class Run:
             html += f"""
                 <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
                     <div style='display: flex; align-items: center; justify-content: center;'>
-                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[0][0]._repr_png_()).decode("utf-8")}'/>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._skip_tags[0][0]._repr_png_()).decode("utf-8")}'/>
                         <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.SMALL_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
                     </div>
                 </div>
@@ -1474,7 +1474,7 @@ class Run:
             html += f"""
                 <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
                     <div style='display: flex; align-items: center; justify-content: center;'>
-                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[1][0]._repr_png_()).decode("utf-8")}'/>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._skip_tags[1][0]._repr_png_()).decode("utf-8")}'/>
                         <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.BIG_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
                     </div>
                 </div>
@@ -1920,6 +1920,14 @@ class Run:
                             self._poker_hand_info[poker_hand][0] += 1
 
     def buy_and_use_shop_item(self, section_index: int, item_index: int) -> None:
+        """
+        Buy and immediately use a shop item (does not require an open consumable slot)
+
+        Args:
+            section_index (int): The index of the shop section (0: cards, 1: vouchers, 2: packs)
+            item_index (int): The index of the shop item (0-indexed)
+        """
+
         item, cost = self._buy_shop_item(section_index, item_index, buy_and_use=True)
         try:
             self._use_consumable(item)
@@ -1932,6 +1940,14 @@ class Run:
             assert False
 
     def buy_shop_item(self, section_index: int, item_index: int) -> None:
+        """
+        Buy a shop item and add it to consumables
+
+        Args:
+            section_index (int): The index of the shop section (0: cards, 1: vouchers, 2: packs)
+            item_index (int): The index of the shop item (0-indexed)
+        """
+
         item, cost = self._buy_shop_item(section_index, item_index)
 
         match item:
@@ -1954,6 +1970,10 @@ class Run:
                         self._reroll_cost = max(0, self._reroll_cost - 2)
 
     def cash_out(self) -> None:
+        """
+        Collect the money earned from the round and proceed to the shop
+        """
+
         assert self._state is State.CASHING_OUT
 
         self._money += self._cash_out_total
@@ -1980,6 +2000,14 @@ class Run:
     def choose_pack_item(
         self, item_index: int, selected_card_indices: list[int] | None = None
     ) -> None:
+        """
+        Choose an item from an opened pack
+
+        Args:
+            item_index (int): The index of the item in the pack (0-indexed)
+            selected_card_indices (list[int], optional): The indices of the cards in hand to use the item on (0-indexed), or none
+        """
+
         assert self._state is State.OPENING_PACK
 
         assert 0 <= item_index < len(self._pack_items)
@@ -2007,6 +2035,13 @@ class Run:
             self._close_pack()
 
     def discard(self, discard_indices: list[int]) -> None:
+        """
+        Discard cards from hand and draw new ones
+
+        Args:
+            discard_indices (list[int]): The indices of the cards in hand to discard (0-indexed)
+        """
+
         assert self._state is State.PLAYING_BLIND
 
         assert self._discards > 0
@@ -2023,6 +2058,10 @@ class Run:
             self._game_over()
 
     def next_round(self) -> None:
+        """
+        Exit the shop and proceed to the next round
+        """
+
         assert self._state is State.IN_SHOP
 
         self._reroll_cost = None
@@ -2033,6 +2072,13 @@ class Run:
         self._state = State.SELECTING_BLIND
 
     def play_hand(self, card_indices: list[int]) -> None:
+        """
+        Play a poker hand from cards in hand
+
+        Args:
+            card_indices (list[int]): The indices of the cards in hand to play, in order (0-indexed)
+        """
+
         assert self._state is State.PLAYING_BLIND
 
         assert 1 <= len(card_indices) <= 5
@@ -2248,6 +2294,14 @@ class Run:
         self._end_hand(played_cards, scored_card_indices, poker_hands_played)
 
     def move_joker(self, joker_index: int, new_index: int) -> None:
+        """
+        Move a joker to a new position in the joker slots
+
+        Args:
+            joker_index (int): The index of the joker to move (0-indexed)
+            new_index (int): The index to move the joker to (0-indexed)
+        """
+
         assert self._state is not State.GAME_OVER
 
         assert self._jokers
@@ -2261,6 +2315,10 @@ class Run:
             joker._on_jokers_moved()
 
     def reroll(self) -> None:
+        """
+        Reroll the shop cards
+        """
+
         assert self._state is State.IN_SHOP
 
         reroll_cost = self.reroll_cost
@@ -2287,6 +2345,10 @@ class Run:
         self._populate_shop_cards()
 
     def reroll_boss_blind(self) -> None:
+        """
+        Reroll the boss blind (requires the Director's Cut voucher)
+        """
+
         assert self._state is State.SELECTING_BLIND
 
         assert Voucher.DIRECTORS_CUT in self._vouchers
@@ -2301,6 +2363,10 @@ class Run:
         self._rerolled_boss_blind = True
 
     def select_blind(self) -> None:
+        """
+        Play the current blind
+        """
+
         assert self._state is State.SELECTING_BLIND
 
         self._round += 1
@@ -2375,6 +2441,14 @@ class Run:
             self._state = State.PLAYING_BLIND
 
     def sell_item(self, section_index: int, item_index: int) -> None:
+        """
+        Sell an owned item
+
+        Args:
+            section_index (int): The index of the section the item is in (0: jokers, 1: consumables)
+            item_index (int): The index of the item in the section (0-indexed)
+        """
+
         assert self._state is not State.GAME_OVER
 
         assert section_index in [0, 1]
@@ -2405,10 +2479,14 @@ class Run:
         self._money += self._calculate_sell_value(sold_item)
 
     def skip_blind(self) -> None:
+        """
+        Skip the current blind and obtain its skip tag
+        """
+
         assert self._state is State.SELECTING_BLIND
         assert not self._is_boss_blind
 
-        tag, extra = self._ante_tags[self._blind is Blind.BIG_BLIND]
+        tag, extra = self._skip_tags[self._blind is Blind.BIG_BLIND]
 
         self._next_blind()
 
@@ -2443,6 +2521,10 @@ class Run:
             self._open_pack(TAG_PACKS[self._tags.pop()])
 
     def skip_pack(self) -> None:
+        """
+        Close the opened pack
+        """
+
         assert self._state is State.OPENING_PACK
 
         for joker in self.jokers:
@@ -2453,6 +2535,14 @@ class Run:
     def use_consumable(
         self, consumable_index: int, selected_card_indices: list[int] | None = None
     ) -> None:
+        """
+        Use a consumable
+
+        Args:
+            consumable_index (int): The index of the consumable to use (0-indexed)
+            selected_card_indices (list[int], optional): The indices of the cards in hand to use the consumable on (0-indexed), or none
+        """
+
         assert self._state is not State.GAME_OVER
 
         assert 0 <= consumable_index < len(self._consumables)
@@ -2540,6 +2630,8 @@ class Run:
 
     @property
     def ante(self) -> int:
+        """The current ante number"""
+
         ante = self._ante
 
         if Voucher.HIEROGLYPH in self._vouchers:
@@ -2550,17 +2642,15 @@ class Run:
         return ante
 
     @property
-    def ante_tags(
-        self,
-    ) -> list[tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]]:
-        return self._ante_tags
-
-    @property
     def blind(self) -> Blind:
+        """The current blind"""
+
         return self._blind
 
     @property
     def blind_reward(self) -> int:
+        """The money you would recieve for defeating the current blind"""
+
         return (
             0
             if (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
@@ -2569,10 +2659,14 @@ class Run:
 
     @property
     def boss_blind(self) -> Blind:
+        """The current boss blind for the ante"""
+
         return self._boss_blind
 
     @property
     def consumable_slots(self) -> int:
+        """The number of consumable slots available"""
+
         consumable_slots = 2 + sum(
             consumable.is_negative for consumable in self._consumables
         )
@@ -2590,10 +2684,14 @@ class Run:
 
     @property
     def consumables(self) -> list[Consumable]:
+        """The consumables in possession"""
+
         return self._consumables
 
     @property
     def deck(self) -> Deck:
+        """The deck for the run"""
+
         return self._deck
 
     # @property
@@ -2613,10 +2711,14 @@ class Run:
 
     @property
     def deck_cards(self) -> list[Card]:
+        """The cards in the full deck"""
+
         return self._deck_cards
 
     @property
     def deck_cards_left(self) -> list[Card]:
+        """The cards remaining in the deck"""
+
         return (
             self._deck_cards_left
             if self._deck_cards_left is not None
@@ -2625,16 +2727,22 @@ class Run:
 
     @property
     def discards(self) -> int:
+        """The number of discards left in the round"""
+
         return (
             self._discards if self._discards is not None else self._discards_each_round
         )
 
     @property
     def hand(self) -> list[Card] | None:
+        """The cards in hand"""
+
         return self._hand
 
     @property
     def hand_size(self) -> int:
+        """The current hand size"""
+
         hand_size = 8
 
         if self.deck is Deck.PAINTED:
@@ -2667,10 +2775,14 @@ class Run:
 
     @property
     def hands(self) -> int | None:
+        """The number of hands left in the round"""
+
         return self._hands if self._hands is not None else self._hands_each_round
 
     @property
     def joker_slots(self) -> int:
+        """The number of joker slots available"""
+
         joker_slots = 5
 
         match self._deck:
@@ -2688,18 +2800,26 @@ class Run:
 
     @property
     def jokers(self) -> list[BaseJoker]:
+        """The jokers in possession"""
+
         return self._jokers
 
     @property
     def money(self) -> int:
+        """The current money"""
+
         return self._money
 
     @property
     def poker_hand_info(self) -> dict[PokerHand : list[int, int]]:
+        """Level and times played this run of every poker hand"""
+
         return self._poker_hand_info
 
     @property
     def reroll_cost(self) -> int | None:
+        """The cost to reroll the shop cards"""
+
         if self._reroll_cost is None:
             return None
         return (
@@ -2714,36 +2834,62 @@ class Run:
 
     @property
     def round(self) -> int:
+        """The current round number"""
+
         return self._round
 
     @property
     def round_score(self) -> float:
+        """The chips scored so far in the round"""
+
         return self._round_score if self._round_score is not None else 0
 
     @property
     def shop_cards(self) -> list[tuple[BaseJoker | Consumable | Card, int]] | None:
+        """The cards available in the shop"""
+
         return self._shop_cards
 
     @property
     def shop_packs(self) -> list[tuple[Pack, int]] | None:
+        """The packs available in the shop"""
+
         return self._shop_packs
 
     @property
     def shop_vouchers(self) -> list[tuple[Voucher, int]] | None:
+        """The vouchers available in the shop"""
+
         return self._shop_vouchers
 
     @property
+    def skip_tags(
+        self,
+    ) -> list[tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]]:
+        """The skip tags for this ante"""
+
+        return self._skip_tags
+
+    @property
     def stake(self) -> Stake:
+        """The stake for the run"""
+
         return self._stake
 
     @property
     def state(self) -> State:
+        """The current state of the game"""
+
         return self._state
 
     @property
     def tags(self) -> list[Tag]:
+        """The tags in possession"""
+
         return self._tags
 
     @property
     def vouchers(self) -> set[Voucher]:
+        """The vouchers in possession"""
+
         return self._vouchers

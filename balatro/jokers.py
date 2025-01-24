@@ -2414,10 +2414,7 @@ class Rocket(BaseJoker):
 @dataclass(eq=False)
 class Luchador(BaseJoker):
     def _sold_ability(self) -> None:
-        if (
-            self._run._state is State.PLAYING_BLIND
-            and self._run._blind is self._run._boss_blind
-        ):
+        if self._run._is_boss_blind and self._run._state is State.PLAYING_BLIND:
             self._run._disable_boss_blind()
 
     @property
@@ -2619,7 +2616,7 @@ class Astronomer(BaseJoker):
 @dataclass(eq=False)
 class Chicot(BaseJoker):
     def _blind_selected_action(self) -> None:
-        if self._run._blind is self._run._boss_blind:
+        if self._run._is_boss_blind:
             self._run._disable_boss_blind()
 
     @property
