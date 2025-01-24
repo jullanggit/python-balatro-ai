@@ -10,6 +10,10 @@ from .enums import *
 
 @dataclass(eq=False)
 class Blueprint(CopyJoker):
+    """
+    Copies ability of Joker to the right
+    """
+
     def _on_jokers_moved(self) -> None:
         i = self._run._jokers.index(self)
         self.copied_joker = (
@@ -23,6 +27,10 @@ class Blueprint(CopyJoker):
 
 @dataclass(eq=False)
 class Brainstorm(CopyJoker):
+    """
+    Copies the ability of leftmost Joker
+    """
+
     def _on_jokers_moved(self) -> None:
         self.copied_joker = self._run._jokers[0]
 
@@ -48,6 +56,10 @@ class Brainstorm(CopyJoker):
 
 @dataclass(eq=False)
 class SpaceJoker(BaseJoker):
+    """
+    1 in 4 chance to upgrade level of played poker hand
+    """
+
     def _hand_played_ability(
         self,
         played_cards: list[Card],
@@ -64,6 +76,10 @@ class SpaceJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DNA(BaseJoker):
+    """
+    If first hand of round has only 1 card, add a permanent copy to deck and draw it to hand
+    """
+
     def _hand_played_ability(
         self,
         played_cards: list[Card],
@@ -82,6 +98,10 @@ class DNA(BaseJoker):
 
 @dataclass(eq=False)
 class ToDoList(BaseJoker):
+    """
+    Earn $4 if poker hand is a [Poker Hand], poker hand changes at end of round
+    """
+
     poker_hand: PokerHand = field(
         default_factory=lambda: r.choice(list(PokerHand)[3:]), init=False, repr=False
     )
@@ -111,6 +131,10 @@ class ToDoList(BaseJoker):
 
 @dataclass(eq=False)
 class MidasMask(BaseJoker):
+    """
+    All played face cards become Gold cards when scored
+    """
+
     def _hand_played_action(
         self,
         played_cards: list[Card],
@@ -134,6 +158,10 @@ class MidasMask(BaseJoker):
 
 @dataclass(eq=False)
 class GreedyJoker(BaseJoker):
+    """
+    Played cards with ♦ Diamond suit give +3 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -151,6 +179,10 @@ class GreedyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class LustyJoker(BaseJoker):
+    """
+    Played cards with ♥ Heart suit give +3 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -168,6 +200,10 @@ class LustyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class WrathfulJoker(BaseJoker):
+    """
+    Played cards with ♠ Spade suit give +3 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -185,6 +221,10 @@ class WrathfulJoker(BaseJoker):
 
 @dataclass(eq=False)
 class GluttonousJoker(BaseJoker):
+    """
+    Played cards with ♣ Club suit give +3 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -202,6 +242,11 @@ class GluttonousJoker(BaseJoker):
 
 @dataclass(eq=False)
 class EightBall(BaseJoker):
+    """
+    1 in 4 chance for each played 8 to create a Tarot card when scored
+    (Must have room)
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -223,6 +268,10 @@ class EightBall(BaseJoker):
 
 @dataclass(eq=False)
 class Dusk(BaseJoker):
+    """
+    Retrigger all played cards in final hand of the round
+    """
+
     def _card_scored_retriggers(
         self,
         scored_card: Card,
@@ -239,6 +288,10 @@ class Dusk(BaseJoker):
 
 @dataclass(eq=False)
 class Fibonacci(BaseJoker):
+    """
+    Each played Ace, 2, 3, 5, or 8 gives +8 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -262,6 +315,10 @@ class Fibonacci(BaseJoker):
 
 @dataclass(eq=False)
 class ScaryFace(BaseJoker):
+    """
+    Played face cards give +30 Chips when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -279,6 +336,10 @@ class ScaryFace(BaseJoker):
 
 @dataclass(eq=False)
 class Hack(BaseJoker):
+    """
+    Retrigger each played 2, 3, 4, or 5
+    """
+
     def _card_scored_retriggers(
         self,
         scored_card: Card,
@@ -303,6 +364,11 @@ class Hack(BaseJoker):
 
 @dataclass(eq=False)
 class EvenSteven(BaseJoker):
+    """
+    Played cards with even rank give +4 Mult when scored
+    (10, 8, 6, 4, 2)
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -326,6 +392,11 @@ class EvenSteven(BaseJoker):
 
 @dataclass(eq=False)
 class OddTodd(BaseJoker):
+    """
+    Played cards with odd rank give +31 Chips when scored
+    (A, 9, 7, 5, 3)
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -349,6 +420,10 @@ class OddTodd(BaseJoker):
 
 @dataclass(eq=False)
 class Scholar(BaseJoker):
+    """
+    Played Aces give +20 Chips and +4 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -367,6 +442,10 @@ class Scholar(BaseJoker):
 
 @dataclass(eq=False)
 class BusinessCard(BaseJoker):
+    """
+    Played face cards have a 1 in 2 chance to give $2 when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -384,6 +463,10 @@ class BusinessCard(BaseJoker):
 
 @dataclass(eq=False)
 class Hiker(BaseJoker):
+    """
+    Every played card permanently gains +5 Chips when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -400,6 +483,10 @@ class Hiker(BaseJoker):
 
 @dataclass(eq=False)
 class Photograph(BaseJoker):
+    """
+    First played face card gives X2 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -424,6 +511,11 @@ class Photograph(BaseJoker):
 
 @dataclass(eq=False)
 class AncientJoker(BaseJoker):
+    """
+    Each played card with [suit] gives X1.5 Mult when scored,
+    suit changes at end of round
+    """
+
     suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
     def _card_scored_ability(
@@ -452,6 +544,10 @@ class AncientJoker(BaseJoker):
 
 @dataclass(eq=False)
 class WalkieTalkie(BaseJoker):
+    """
+    Each played 10 or 4 gives +10 Chips and +4 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -470,6 +566,10 @@ class WalkieTalkie(BaseJoker):
 
 @dataclass(eq=False)
 class Seltzer(BaseJoker):
+    """
+    Retrigger all cards played for the next 10 hands
+    """
+
     hands_left: int = field(default=10, init=False, repr=False)
 
     def _card_scored_retriggers(
@@ -498,6 +598,10 @@ class Seltzer(BaseJoker):
 
 @dataclass(eq=False)
 class SmileyFace(BaseJoker):
+    """
+    Played face cards give +5 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -515,6 +619,10 @@ class SmileyFace(BaseJoker):
 
 @dataclass(eq=False)
 class GoldenTicket(BaseJoker):
+    """
+    Played Gold cards earn $4 when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -532,6 +640,10 @@ class GoldenTicket(BaseJoker):
 
 @dataclass(eq=False)
 class SockAndBuskin(BaseJoker):
+    """
+    Retrigger all played face cards
+    """
+
     def _card_scored_retriggers(
         self,
         scored_card: Card,
@@ -548,6 +660,10 @@ class SockAndBuskin(BaseJoker):
 
 @dataclass(eq=False)
 class HangingChad(BaseJoker):
+    """
+    Retrigger first played card used in scoring 2 additional times
+    """
+
     def _card_scored_retriggers(
         self,
         scored_card: Card,
@@ -564,6 +680,10 @@ class HangingChad(BaseJoker):
 
 @dataclass(eq=False)
 class RoughGem(BaseJoker):
+    """
+    Played cards with ♦ Diamond suit earn $1 when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -581,6 +701,10 @@ class RoughGem(BaseJoker):
 
 @dataclass(eq=False)
 class Bloodstone(BaseJoker):
+    """
+    1 in 2 chance for played cards with ♥ Heart suit to give X1.5 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -600,6 +724,10 @@ class Bloodstone(BaseJoker):
 
 @dataclass(eq=False)
 class Arrowhead(BaseJoker):
+    """
+    Played cards with ♠ Spade suit give +50 Chips when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -617,6 +745,10 @@ class Arrowhead(BaseJoker):
 
 @dataclass(eq=False)
 class OnyxAgate(BaseJoker):
+    """
+    Played cards with ♣ Club suit give +7 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -634,6 +766,11 @@ class OnyxAgate(BaseJoker):
 
 @dataclass(eq=False)
 class TheIdol(BaseJoker):
+    """
+    Each played [rank] of [suit] gives X2 Mult when scored
+    Card changes every round
+    """
+
     card: Card = field(
         default_factory=lambda: Card(Rank.ACE, Suit.SPADES), init=False, repr=False
     )
@@ -676,6 +813,10 @@ class TheIdol(BaseJoker):
 
 @dataclass(eq=False)
 class Triboulet(BaseJoker):
+    """
+    Played Kings and Queens each give X2 Mult when scored
+    """
+
     def _card_scored_ability(
         self,
         scored_card: Card,
@@ -698,6 +839,10 @@ class Triboulet(BaseJoker):
 
 @dataclass(eq=False)
 class Mime(BaseJoker):
+    """
+    Retrigger all card held in hand abilities
+    """
+
     def _card_held_retriggers(self, held_card: Card) -> int:
         return 1
 
@@ -708,6 +853,10 @@ class Mime(BaseJoker):
 
 @dataclass(eq=False)
 class RaisedFist(BaseJoker):
+    """
+    Adds double the rank of lowest ranked card held in hand to Mult
+    """
+
     def _card_held_ability(self, held_card: Card) -> None:
         valid_hand_cards = [
             hand_card for hand_card in self._run._hand if not hand_card.is_stone_card
@@ -722,6 +871,10 @@ class RaisedFist(BaseJoker):
 
 @dataclass(eq=False)
 class Baron(BaseJoker):
+    """
+    Each King held in hand gives X1.5 Mult
+    """
+
     def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.KING:
             self._run._mult *= 1.5
@@ -733,6 +886,10 @@ class Baron(BaseJoker):
 
 @dataclass(eq=False)
 class ReservedParking(BaseJoker):
+    """
+    Each face card held in hand has a 1 in 2 chance to give $1
+    """
+
     def _card_held_ability(self, held_card: Card) -> None:
         if self._run._is_face_card(held_card) and self._run._chance(1, 2):
             self._run._money += 1
@@ -744,6 +901,10 @@ class ReservedParking(BaseJoker):
 
 @dataclass(eq=False)
 class ShootTheMoon(BaseJoker):
+    """
+    Each Queen held in hand gives +13 Mult
+    """
+
     def _card_held_ability(self, held_card: Card) -> None:
         if held_card == Rank.QUEEN:
             self._run._mult += 13
@@ -760,6 +921,10 @@ class ShootTheMoon(BaseJoker):
 
 @dataclass(eq=False)
 class Joker(BaseJoker):
+    """
+    +4 Mult
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -775,6 +940,10 @@ class Joker(BaseJoker):
 
 @dataclass(eq=False)
 class JollyJoker(BaseJoker):
+    """
+    +8 Mult if played hand contains a Pair
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -791,6 +960,10 @@ class JollyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class ZanyJoker(BaseJoker):
+    """
+    +12 Mult if played hand contains a Three of a Kind
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -807,6 +980,10 @@ class ZanyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class MadJoker(BaseJoker):
+    """
+    +10 Mult if played hand contains a Two Pair
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -823,6 +1000,10 @@ class MadJoker(BaseJoker):
 
 @dataclass(eq=False)
 class CrazyJoker(BaseJoker):
+    """
+    +12 Mult if played hand contains a Straight
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -839,6 +1020,10 @@ class CrazyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DrollJoker(BaseJoker):
+    """
+    +10 Mult if played hand contains a Flush
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -855,6 +1040,10 @@ class DrollJoker(BaseJoker):
 
 @dataclass(eq=False)
 class SlyJoker(BaseJoker):
+    """
+    +50 Chips if played hand contains a Pair
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -871,6 +1060,10 @@ class SlyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class WilyJoker(BaseJoker):
+    """
+    +100 Chips if played hand contains a Three of a Kind
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -887,6 +1080,10 @@ class WilyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class CleverJoker(BaseJoker):
+    """
+    +80 Chips if played hand contains a Two Pair
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -903,6 +1100,10 @@ class CleverJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DeviousJoker(BaseJoker):
+    """
+    +100 Chips if played hand contains a Straight
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -919,6 +1120,10 @@ class DeviousJoker(BaseJoker):
 
 @dataclass(eq=False)
 class CraftyJoker(BaseJoker):
+    """
+    +80 Chips if played hand contains a Flush
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -935,6 +1140,10 @@ class CraftyJoker(BaseJoker):
 
 @dataclass(eq=False)
 class HalfJoker(BaseJoker):
+    """
+    +20 Mult if played hand contains 3 or fewer cards.
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -951,6 +1160,10 @@ class HalfJoker(BaseJoker):
 
 @dataclass(eq=False)
 class JokerStencil(BaseJoker):
+    """
+    X1 Mult for each empty Joker slot. Joker Stencil included
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -968,6 +1181,10 @@ class JokerStencil(BaseJoker):
 
 @dataclass(eq=False)
 class CeremonialDagger(BaseJoker):
+    """
+    When Blind is selected, destroy Joker to the right and permanently add double its sell value to this Mult
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
@@ -993,6 +1210,10 @@ class CeremonialDagger(BaseJoker):
 
 @dataclass(eq=False)
 class Banner(BaseJoker):
+    """
+    +30 Chips for each remaining discard
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1008,6 +1229,10 @@ class Banner(BaseJoker):
 
 @dataclass(eq=False)
 class MysticSummit(BaseJoker):
+    """
+    +15 Mult when 0 discards remaining
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1024,6 +1249,10 @@ class MysticSummit(BaseJoker):
 
 @dataclass(eq=False)
 class LoyaltyCard(BaseJoker):
+    """
+    X4 Mult every 6 hands played
+    """
+
     hands_remaining: int = field(default=5, init=False, repr=False)
 
     def _end_hand_action(
@@ -1053,6 +1282,10 @@ class LoyaltyCard(BaseJoker):
 
 @dataclass(eq=False)
 class Misprint(BaseJoker):
+    """
+    +0-23 Mult
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1068,6 +1301,10 @@ class Misprint(BaseJoker):
 
 @dataclass(eq=False)
 class SteelJoker(BaseJoker):
+    """
+    Gives X0.2 Mult for each Steel Card in your full deck
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1089,6 +1326,10 @@ class SteelJoker(BaseJoker):
 
 @dataclass(eq=False)
 class AbstractJoker(BaseJoker):
+    """
+    +3 Mult for each Joker card
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1104,6 +1345,11 @@ class AbstractJoker(BaseJoker):
 
 @dataclass(eq=False)
 class GrosMichel(BaseJoker):
+    """
+    +15 Mult
+    1 in 6 chance this is destroyed at the end of round.
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1124,6 +1370,10 @@ class GrosMichel(BaseJoker):
 
 @dataclass(eq=False)
 class Supernova(BaseJoker):
+    """
+    Adds the number of times poker hand has been played this run to Mult
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1139,6 +1389,10 @@ class Supernova(BaseJoker):
 
 @dataclass(eq=False)
 class Blackboard(BaseJoker):
+    """
+    X3 Mult if all cards held in hand are ♠ Spades or ♣ Clubs
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1159,6 +1413,11 @@ class Blackboard(BaseJoker):
 
 @dataclass(eq=False)
 class IceCream(BaseJoker):
+    """
+    +100 Chips
+    -5 Chips for every hand played
+    """
+
     chips: int = field(default=100, init=False, repr=False)
 
     def _end_hand_action(
@@ -1186,6 +1445,10 @@ class IceCream(BaseJoker):
 
 @dataclass(eq=False)
 class BlueJoker(BaseJoker):
+    """
+    +2 Chips for each remaining card in deck
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1201,6 +1464,10 @@ class BlueJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Constellation(BaseJoker):
+    """
+    This Joker gains X0.1 Mult every time a Planet card is used
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _independent_ability(
@@ -1221,6 +1488,11 @@ class Constellation(BaseJoker):
 
 @dataclass(eq=False)
 class Superposition(BaseJoker):
+    """
+    Create a Tarot card if poker hand contains an Ace and a Straight
+    (Must have room)
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1241,6 +1513,11 @@ class Superposition(BaseJoker):
 
 @dataclass(eq=False)
 class Cavendish(BaseJoker):
+    """
+    X3 Mult
+    1 in 1000 chance this card is destroyed at the end of round
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1260,6 +1537,10 @@ class Cavendish(BaseJoker):
 
 @dataclass(eq=False)
 class CardSharp(BaseJoker):
+    """
+    X3 Mult if played poker hand has already been played this round
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1276,6 +1557,10 @@ class CardSharp(BaseJoker):
 
 @dataclass(eq=False)
 class RedCard(BaseJoker):
+    """
+    This Joker gains +3 Mult when any Booster Pack is skipped
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
@@ -1296,6 +1581,10 @@ class RedCard(BaseJoker):
 
 @dataclass(eq=False)
 class Madness(BaseJoker):
+    """
+    When Small Blind or Big Blind is selected, gain X0.5 Mult and destroy a random Joker
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
@@ -1324,6 +1613,11 @@ class Madness(BaseJoker):
 
 @dataclass(eq=False)
 class Seance(BaseJoker):
+    """
+    If poker hand is a Straight Flush, create a random Spectral card
+    (Must have room)
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1344,6 +1638,10 @@ class Seance(BaseJoker):
 
 @dataclass(eq=False)
 class Hologram(BaseJoker):
+    """
+    This Joker gains X0.25 Mult every time a playing card is added to your deck
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_added_action(self, added_card: Card) -> None:
@@ -1364,6 +1662,10 @@ class Hologram(BaseJoker):
 
 @dataclass(eq=False)
 class Vagabond(BaseJoker):
+    """
+    Create a Tarot card if hand is played with $4 or less
+    """
+
     will_create: bool = field(default=False, init=False, repr=False)
 
     def _hand_played_action(
@@ -1392,6 +1694,10 @@ class Vagabond(BaseJoker):
 
 @dataclass(eq=False)
 class Erosion(BaseJoker):
+    """
+    +4 Mult for each card below [the deck's starting size] in your full deck
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1410,6 +1716,10 @@ class Erosion(BaseJoker):
 
 @dataclass(eq=False)
 class FortuneTeller(BaseJoker):
+    """
+    +1 Mult per Tarot card used this run
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1425,6 +1735,10 @@ class FortuneTeller(BaseJoker):
 
 @dataclass(eq=False)
 class StoneJoker(BaseJoker):
+    """
+    Gives +25 Chips for each Stone Card in your full deck
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1442,6 +1756,10 @@ class StoneJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Bull(BaseJoker):
+    """
+    +2 Chips for each $1 you have
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1457,6 +1775,10 @@ class Bull(BaseJoker):
 
 @dataclass(eq=False)
 class FlashCard(BaseJoker):
+    """
+    This Joker gains +2 Mult per reroll in the shop
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
@@ -1477,6 +1799,11 @@ class FlashCard(BaseJoker):
 
 @dataclass(eq=False)
 class Popcorn(BaseJoker):
+    """
+    +20 Mult
+    -4 Mult per round played
+    """
+
     mult: int = field(default=20, init=False, repr=False)
 
     def _independent_ability(
@@ -1499,6 +1826,10 @@ class Popcorn(BaseJoker):
 
 @dataclass(eq=False)
 class Campfire(BaseJoker):
+    """
+    This Joker gains X0.25 Mult for each card sold, resets when Boss Blind is defeated
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _boss_defeated_action(self) -> None:
@@ -1522,6 +1853,10 @@ class Campfire(BaseJoker):
 
 @dataclass(eq=False)
 class Acrobat(BaseJoker):
+    """
+    X3 Mult on final hand of round
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1538,6 +1873,10 @@ class Acrobat(BaseJoker):
 
 @dataclass(eq=False)
 class Swashbuckler(BaseJoker):
+    """
+    Adds the sell value of all other owned Jokers to Mult
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1557,6 +1896,10 @@ class Swashbuckler(BaseJoker):
 
 @dataclass(eq=False)
 class Throwback(BaseJoker):
+    """
+    X0.25 Mult for each Blind skipped this run
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1572,6 +1915,10 @@ class Throwback(BaseJoker):
 
 @dataclass(eq=False)
 class GlassJoker(BaseJoker):
+    """
+    This Joker gains X0.75 Mult for every Glass Card that is destroyed
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
@@ -1593,6 +1940,10 @@ class GlassJoker(BaseJoker):
 
 @dataclass(eq=False)
 class FlowerPot(BaseJoker):
+    """
+    X3 Mult if poker hand contains a ♦ Diamond card, ♣ Club card, ♥ Heart card, and ♠ Spade card
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1620,6 +1971,10 @@ class FlowerPot(BaseJoker):
 
 @dataclass(eq=False)
 class SeeingDouble(BaseJoker):
+    """
+    X2 Mult if played hand has a scoring ♣ Club card and a scoring card of any other suit
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1649,6 +2004,10 @@ class SeeingDouble(BaseJoker):
 
 @dataclass(eq=False)
 class Matador(BaseJoker):
+    """
+    Earn $8 if played hand triggers the Boss Blind ability
+    """
+
     def _boss_blind_triggered_ability(self) -> None:
         self._run._money += 8
 
@@ -1659,6 +2018,10 @@ class Matador(BaseJoker):
 
 @dataclass(eq=False)
 class TheDuo(BaseJoker):
+    """
+    X2 Mult if played hand contains a Pair
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1675,6 +2038,10 @@ class TheDuo(BaseJoker):
 
 @dataclass(eq=False)
 class TheTrio(BaseJoker):
+    """
+    X3 Mult if played hand contains a Three of a Kind
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1691,6 +2058,10 @@ class TheTrio(BaseJoker):
 
 @dataclass(eq=False)
 class TheFamily(BaseJoker):
+    """
+    X4 Mult if played hand contains a Four of a Kind
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1707,6 +2078,10 @@ class TheFamily(BaseJoker):
 
 @dataclass(eq=False)
 class TheOrder(BaseJoker):
+    """
+    X3 Mult if played hand contains a Straight
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1723,6 +2098,10 @@ class TheOrder(BaseJoker):
 
 @dataclass(eq=False)
 class TheTribe(BaseJoker):
+    """
+    X2 Mult if played hand contains a Flush
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1739,6 +2118,11 @@ class TheTribe(BaseJoker):
 
 @dataclass(eq=False)
 class Stuntman(BaseJoker):
+    """
+    +250 Chips,
+    -2 hand size
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1754,6 +2138,10 @@ class Stuntman(BaseJoker):
 
 @dataclass(eq=False)
 class DriversLicense(BaseJoker):
+    """
+    X3 Mult if you have at least 16 Enhanced cards in your full deck
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1775,6 +2163,10 @@ class DriversLicense(BaseJoker):
 
 @dataclass(eq=False)
 class Bootstraps(BaseJoker):
+    """
+    +2 Mult for every $5 you have
+    """
+
     def _independent_ability(
         self,
         played_cards: list[Card],
@@ -1790,6 +2182,10 @@ class Bootstraps(BaseJoker):
 
 @dataclass(eq=False)
 class Canio(BaseJoker):
+    """
+    This Joker gains X1 Mult when a face card is destroyed
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
@@ -1816,6 +2212,10 @@ class Canio(BaseJoker):
 
 @dataclass(eq=False)
 class RideTheBus(BaseJoker):
+    """
+    This Joker gains +1 Mult per consecutive hand played without a scoring face card
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
@@ -1846,6 +2246,10 @@ class RideTheBus(BaseJoker):
 
 @dataclass(eq=False)
 class Runner(BaseJoker):
+    """
+    Gains +15 Chips if played hand contains a Straight
+    """
+
     chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
@@ -1872,6 +2276,11 @@ class Runner(BaseJoker):
 
 @dataclass(eq=False)
 class GreenJoker(BaseJoker):
+    """
+    +1 Mult per hand played
+    -1 Mult per discard
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
@@ -1900,6 +2309,10 @@ class GreenJoker(BaseJoker):
 
 @dataclass(eq=False)
 class SquareJoker(BaseJoker):
+    """
+    This Joker gains +4 Chips if played hand has exactly 4 cards
+    """
+
     chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
@@ -1926,6 +2339,10 @@ class SquareJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Vampire(BaseJoker):
+    """
+    This Joker gains X0.1 Mult per scoring Enhanced card played, removes card Enhancement
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
@@ -1955,6 +2372,10 @@ class Vampire(BaseJoker):
 
 @dataclass(eq=False)
 class Obelisk(BaseJoker):
+    """
+    This Joker gains X0.2 Mult per consecutive hand played without playing your most played poker hand
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
@@ -1986,6 +2407,10 @@ class Obelisk(BaseJoker):
 
 @dataclass(eq=False)
 class LuckyCat(BaseJoker):
+    """
+    This Joker gains X0.25 Mult every time a Lucky card successfully triggers
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _independent_ability(
@@ -2006,6 +2431,10 @@ class LuckyCat(BaseJoker):
 
 @dataclass(eq=False)
 class SpareTrousers(BaseJoker):
+    """
+    This Joker gains +2 Mult if played hand contains a Two Pair
+    """
+
     mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
@@ -2032,6 +2461,10 @@ class SpareTrousers(BaseJoker):
 
 @dataclass(eq=False)
 class Ramen(BaseJoker):
+    """
+    X2 Mult, loses X0.01 Mult per card discarded
+    """
+
     xmult: float = field(default=2.0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
@@ -2054,6 +2487,10 @@ class Ramen(BaseJoker):
 
 @dataclass(eq=False)
 class Castle(BaseJoker):
+    """
+    This Joker gains +3 Chips per discarded [suit] card, suit changes every round
+    """
+
     chips: int = field(default=0, init=False, repr=False)
     suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
@@ -2091,6 +2528,10 @@ class Castle(BaseJoker):
 
 @dataclass(eq=False)
 class WeeJoker(BaseJoker):
+    """
+    This Joker gains +8 Chips when each played 2 is scored
+    """
+
     chips: int = field(default=0, init=False, repr=False)
 
     def _card_scored_action(
@@ -2118,6 +2559,10 @@ class WeeJoker(BaseJoker):
 
 @dataclass(eq=False)
 class HitTheRoad(BaseJoker):
+    """
+    This Joker gains X0.5 Mult for every Jack discarded this round
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
@@ -2143,6 +2588,10 @@ class HitTheRoad(BaseJoker):
 
 @dataclass(eq=False)
 class Yorick(BaseJoker):
+    """
+    This Joker gains X1 Mult every 23 cards discarded
+    """
+
     xmult: float = field(default=1.0, init=False, repr=False)
     discards_remaining: int = field(default=23, init=False, repr=False)
 
@@ -2172,6 +2621,10 @@ class Yorick(BaseJoker):
 
 @dataclass(eq=False)
 class BaseballCard(BaseJoker):
+    """
+    Uncommon Jokers each give X1.5 Mult
+    """
+
     def _dependent_ability(self, other_joker: BaseJoker) -> None:
         from .constants import JOKER_TYPE_RARITIES
 
@@ -2190,6 +2643,10 @@ class BaseballCard(BaseJoker):
 
 @dataclass(eq=False)
 class FacelessJoker(BaseJoker):
+    """
+    Earn $5 if 3 or more face cards are discarded at the same time
+    """
+
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if (
             sum(
@@ -2207,6 +2664,10 @@ class FacelessJoker(BaseJoker):
 
 @dataclass(eq=False)
 class MailInRebate(BaseJoker):
+    """
+    Earn $5 for each discarded [rank], rank changes every round
+    """
+
     rank: Rank = field(default=Rank.ACE, init=False, repr=False)
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
@@ -2235,6 +2696,10 @@ class MailInRebate(BaseJoker):
 
 @dataclass(eq=False)
 class TradingCard(BaseJoker):
+    """
+    If first discard of round has only 1 card, destroy it and earn $3
+    """
+
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         if self._run._first_discard and len(discarded_cards) == 1:
             self._run._money += 3
@@ -2248,6 +2713,10 @@ class TradingCard(BaseJoker):
 
 @dataclass(eq=False)
 class BurntJoker(BaseJoker):
+    """
+    Upgrade the level of the first discarded poker hand each round
+    """
+
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if self._run._first_discard:
             self._run._poker_hand_info[
@@ -2266,6 +2735,10 @@ class BurntJoker(BaseJoker):
 
 @dataclass(eq=False)
 class FourFingers(BaseJoker):
+    """
+    All Flushes and Straights can be made with 4 cards
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.FOUR_FINGERS
@@ -2273,6 +2746,10 @@ class FourFingers(BaseJoker):
 
 @dataclass(eq=False)
 class CreditCard(BaseJoker):
+    """
+    Go up to -$20 in debt
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.CREDIT_CARD
@@ -2280,6 +2757,10 @@ class CreditCard(BaseJoker):
 
 @dataclass(eq=False)
 class MarbleJoker(BaseJoker):
+    """
+    Adds one Stone card to the deck when Blind is selected
+    """
+
     def _blind_selected_ability(self) -> None:
         added_card = self._run._get_random_card()
         added_card.enhancement = Enhancement.STONE
@@ -2292,6 +2773,10 @@ class MarbleJoker(BaseJoker):
 
 @dataclass(eq=False)
 class ChaosTheClown(BaseJoker):
+    """
+    1 free Reroll per shop
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.CHAOS_THE_CLOWN
@@ -2299,6 +2784,10 @@ class ChaosTheClown(BaseJoker):
 
 @dataclass(eq=False)
 class DelayedGratification(BaseJoker):
+    """
+    Earn $2 per discard if no discards are used by end of the round
+    """
+
     def _round_ended_money(self) -> int:
         return 2 * self._run._discards if self._run._first_discard else 0
 
@@ -2309,6 +2798,10 @@ class DelayedGratification(BaseJoker):
 
 @dataclass(eq=False)
 class Pareidolia(BaseJoker):
+    """
+    All cards are considered face cards
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.PAREIDOLIA
@@ -2316,6 +2809,10 @@ class Pareidolia(BaseJoker):
 
 @dataclass(eq=False)
 class Egg(BaseJoker):
+    """
+    Gains $3 of sell value at end of round
+    """
+
     def _round_ended_action(self) -> None:
         self.extra_sell_value += 3
 
@@ -2326,6 +2823,10 @@ class Egg(BaseJoker):
 
 @dataclass(eq=False)
 class Burglar(BaseJoker):
+    """
+    When Blind is selected, gain +3 Hands and lose all discards
+    """
+
     def _blind_selected_ability(self) -> None:
         self._run._hands += 3
         self._run._discards = 0
@@ -2337,6 +2838,10 @@ class Burglar(BaseJoker):
 
 @dataclass(eq=False)
 class Splash(BaseJoker):
+    """
+    Every played card counts in scoring
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SPLASH
@@ -2344,6 +2849,11 @@ class Splash(BaseJoker):
 
 @dataclass(eq=False)
 class SixthSense(BaseJoker):
+    """
+    If first hand of round is a single 6, destroy it and create a Spectral card
+    (Must have room)
+    """
+
     def _end_hand_action(
         self,
         played_cards: list[Card],
@@ -2370,6 +2880,11 @@ class SixthSense(BaseJoker):
 
 @dataclass(eq=False)
 class RiffRaff(BaseJoker):
+    """
+    When Blind is selected, create 2 Common Jokers
+    (Must have room)
+    """
+
     def _blind_selected_ability(self) -> None:
         for _ in range(min(2, self._run.joker_slots - len(self._run._jokers))):
             self._run._add_joker(self._run._get_random_joker(Rarity.COMMON))
@@ -2381,6 +2896,11 @@ class RiffRaff(BaseJoker):
 
 @dataclass(eq=False)
 class Shortcut(BaseJoker):
+    """
+    Allows Straights to be made with gaps of 1 rank
+    (ex: 10 8 6 5 3)
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SHORTCUT
@@ -2388,6 +2908,10 @@ class Shortcut(BaseJoker):
 
 @dataclass(eq=False)
 class CloudNine(BaseJoker):
+    """
+    Earn $1 for each 9 in your full deck at end of round
+    """
+
     def _round_ended_money(self) -> int:
         return self._run._deck_cards.count(Rank.NINE)
 
@@ -2398,6 +2922,10 @@ class CloudNine(BaseJoker):
 
 @dataclass(eq=False)
 class Rocket(BaseJoker):
+    """
+    Earn $1 at end of round. Payout increases by $2 when Boss Blind is defeated
+    """
+
     payout: int = field(default=1, init=False, repr=False)
 
     def _boss_defeated_action(self) -> None:
@@ -2413,6 +2941,10 @@ class Rocket(BaseJoker):
 
 @dataclass(eq=False)
 class Luchador(BaseJoker):
+    """
+    Sell this card to disable the current Boss Blind
+    """
+
     def _sold_ability(self) -> None:
         if self._run._is_boss_blind and self._run._state is State.PLAYING_BLIND:
             self._run._disable_boss_blind()
@@ -2424,6 +2956,10 @@ class Luchador(BaseJoker):
 
 @dataclass(eq=False)
 class GiftCard(BaseJoker):
+    """
+    Add $1 of sell value to every Joker and Consumable card at end of round
+    """
+
     def _round_ended_action(self) -> None:
         for joker in self._run._jokers:
             joker.extra_sell_value += 1
@@ -2437,6 +2973,10 @@ class GiftCard(BaseJoker):
 
 @dataclass(eq=False)
 class TurtleBean(BaseJoker):
+    """
+    +5 hand size, reduces by 1 each round
+    """
+
     hand_size_increase: int = field(default=5, init=False, repr=False)
 
     def _round_ended_action(self) -> None:
@@ -2451,6 +2991,10 @@ class TurtleBean(BaseJoker):
 
 @dataclass(eq=False)
 class ToTheMoon(BaseJoker):
+    """
+    Earn an extra $1 of interest for every $5 you have at end of round
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.TO_THE_MOON
@@ -2458,6 +3002,11 @@ class ToTheMoon(BaseJoker):
 
 @dataclass(eq=False)
 class Hallucination(BaseJoker):
+    """
+    1 in 2 chance to create a Tarot card when any Booster Pack is opened
+    (Must have room)
+    """
+
     def _pack_opened_ability(self) -> None:
         if self._run.consumable_slots > len(
             self._run._consumables
@@ -2471,6 +3020,10 @@ class Hallucination(BaseJoker):
 
 @dataclass(eq=False)
 class Juggler(BaseJoker):
+    """
+    +1 hand size
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.JUGGLER
@@ -2478,6 +3031,10 @@ class Juggler(BaseJoker):
 
 @dataclass(eq=False)
 class Drunkard(BaseJoker):
+    """
+    +1 discard each round
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.DRUNKARD
@@ -2485,6 +3042,10 @@ class Drunkard(BaseJoker):
 
 @dataclass(eq=False)
 class GoldenJoker(BaseJoker):
+    """
+    Earn $4 at end of round
+    """
+
     def _round_ended_money(self) -> int:
         return 4
 
@@ -2495,6 +3056,10 @@ class GoldenJoker(BaseJoker):
 
 @dataclass(eq=False)
 class DietCola(BaseJoker):
+    """
+    Sell this card to create a free Double Tag
+    """
+
     def _sold_ability(self) -> None:
         self._run._tags.append(Tag.DOUBLE)
 
@@ -2505,6 +3070,11 @@ class DietCola(BaseJoker):
 
 @dataclass(eq=False)
 class MrBones(BaseJoker):
+    """
+    Prevents Death if chips scored are at least 25% of required chips
+    self destructs
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.MR_BONES
@@ -2512,6 +3082,11 @@ class MrBones(BaseJoker):
 
 @dataclass(eq=False)
 class Troubadour(BaseJoker):
+    """
+    +2 hand size,
+    -1 hand per round
+    """
+
     def _blind_selected_action(self) -> None:
         self._run._hands -= 1
 
@@ -2522,6 +3097,10 @@ class Troubadour(BaseJoker):
 
 @dataclass(eq=False)
 class Certificate(BaseJoker):
+    """
+    When round begins, add a random playing card with a random seal to your hand
+    """
+
     def _blind_selected_ability(self) -> None:
         added_card = self._run._get_random_card()
         added_card.seal = r.choice(list(Seal))
@@ -2535,6 +3114,10 @@ class Certificate(BaseJoker):
 
 @dataclass(eq=False)
 class SmearedJoker(BaseJoker):
+    """
+    ♥ Hearts and ♦ Diamonds count as the same suit, ♠ Spades and ♣ Clubs count as the same suit
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SMEARED_JOKER
@@ -2542,6 +3125,10 @@ class SmearedJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Showman(BaseJoker):
+    """
+    Joker, Tarot, Planet, and Spectral cards may appear multiple times
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.SHOWMAN
@@ -2549,6 +3136,11 @@ class Showman(BaseJoker):
 
 @dataclass(eq=False)
 class MerryAndy(BaseJoker):
+    """
+    +3 discards each round,
+    -1 hand size
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.MERRY_ANDY
@@ -2556,6 +3148,11 @@ class MerryAndy(BaseJoker):
 
 @dataclass(eq=False)
 class OopsAllSixes(BaseJoker):
+    """
+    Doubles all listed probabilities
+    (ex: 1 in 3 -> 2 in 3)
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.OOPS_ALL_SIXES
@@ -2563,6 +3160,11 @@ class OopsAllSixes(BaseJoker):
 
 @dataclass(eq=False)
 class InvisibleJoker(BaseJoker):
+    """
+    After 2 rounds, sell this card to Duplicate a random Joker
+    (Removes Negative from copy)
+    """
+
     rounds_remaining: int = field(default=2, init=False, repr=False)
 
     def _round_ended_action(self) -> None:
@@ -2587,6 +3189,10 @@ class InvisibleJoker(BaseJoker):
 
 @dataclass(eq=False)
 class Satellite(BaseJoker):
+    """
+    Earn $1 at end of round per unique Planet card used this run
+    """
+
     def _round_ended_money(self) -> int:
         return len(self._run._unique_planet_cards_used)
 
@@ -2597,6 +3203,11 @@ class Satellite(BaseJoker):
 
 @dataclass(eq=False)
 class Cartomancer(BaseJoker):
+    """
+    Create a Tarot card when Blind is selected
+    (Must have room)
+    """
+
     def _blind_selected_ability(self) -> None:
         if self._run.consumable_slots > len(self._run._consumables):
             self._run._consumables.append(self._run._get_random_consumable(Tarot))
@@ -2608,6 +3219,10 @@ class Cartomancer(BaseJoker):
 
 @dataclass(eq=False)
 class Astronomer(BaseJoker):
+    """
+    All Planet cards and Celestial Packs in the shop are free
+    """
+
     @property
     def joker_type(self) -> JokerType:
         return JokerType.ASTRONOMER
@@ -2615,6 +3230,10 @@ class Astronomer(BaseJoker):
 
 @dataclass(eq=False)
 class Chicot(BaseJoker):
+    """
+    Disables effect of every Boss Blind
+    """
+
     def _blind_selected_action(self) -> None:
         if self._run._is_boss_blind:
             self._run._disable_boss_blind()
@@ -2626,6 +3245,10 @@ class Chicot(BaseJoker):
 
 @dataclass(eq=False)
 class Perkeo(BaseJoker):
+    """
+    Creates a Negative copy of 1 random consumable card in your possession at the end of the shop
+    """
+
     def _shop_exited_ability(self) -> None:
         self._run._consumables.append(
             replace(r.choice(self._run._consumables), is_negative=True)

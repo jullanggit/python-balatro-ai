@@ -14,6 +14,13 @@ __version__ = "1.0.0"
 
 
 def format_number(number: float) -> str:
+    """
+    Formats a number to appropriate decimal places, or scientific notation if large
+
+    Args:
+        number (float): The number to format
+    """
+
     if number != number:
         return "nan"
     if number == float("inf"):
