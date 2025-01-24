@@ -103,7 +103,7 @@ class Run:
         self._deck_cards_left: list[Card] | None = None
 
         self._reroll_cost: int | None = None
-        self._used_chaos: bool | None = None
+        self._chaos_used: set[int] | None = None
         self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
         self._opened_pack: Pack | None = None
@@ -938,7 +938,7 @@ class Run:
             self._tags.remove(Tag.DSIX)
             self._reroll_cost = 0
 
-        self._used_chaos = False
+        self._chaos_used = set()
 
         self._populate_shop_cards(coupon=coupon)
 
@@ -2026,7 +2026,7 @@ class Run:
         assert self._state is State.IN_SHOP
 
         self._reroll_cost = None
-        self._used_chaos = None
+        self._chaos_used = None
         self._shop_cards = None
         self._shop_packs = None
 
@@ -2272,10 +2272,16 @@ class Run:
 
         self._money -= reroll_cost
 
-        if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._jokers:
-            self._used_chaos = True
-        else:
+        if reroll_cost > 0:
             self._reroll_cost += 1
+        else:
+            for joker in self._jokers:
+                if (
+                    joker == JokerType.CHAOS_THE_CLOWN
+                    and id(joker) not in self._chaos_used
+                ):
+                    self._chaos_used.add(id(joker))
+                    break
 
         self._shop_cards = None
         self._populate_shop_cards()
@@ -2698,7 +2704,11 @@ class Run:
             return None
         return (
             0
-            if not self._used_chaos and JokerType.CHAOS_THE_CLOWN in self._jokers
+            if any(
+                id(joker) not in self._chaos_used
+                for joker in self._jokers
+                if joker == JokerType.CHAOS_THE_CLOWN
+            )
             else self._reroll_cost
         )
 
