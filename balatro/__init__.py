@@ -1170,12 +1170,23 @@ class Run:
                     <div style='display: flex; flex-direction: column; align-items: center; height: 100%; width: 47%;'>
         """
 
-        poker_hand_shorthand = {
+        POKER_HAND_SHORTHAND = {
             PokerHand.FIVE_OF_A_KIND: "5 of a Kind",
             PokerHand.STRAIGHT_FLUSH: "Str. Flush",
             PokerHand.FOUR_OF_A_KIND: "4 of a Kind",
             PokerHand.THREE_OF_A_KIND: "3 of a Kind",
         }
+
+        POKER_HAND_LEVEL_COLORS = [
+            None,
+            "WhiteSmoke",
+            "CornflowerBlue",
+            "LightGreen",
+            "PaleGoldenRod",
+            "Orange",
+            "Salmon",
+            "Plum",
+        ]
 
         unlocked_poker_hands = self._unlocked_poker_hands
 
@@ -1183,7 +1194,7 @@ class Run:
             html += f"""
                         <div style="font-size: 15.6px; width: 100%; height: 31.2px; border-radius: 6px; color: white; background-color: DarkGray; margin: 2.4px; display: flex; align-items: center; justify-content: center; padding: 0 1.2px 0 1.2px; filter: drop-shadow(0 2.4px DimGray); opacity: {1 if poker_hand in unlocked_poker_hands else 0.33}">
                             <span style="display: flex; justify-content: center; align-items: center; color: #172022; background-color: {POKER_HAND_LEVEL_COLORS[min(7, self._poker_hand_info[poker_hand][0])]}; border-radius: 6px; width: 33.6px;">lvl.{self._poker_hand_info[poker_hand][0]}</span>
-                            <span style="margin: 0 auto; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)">{poker_hand_shorthand.get(poker_hand, poker_hand.value)}</span>
+                            <span style="margin: 0 auto; text-shadow: 1.2px 1.2px rgba(0, 0, 0, 0.5)">{POKER_HAND_SHORTHAND.get(poker_hand, poker_hand.value)}</span>
                             <span style="display: flex; justify-content: center; align-items: center; color: orange; background-color: #333b3d; border-radius: 6px; width: 20.4px;">{self._poker_hand_info[poker_hand][1]}</span>
                         </div>
             """
@@ -1263,11 +1274,19 @@ class Run:
             base64.b64encode(tag._repr_png_()).decode("utf-8") for tag in self._tags
         ]
 
+        pack_background_colors = {
+            "Arcana Pack": "#654885",
+            "Celestial Pack": "#1c2527",
+            "Spectral Pack": "#3c64c8",
+            "Standard Pack": "#8d342b",
+            "Buffoon Pack": "#a06423",
+        }
+
         html += f"""
                     </div>
                 </div>
             </div>
-            <div style='height: 546px; width: 772px; background-color: {PACK_BACKGROUND_COLORS[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
+            <div style='height: 546px; width: 772px; background-color: {pack_background_colors[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
                         <img src='data:image/png;base64,{joker_images[i]}' style='width: {68.88 if joker.joker_type is JokerType.WEE_JOKER else 98.4}px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>

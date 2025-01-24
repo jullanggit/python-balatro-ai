@@ -861,8 +861,12 @@ class RaisedFist(BaseJoker):
         valid_hand_cards = [
             hand_card for hand_card in self._run._hand if not hand_card.is_stone_card
         ]
-        if valid_hand_cards and held_card is min(reversed(valid_hand_cards)):
-            self._run._mult += held_card.chips * 2
+        if (
+            valid_hand_cards
+            and held_card is min(reversed(valid_hand_cards))
+            and not held_card.debuffed
+        ):
+            self._run._mult += held_card.rank.chips * 2
 
     @property
     def joker_type(self) -> JokerType:
