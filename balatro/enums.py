@@ -481,10 +481,14 @@ class Rank(Enum):
     def chips(self) -> int:
         if self is Rank.ACE:
             return 11
-        elif self in [Rank.KING, Rank.QUEEN, Rank.JACK]:
+        elif self.is_face:
             return 10
         else:
             return int(self)
+
+    @property
+    def is_face(self) -> bool:
+        return self in [Rank.KING, Rank.QUEEN, Rank.JACK]
 
 
 @total_ordering
@@ -518,10 +522,33 @@ class PokerHand(Enum):
 
 
 class Rarity(Enum):
-    COMMON = auto()
-    UNCOMMON = auto()
-    RARE = auto()
-    LEGENDARY = auto()
+    COMMON = "Common"
+    UNCOMMON = "Uncommon"
+    RARE = "Rare"
+    LEGENDARY = "Legendary"
+
+
+class Challenge(Enum):
+    THE_OMELETTE = "The Omelette"
+    FIFTEEN_MINUTE_CITY = "15 Minute City"
+    RICH_GET_RICHER = "Rich get Richer"
+    ON_A_KNIFES_EDGE = "On a Knife's Edge"
+    X_RAY_VISION = "X-ray Vision"
+    MAD_WORLD = "Mad World"
+    LUXURY_TAX = "Luxury Tax"
+    NON_PERISHABLE = "Non-Perishable"
+    MEDUSA = "Medusa"
+    DOUBLE_OR_NOTHING = "Double or Nothing"
+    TYPECAST = "Typecast"
+    INFLATION = "Inflation"
+    BRAM_POKER = "Bram Poker"
+    FRAGILE = "Fragile"
+    MONOLITH = "Monolith"
+    BLAST_OFF = "Blast Off"
+    FIVE_CARD_DRAW = "Five-Card Draw"
+    GOLDEN_NEEDLE = "Golden Needle"
+    CRUELTY = "Cruelty"
+    JOKERLESS = "Jokerless"
 
 
 class State(Enum):

@@ -34,8 +34,16 @@ def format_number(number: float) -> str:
 
 class Run:
     def __init__(
-        self, deck: Deck, stake: Stake = Stake.WHITE, seed: str | None = None
+        self,
+        deck: Deck,
+        stake: Stake = Stake.WHITE,
+        challenge: Challenge | None = None,
+        seed: str | None = None,
     ) -> None:
+        if challenge is not None:
+            assert deck is Deck.CHALLENGE
+            assert stake is Stake.WHITE
+
         r.seed(seed)
 
         self._deck: Deck = deck
@@ -75,7 +83,7 @@ class Run:
                 self._consumables.append(Consumable(Spectral.HEX))
             case Deck.ABANDONED:
                 self._deck_cards = [
-                    card for card in self._deck_cards if not self._is_face_card(card)
+                    card for card in self._deck_cards if not card.rank.is_face
                 ]
             case Deck.CHECKERED:
                 for card in self._deck_cards:
@@ -370,7 +378,7 @@ class Run:
             case Blind.THE_WATER:
                 self._discards = self._discards_each_round
             case Blind.THE_NEEDLE:
-                self._hands = self._hands_each_round
+                self._hands = self._hands_per_round
             case Blind.VIOLET_VESSEL:
                 self._round_goal //= 3
             case Blind.CERULEAN_BELL:
@@ -776,12 +784,8 @@ class Run:
 
     def _is_face_card(self, card: Card) -> bool:
         return (
-            card
-            in [
-                Rank.KING,
-                Rank.QUEEN,
-                Rank.JACK,
-            ]
+            not card.debuffed
+            and card.rank.is_face
             or JokerType.PAREIDOLIA in self._jokers
         )
 
@@ -809,12 +813,12 @@ class Run:
                     if self._ante > 1 or tag not in PROHIBITED_ANTE_1_TAGS
                 ]
             )
-            extra = None
 
+            orbital_hand = None
             if tag is Tag.ORBITAL:
-                extra = r.choice(self._unlocked_poker_hands)
+                orbital_hand = r.choice(self._unlocked_poker_hands)
 
-            self._skip_tags[i] = (tag, extra)
+            self._skip_tags[i] = (tag, orbital_hand)
 
         self._random_boss_blind()
 
@@ -2398,7 +2402,7 @@ class Run:
         self._round += 1
         self._round_score = 0
         self._round_goal = self._get_round_goal(self._blind)
-        self._hands = self._hands_each_round
+        self._hands = self._hands_per_round
         self._discards = self._discards_each_round
         self._hand = []
         self._deck_cards_left = self._deck_cards.copy()
@@ -2512,7 +2516,7 @@ class Run:
         assert self._state is State.SELECTING_BLIND
         assert not self._is_boss_blind
 
-        tag, extra = self._skip_tags[self._blind is Blind.BIG_BLIND]
+        tag, orbital_hand = self._skip_tags[self._blind is Blind.BIG_BLIND]
 
         self._next_blind()
 
@@ -2537,7 +2541,7 @@ class Run:
                 case Tag.SPEED:
                     self._money += 5 * self._num_blinds_skipped
                 case Tag.ORBITAL:
-                    self._poker_hand_info[extra][0] += 3
+                    self._poker_hand_info[orbital_hand][0] += 3
                 case Tag.ECONOMY:
                     self._money += max(0, min(40, self._money))
                 case _:
@@ -2613,23 +2617,23 @@ class Run:
         return discards_each_round
 
     @property
-    def _hands_each_round(self) -> int:
-        hands_each_round = 4
+    def _hands_per_round(self) -> int:
+        hands_per_round = 4
 
         match self._deck:
             case Deck.BLUE:
-                hands_each_round += 1
+                hands_per_round += 1
             case Deck.BLACK:
-                hands_each_round -= 1
+                hands_per_round -= 1
 
         if Voucher.GRABBER in self._vouchers:
-            hands_each_round += 1
+            hands_per_round += 1
         if Voucher.NACHO_TONG in self._vouchers:
-            hands_each_round += 1
+            hands_per_round += 1
         if Voucher.HIEROGLYPH in self._vouchers:
-            hands_each_round -= 1
+            hands_per_round -= 1
 
-        return hands_each_round
+        return hands_per_round
 
     @property
     def _is_boss_blind(self) -> bool:
@@ -2809,7 +2813,7 @@ class Run:
     def hands(self) -> int | None:
         """The number of hands left in the round"""
 
-        return self._hands if self._hands is not None else self._hands_each_round
+        return self._hands if self._hands is not None else self._hands_per_round
 
     @property
     def joker_slots(self) -> int:

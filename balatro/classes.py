@@ -611,3 +611,29 @@ class Card:
     @property
     def is_stone_card(self) -> bool:
         return self.enhancement is Enhancement.STONE
+
+
+@dataclass
+class ChallengeSetup:
+    initial_jokers: list[BaseJoker] = field(default_factory=list)
+    initial_consumables: list[Consumable] = field(default_factory=list)
+    initial_vouchers: set[Voucher] = field(default_factory=set)
+
+    banned_jokers: set[JokerType] = field(default_factory=set)
+    banned_consumables: set[Consumable] = field(default_factory=set)
+    banned_vouchers: set[Voucher] = field(default_factory=set)
+    banned_packs: set[Pack] = field(default_factory=set)
+    banned_tags: set[Tag] = field(default_factory=set)
+    banned_blinds: set[Blind] = field(default_factory=set)
+
+    deck_cards: list[Card] = field(
+        default_factory=lambda: [Card(rank, suit) for suit in Suit for rank in Rank]
+    )
+
+    hands_per_round: int = 4
+    discards_per_round: int = 3
+    hand_size: int = 8
+    joker_slots: int = 5
+    consumable_slots: int = 2
+    starting_money: int = 4
+    base_reroll_cost: int = 5
