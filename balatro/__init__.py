@@ -1,8 +1,7 @@
 from __future__ import annotations
 import base64
 from collections import Counter
-from copy import deepcopy
-from dataclasses import replace
+from copy import copy
 import random as r
 
 from .constants import *
@@ -402,7 +401,7 @@ class Run:
             return
 
         if self._hands == 0:  # game over
-            if self._chips >= self._round_goal // 4:
+            if self._round_score >= self._round_goal // 4:
                 for joker in self._jokers:
                     if joker == JokerType.MR_BONES:  # saved by mr. bones
                         self._destroy_joker(joker)
@@ -1934,7 +1933,7 @@ class Run:
                         assert len(selected_cards) == 1
 
                         for _ in range(2):
-                            card_copy = replace(selected_cards[0])
+                            card_copy = copy(selected_cards[0])
                             self._add_card(card_copy)
                             self._hand.append(card_copy)
                     case Spectral.THE_SOUL:
@@ -2277,17 +2276,18 @@ class Run:
             self._mult *= 1.5 ** self._consumables.count(poker_hands_played[0].planet)
 
         self._mult = round(self._mult, 9)  # floating-point imprecision
-        score = (
-            ((self._chips + self._mult) / 2) ** 2
-            if self._deck is Deck.PLASMA
-            else self._chips * self._mult
+        score = round(
+            (
+                ((self._chips + self._mult) / 2) ** 2
+                if self._deck is Deck.PLASMA
+                else self._chips * self._mult
+            )
+            - 1e-9
         )
         self._round_score += score
 
         self._chips = None
         self._mult = None
-
-        # un-debuff cards
 
         for joker in self._jokers[:]:
             joker._on_end_hand(played_cards, scored_card_indices, poker_hands_played)
@@ -2760,6 +2760,12 @@ class Run:
         )
 
     @property
+    def forced_selected_card_index(self) -> int | None:
+        """The index of the card in hand that must be played, or none (only during Cerulean Bell)"""
+
+        return self._forced_selected_card_index
+
+    @property
     def hand(self) -> list[Card] | None:
         """The cards in hand"""
 
@@ -2863,6 +2869,12 @@ class Run:
         """The current round number"""
 
         return self._round
+
+    @property
+    def round_goal(self) -> float | None:
+        """The required chips for the round"""
+
+        return self._round_goal
 
     @property
     def round_score(self) -> float:

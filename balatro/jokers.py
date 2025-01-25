@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field, replace
+from copy import copy
+from dataclasses import dataclass, field
 import random as r
 
 from .classes import *
@@ -87,7 +88,7 @@ class DNA(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if self._run._first_hand and len(played_cards) == 1:
-            card_copy = replace(played_cards[0])
+            card_copy = copy(played_cards[0])
             self._run._add_card(card_copy)
             self._run._hand.append(card_copy)
 
@@ -3092,7 +3093,8 @@ class Troubadour(BaseJoker):
     """
 
     def _blind_selected_action(self) -> None:
-        self._run._hands -= 1
+        if self._run._hands > 1:
+            self._run._hands -= 1
 
     @property
     def joker_type(self) -> JokerType:
@@ -3177,7 +3179,7 @@ class InvisibleJoker(BaseJoker):
 
     def _sold_action(self) -> None:
         if self.rounds_remaining == 0 and len(self._run._jokers) > 1:
-            duplicated_joker = replace(
+            duplicated_joker = copy(
                 r.choice([joker for joker in self._run._jokers if joker is not self])
             )
             if duplicated_joker.edition is Edition.NEGATIVE:
@@ -3254,9 +3256,9 @@ class Perkeo(BaseJoker):
     """
 
     def _shop_exited_ability(self) -> None:
-        self._run._consumables.append(
-            replace(r.choice(self._run._consumables), is_negative=True)
-        )
+        copied_consumable = copy(r.choice(self._run._consumables))
+        copied_consumable.is_negative = True
+        self._run._consumables.append(copied_consumable)
 
     @property
     def joker_type(self) -> JokerType:

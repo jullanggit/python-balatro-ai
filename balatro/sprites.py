@@ -51,7 +51,7 @@ CHIPS_COORDINATES = {
     Stake.WHITE: [0, 0],
     Stake.RED: [0, 1],
     Stake.GREEN: [0, 2],
-    Stake.BLACK: [0, 3],
+    Stake.BLUE: [0, 3],
     Stake.BLACK: [0, 4],
     Stake.PURPLE: [1, 0],
     Stake.ORANGE: [1, 1],
