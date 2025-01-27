@@ -41,8 +41,9 @@ class Run:
         seed: str | None = None,
     ) -> None:
         if challenge is not None:
-            assert deck is Deck.CHALLENGE
-            assert stake is Stake.WHITE
+            raise NotImplementedError
+            deck = Deck.CHALLENGE
+            stake = Stake.WHITE
 
         r.seed(seed)
 
@@ -166,7 +167,7 @@ class Run:
             other_joker._on_jokers_moved()
 
     def _buy_shop_item(
-        self, section_index: int, item_index: int, buy_and_use: bool = False
+        self, section_index: int, item_index: int, use: bool = False
     ) -> tuple[BaseJoker | Consumable | Card | Pack | Voucher, int]:
         assert self._state is State.IN_SHOP
 
@@ -182,7 +183,7 @@ class Run:
 
         assert self._available_money >= cost
 
-        if buy_and_use:
+        if use:
             assert isinstance(item, Consumable)
         else:
             match item:
@@ -235,7 +236,7 @@ class Run:
                 edition_cost = EDITION_COSTS[item.edition]
             case Voucher():
                 base_cost = 10
-                discount_percent = 1.0
+                # discount_percent = 1.0
             case Pack():
                 if (
                     item.name.endswith("CELESTIAL")
@@ -622,8 +623,9 @@ class Run:
 
         return poker_hands
 
-    def _get_random_card(self, restricted_ranks: list[Rank] | None = None) -> Card:
-        ranks = restricted_ranks if restricted_ranks is not None else list(Rank)
+    def _get_random_card(self, ranks: list[Rank] | None = None) -> Card:
+        if ranks is None:
+            ranks = list(Rank)
         card = Card(r.choice(ranks), r.choice(list(Suit)))
 
         return card
@@ -1614,6 +1616,11 @@ class Run:
             if updated_cost < cost:
                 self._shop_cards[i] = (shop_card, updated_cost)
 
+        for i, (voucher, cost) in enumerate(self._shop_vouchers):
+            updated_cost = self._calculate_buy_cost(voucher)
+            if updated_cost < cost:
+                self._shop_vouchers[i] = (voucher, updated_cost)
+
         for i, (pack, cost) in enumerate(self._shop_packs):
             updated_cost = self._calculate_buy_cost(pack)
             if updated_cost < cost:
@@ -1790,9 +1797,15 @@ class Run:
 
                         for _ in range(3):
                             random_face_card = self._get_random_card(
-                                restricted_ranks=[Rank.KING, Rank.QUEEN, Rank.JACK]
+                                ranks=[Rank.KING, Rank.QUEEN, Rank.JACK]
                             )
-                            random_face_card.enhancement = r.choice(list(Enhancement))
+                            random_face_card.enhancement = r.choice(
+                                [
+                                    enhancement
+                                    for enhancement in Enhancement
+                                    if enhancement is not Enhancement.STONE
+                                ]
+                            )
                             self._add_card(random_face_card)
                             self._hand.append(random_face_card)
                     case Spectral.GRIM:
@@ -1803,10 +1816,14 @@ class Run:
                         self._hand.pop(i)
 
                         for _ in range(2):
-                            random_ace = self._get_random_card(
-                                restricted_ranks=[Rank.ACE]
+                            random_ace = self._get_random_card(ranks=[Rank.ACE])
+                            random_ace.enhancement = r.choice(
+                                [
+                                    enhancement
+                                    for enhancement in Enhancement
+                                    if enhancement is not Enhancement.STONE
+                                ]
                             )
-                            random_ace.enhancement = r.choice(list(Enhancement))
                             self._add_card(random_ace)
                             self._hand.append(random_ace)
                     case Spectral.INCANTATION:
@@ -1818,20 +1835,14 @@ class Run:
 
                         for _ in range(4):
                             random_numbered_card = self._get_random_card(
-                                restricted_ranks=[
-                                    Rank.TEN,
-                                    Rank.NINE,
-                                    Rank.EIGHT,
-                                    Rank.SEVEN,
-                                    Rank.SIX,
-                                    Rank.FIVE,
-                                    Rank.FOUR,
-                                    Rank.THREE,
-                                    Rank.TWO,
-                                ]
+                                ranks=list(Rank)[4:]
                             )
                             random_numbered_card.enhancement = r.choice(
-                                list(Enhancement)
+                                [
+                                    enhancement
+                                    for enhancement in Enhancement
+                                    if enhancement is not Enhancement.STONE
+                                ]
                             )
                             self._add_card(random_numbered_card)
                             self._hand.append(random_numbered_card)
@@ -1948,55 +1959,49 @@ class Run:
                         for poker_hand in PokerHand:
                             self._poker_hand_info[poker_hand][0] += 1
 
-    def buy_and_use_shop_item(self, section_index: int, item_index: int) -> None:
-        """
-        Buy and immediately use a shop item (does not require an open consumable slot)
-
-        Args:
-            section_index (int): The index of the shop section (0: cards, 1: vouchers, 2: packs)
-            item_index (int): The index of the shop item (0-indexed)
-        """
-
-        item, cost = self._buy_shop_item(section_index, item_index, buy_and_use=True)
-        try:
-            self._use_consumable(item)
-        except AssertionError:
-            [self._shop_cards, self._shop_vouchers, self._shop_packs][
-                section_index
-            ].insert(item_index, (item, cost))
-            self._money += cost
-
-            assert False
-
-    def buy_shop_item(self, section_index: int, item_index: int) -> None:
+    def buy_shop_item(
+        self, section_index: int, item_index: int, use: bool = False
+    ) -> None:
         """
         Buy a shop item and add it to consumables
 
         Args:
             section_index (int): The index of the shop section (0: cards, 1: vouchers, 2: packs)
             item_index (int): The index of the shop item (0-indexed)
+            use (bool): Whether to use the item immediately after buying it. Defaults to False.
         """
 
-        item, cost = self._buy_shop_item(section_index, item_index)
+        item, cost = self._buy_shop_item(section_index, item_index, use=use)
 
-        match item:
-            case BaseJoker():
-                self._add_joker(item)
-            case Consumable():
-                self._consumables.append(item)
-            case Card():
-                self._add_card(item)
-            case Pack():
-                self._open_pack(item)
-            case Voucher():
-                self._vouchers.add(item)
-                match item:
-                    case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
-                        self._populate_shop_cards()
-                    case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
-                        self._update_shop_costs()
-                    case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
-                        self._reroll_cost = max(0, self._reroll_cost - 2)
+        if use:
+            try:
+                self._use_consumable(item)
+            except AssertionError:
+                [self._shop_cards, self._shop_vouchers, self._shop_packs][
+                    section_index
+                ].insert(item_index, (item, cost))
+                self._money += cost
+
+                assert False
+        else:
+            match item:
+                case BaseJoker():
+                    self._add_joker(item)
+                case Consumable():
+                    self._consumables.append(item)
+                case Card():
+                    self._add_card(item)
+                case Pack():
+                    self._open_pack(item)
+                case Voucher():
+                    self._vouchers.add(item)
+                    match item:
+                        case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
+                            self._populate_shop_cards()
+                        case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
+                            self._update_shop_costs()
+                        case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
+                            self._reroll_cost = max(0, self._reroll_cost - 2)
 
     def cash_out(self) -> None:
         """
