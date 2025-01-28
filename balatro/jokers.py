@@ -32,6 +32,7 @@ class Brainstorm(CopyJoker):
     Copies the ability of leftmost Joker
     """
 
+    # TODO: maybe custom hash
     def _on_jokers_moved(self) -> None:
         self.copied_joker = self._run._jokers[0]
 
@@ -255,8 +256,8 @@ class EightBall(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if (
-            scored_card == Rank.EIGHT
-            and self._run.consumable_slots > len(self._run._consumables)
+            self._run.consumable_slots > len(self._run._consumables)
+            and scored_card == Rank.EIGHT
             and self._run._chance(1, 4)
         ):
             self._run._consumables.append(self._run._get_random_consumable(Tarot))
@@ -579,7 +580,6 @@ class Seltzer(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> int:
-        self.hands_left -= 1
         return 1
 
     def _end_hand_action(
@@ -588,6 +588,7 @@ class Seltzer(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
+        self.hands_left -= 1
         if self.hands_left == 0:
             self._run._destroy_joker(self)
 
@@ -1195,9 +1196,8 @@ class CeremonialDagger(BaseJoker):
         i = self._run._jokers.index(self)
         if i < len(self._run._jokers) - 1:
             right_joker = self._run._jokers[i + 1]
-            if not right_joker.is_eternal:
+            if self._run._destroy_joker(right_joker):
                 self.mult += self._run._calculate_sell_value(right_joker) * 2
-                self._run._destroy_joker(right_joker)
 
     def _independent_ability(
         self,
@@ -1315,7 +1315,7 @@ class SteelJoker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._mult *= 1 + (
+        self._run._mult *= 1.0 + (
             0.2
             * sum(
                 deck_card.enhancement is Enhancement.STEEL
@@ -1504,9 +1504,9 @@ class Superposition(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         if (
-            PokerHand.STRAIGHT in poker_hands_played
+            self._run.consumable_slots > len(self._run._consumables)
+            and PokerHand.STRAIGHT in poker_hands_played
             and any(played_cards[i] == Rank.ACE for i in scored_card_indices)
-            and self._run.consumable_slots > len(self._run._consumables)
         ):
             self._run._consumables.append(self._run._get_random_consumable(Tarot))
 
@@ -1592,15 +1592,14 @@ class Madness(BaseJoker):
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
-        if self._run._blind in [Blind.SMALL_BLIND, Blind.BIG_BLIND]:
+        if not self._run._is_boss_blind:
             self.xmult += 0.5
-            valid_destroys = [
-                joker
-                for joker in self._run._jokers
-                if joker is not self and not joker.is_eternal
-            ]
-            if valid_destroys:
-                self._run._destroy_joker(r.choice(valid_destroys))
+            if len(self._run._jokers) > 1:
+                self._run._destroy_joker(
+                    r.choice(
+                        [joker for joker in self._run._jokers if joker is not self]
+                    )
+                )
 
     def _independent_ability(
         self,
@@ -1628,10 +1627,9 @@ class Seance(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if poker_hands_played[
-            0
-        ] is PokerHand.STRAIGHT_FLUSH and self._run.consumable_slots > len(
-            self._run._consumables
+        if (
+            self._run.consumable_slots > len(self._run._consumables)
+            and poker_hands_played[0] is PokerHand.STRAIGHT_FLUSH
         ):
             self._run._consumables.append(self._run._get_random_consumable(Spectral))
 
@@ -1910,7 +1908,7 @@ class Throwback(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._mult *= 1 + (0.25 * self._run._num_blinds_skipped)
+        self._run._mult *= 1.0 + (0.25 * self._run._num_blinds_skipped)
 
     @property
     def joker_type(self) -> JokerType:
@@ -1955,16 +1953,20 @@ class FlowerPot(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         scored_suits = set()
-        possible_suits = [
-            self._run._get_card_suits(played_cards[i], force_base_suit=True)
-            for i in scored_card_indices
-        ]
-        possible_suits.sort(key=lambda suits: len(suits))
+        possible_suits = sorted(
+            (
+                self._run._get_card_suits(played_cards[i], force_base_suit=True)
+                for i in scored_card_indices
+            ),
+            key=len,
+        )
+
         for suits in possible_suits:
             for suit in suits:
                 if suit not in scored_suits:
                     scored_suits.add(suit)
                     break
+
         if len(scored_suits) == 4:
             self._run._mult *= 3
 
@@ -1986,18 +1988,22 @@ class SeeingDouble(BaseJoker):
         poker_hands_played: list[PokerHand],
     ) -> None:
         club, other = False, False
-        possible_suits = [
-            self._run._get_card_suits(played_cards[i], force_base_suit=True)
-            for i in scored_card_indices
-        ]
-        possible_suits.sort(key=lambda suits: len(suits))
+        possible_suits = sorted(
+            (
+                self._run._get_card_suits(played_cards[i], force_base_suit=True)
+                for i in scored_card_indices
+            ),
+            key=len,
+        )
+
         for suits in possible_suits:
             if not club and Suit.CLUBS in suits:
                 club = True
             elif not other and any(
-                suit in possible_suits for suit in Suit if suit is not Suit.CLUBS
+                suit in suits for suit in Suit if suit is not Suit.CLUBS
             ):
                 other = True
+
         if club and other:
             self._run._mult *= 2
 
@@ -2228,12 +2234,12 @@ class RideTheBus(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        for i in scored_card_indices:
-            if self._run._is_face_card(played_cards[i]):
-                self.mult = 0
-                break
-        else:
+        if not any(
+            self._run._is_face_card(played_cards[i]) for i in scored_card_indices
+        ):
             self.mult += 1
+        else:
+            self.mult = 0
 
     def _independent_ability(
         self,
@@ -2357,7 +2363,7 @@ class Vampire(BaseJoker):
     ) -> None:
         for i in scored_card_indices:
             scored_card = played_cards[i]
-            if scored_card.enhancement in Enhancement:
+            if scored_card.enhancement is not None:
                 self.xmult += 0.1
                 scored_card.enhancement = None
 
@@ -2499,9 +2505,10 @@ class Castle(BaseJoker):
     suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
-        for discarded_card in discarded_cards:
-            if self.suit in self._run._get_card_suits(discarded_card):
-                self.chips += 3
+        self.chips += 3 * sum(
+            self.suit in self._run._get_card_suits(discarded_card)
+            for discarded_card in discarded_cards
+        )
 
     def _independent_ability(
         self,
@@ -2570,9 +2577,7 @@ class HitTheRoad(BaseJoker):
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
-        for discarded_card in discarded_cards:
-            if discarded_card == Rank.JACK:
-                self.xmult += 0.5
+        self.xmult += 0.5 * (discarded_cards.count(Rank.JACK))
 
     def _independent_ability(
         self,
@@ -2675,9 +2680,7 @@ class MailInRebate(BaseJoker):
     rank: Rank = field(default=Rank.ACE, init=False, repr=False)
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
-        for discarded_card in discarded_cards:
-            if discarded_card == self.rank:
-                self._run._money += 5
+        self._run._money += 5 * discarded_cards.count(self.rank)
 
     def _on_created_action(self) -> None:
         self._set_random_rank()
@@ -2704,6 +2707,7 @@ class TradingCard(BaseJoker):
     If first discard of round has only 1 card, destroy it and earn $3
     """
 
+    # TODO: check this running along with other discard jokers
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         if self._run._first_discard and len(discarded_cards) == 1:
             self._run._money += 3
@@ -2870,6 +2874,7 @@ class SixthSense(BaseJoker):
             and played_cards[0] == Rank.SIX
         ):
             # TODO: destroy when no room?
+            # TODO: check if last 2 lines are needed
             self._run._destroy_card(played_cards[0])
             if self._run.consumable_slots > len(self._run._consumables):
                 self._run._consumables.append(
@@ -2951,8 +2956,7 @@ class Luchador(BaseJoker):
     """
 
     def _sold_ability(self) -> None:
-        if self._run._is_boss_blind and self._run._state is State.PLAYING_BLIND:
-            self._run._disable_boss_blind()
+        self._run._disable_boss_blind()
 
     @property
     def joker_type(self) -> JokerType:
@@ -3240,8 +3244,7 @@ class Chicot(BaseJoker):
     """
 
     def _blind_selected_action(self) -> None:
-        if self._run._is_boss_blind:
-            self._run._disable_boss_blind()
+        self._run._disable_boss_blind()
 
     @property
     def joker_type(self) -> JokerType:

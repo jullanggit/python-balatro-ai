@@ -31,6 +31,7 @@ def format_number(number: float) -> str:
         return f"{number:,.0f}"
     return f"{number:,.1f}" if number >= 10 else f"{number:,.2f}"
 
+
 class Run:
     def __init__(
         self,
@@ -157,7 +158,7 @@ class Run:
         self._deck_cards.append(card)
         if draw_to_hand:
             self._hand.append(card)
-        
+
         for joker in self._jokers:
             joker._on_card_added(card)
 
@@ -339,41 +340,38 @@ class Run:
         return True
 
     def _destroy_card(self, card: Card) -> None:
-        try:
-            self._deck_cards.remove(card)
-            if card in self._hand:
-                self._hand.remove(card)
+        self._deck_cards.remove(card)
+        if card in self._hand:
+            self._hand.remove(card)
 
-            for joker in self._jokers:
-                joker._on_card_destroyed(card)
-        except ValueError:
-            pass
+        for joker in self._jokers:
+            joker._on_card_destroyed(card)
 
-    def _destroy_joker(self, joker: BaseJoker) -> None:
+    def _destroy_joker(self, joker: BaseJoker) -> bool:
         if joker.is_eternal:
-            return
-        try:
-            i = self._jokers.index(joker)
-            self._jokers.pop(i)
-            for other_joker in self._jokers:
-                other_joker._on_jokers_moved()
-        except ValueError:
-            pass
+            return False
+
+        self._jokers.remove(joker)
+
+        for other_joker in self._jokers:
+            other_joker._on_jokers_moved()
+
+        return True
 
     def _disable_boss_blind(self) -> None:
-        if self._boss_blind_disabled:
+        if self._boss_blind_disabled is not False:
             return
 
         self._boss_blind_disabled = True
-
-        for card in self._deck_cards:
-            card.debuffed = False
-            card.flipped = False
 
         for joker in self._jokers:
             if joker._perishable_rounds_left > 0:
                 joker.debuffed = False
             joker.flipped = False
+
+        for card in self._deck_cards:
+            card.debuffed = False
+            card.flipped = False
 
         match self._blind:
             case Blind.THE_WALL:
@@ -628,6 +626,7 @@ class Run:
     def _get_random_card(self, ranks: list[Rank] | None = None) -> Card:
         if ranks is None:
             ranks = list(Rank)
+
         card = Card(r.choice(ranks), r.choice(list(Suit)))
 
         return card
@@ -709,7 +708,9 @@ class Run:
         if not self._gros_michel_extinct:
             prohibited_joker_types.add(JokerType.CAVENDISH)
         deck_card_enhancements = {
-            deck_card.enhancement for deck_card in self._deck_cards if deck_card.enhancement is not None
+            deck_card.enhancement
+            for deck_card in self._deck_cards
+            if deck_card.enhancement is not None
         }
         if Enhancement.GOLD not in deck_card_enhancements:
             prohibited_joker_types.add(JokerType.GOLDEN_TICKET)
@@ -795,12 +796,14 @@ class Run:
 
     def _lucky_check(self) -> bool:
         triggered = False
+
         if self._chance(1, 5):
             self._mult += 20
             triggered = True
         if self._chance(1, 15):
             self._money += 20
             triggered = True
+
         return triggered
 
     def _new_ante(self) -> None:
@@ -1902,9 +1905,10 @@ class Run:
                             copied_joker.is_perishable,
                             copied_joker.is_rental,
                         )
-                        for joker in self._jokers:
+                        for joker in self._jokers[:]:
                             if joker is copied_joker:
                                 continue
+
                             self._destroy_joker(joker)
                         self._add_joker(joker_copy)
                     case Spectral.DEJA_VU:
@@ -1925,9 +1929,10 @@ class Run:
                         random_joker = r.choice(valid_jokers)
                         random_joker.edition = Edition.POLYCHROME
 
-                        for joker in self._jokers:
+                        for joker in self._jokers[:]:
                             if joker is random_joker:
                                 continue
+
                             self._destroy_joker(joker)
                     case Spectral.TRANCE:
                         assert len(selected_cards) == 1
@@ -2459,8 +2464,7 @@ class Run:
             self._hands += 3
 
         for joker in self._jokers[:]:
-            if joker in self._jokers:
-                joker._on_blind_selected()
+            joker._on_blind_selected()
 
         if not self._deal():
             self._game_over()
@@ -2490,7 +2494,7 @@ class Run:
         if joker_sold:
             assert not sold_item.is_eternal
 
-            if self._boss_blind_disabled is False and self._blind is Blind.VERDANT_LEAF:
+            if self._blind is Blind.VERDANT_LEAF:
                 self._disable_boss_blind()
 
             sold_item._on_sold()
@@ -2933,11 +2937,12 @@ class Run:
 
         return self._vouchers
 
+
 class ChallengeRun(Run):
     def __init__(self, challenge: Challenge, seed: str | None = None) -> None:
         self._challenge: Challenge = challenge
         super().__init__(Deck.CHALLENGE, seed=seed)
-    
+
     @property
     def challenge(self) -> Challenge:
         return self._challenge

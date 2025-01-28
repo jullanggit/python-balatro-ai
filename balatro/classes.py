@@ -154,7 +154,7 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _on_blind_selected(self) -> None:
-        if self.debuffed:
+        if self.debuffed or self not in self._run._jokers:
             return
 
         self._blind_selected_ability()
