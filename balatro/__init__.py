@@ -1043,7 +1043,7 @@ class Run:
                     buy_cost = None
 
                     rarity = None
-                    for tag in self._tags[:]:
+                    for tag in self._tags:
                         if tag is Tag.UNCOMMON or tag is Tag.RARE:
                             self._tags.remove(tag)
                             rarity = Rarity[tag.name]
@@ -1056,7 +1056,7 @@ class Run:
                     )
 
                     if joker.edition is Edition.BASE:
-                        for tag in self._tags[:]:
+                        for tag in self._tags:
                             if tag.name in Edition._member_map_:
                                 self._tags.remove(tag)
                                 joker.edition = Edition[tag.name]
@@ -1080,13 +1080,14 @@ class Run:
                         )[0]
                         if r.random() < 0.4:
                             card.enhancement = r.choice(list(Enhancement))
-                        # not in the game code despite it being in the voucher description (bug?)
+                        # not in the Lua code despite it being in the voucher description (bug?)
                         # if r.random() < 0.2:
                         #     card.seal = r.choice(list(Seal))
                     buy_cost = self._calculate_buy_cost(card, coupon=coupon)
                     self._shop_cards[i] = (card, buy_cost)
 
     def _random_boss_blind(self) -> None:
+        # TODO: check if rerolls remove from pool
         self._boss_blind: Blind = None
         self._ox_poker_hand: PokerHand | None = None
         if self._is_finisher_ante:
