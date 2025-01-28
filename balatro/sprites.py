@@ -439,7 +439,7 @@ def _apply_edition(sprite: Image.Image, edition: Edition) -> Image.Image:
             return sprite
         case Edition.FOIL:
             return _apply_foil(sprite)
-        case Edition.HOLO:
+        case Edition.HOLOGRAPHIC:
             return _apply_holo(sprite)
         case Edition.POLYCHROME:
             return _apply_polychrome(sprite)

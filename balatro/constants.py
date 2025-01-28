@@ -196,25 +196,25 @@ BLIND_INFO = {
 CARD_EDITION_CHANCES = {
     Edition.BASE: 92,
     Edition.POLYCHROME: 1.2,
-    Edition.HOLO: 2.8,
+    Edition.HOLOGRAPHIC: 2.8,
     Edition.FOIL: 4,
 }
 CARD_EDITION_CHANCES_GLOW_UP = {
     Edition.BASE: 68,
     Edition.POLYCHROME: 4.8,
-    Edition.HOLO: 11.2,
+    Edition.HOLOGRAPHIC: 11.2,
     Edition.FOIL: 16,
 }
 CARD_EDITION_CHANCES_HONE = {
     Edition.BASE: 84,
     Edition.POLYCHROME: 2.4,
-    Edition.HOLO: 5.6,
+    Edition.HOLOGRAPHIC: 5.6,
     Edition.FOIL: 8,
 }
 CARD_EDITION_CHANCES_ILLUSION = {
     Edition.BASE: 80,
     Edition.POLYCHROME: 3,
-    Edition.HOLO: 7,
+    Edition.HOLOGRAPHIC: 7,
     Edition.FOIL: 10,
 }
 # CHALLENGE_SETUPS = {
@@ -313,7 +313,7 @@ CARD_EDITION_CHANCES_ILLUSION = {
 EDITION_COSTS = {
     Edition.BASE: 0,
     Edition.FOIL: 2,
-    Edition.HOLO: 3,
+    Edition.HOLOGRAPHIC: 3,
     Edition.POLYCHROME: 5,
     Edition.NEGATIVE: 5,
 }
@@ -501,21 +501,21 @@ JOKER_EDITION_CHANCES = {
     Edition.BASE: 96,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 0.3,
-    Edition.HOLO: 1.4,
+    Edition.HOLOGRAPHIC: 1.4,
     Edition.FOIL: 2,
 }
 JOKER_EDITION_CHANCES_HONE = {
     Edition.BASE: 92,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 0.9,
-    Edition.HOLO: 2.8,
+    Edition.HOLOGRAPHIC: 2.8,
     Edition.FOIL: 4,
 }
 JOKER_EDITION_CHANCES_GLOW_UP = {
     Edition.BASE: 84,
     Edition.NEGATIVE: 0.3,
     Edition.POLYCHROME: 2.1,
-    Edition.HOLO: 5.6,
+    Edition.HOLOGRAPHIC: 5.6,
     Edition.FOIL: 8,
 }
 JOKER_BASE_RARITY_WEIGHTS = {Rarity.COMMON: 70, Rarity.UNCOMMON: 25, Rarity.RARE: 5}
@@ -748,6 +748,6 @@ TAG_PACKS = {
 }
 UPGRADED_EDITION_WEIGHTS = {
     Edition.FOIL: 12.5,
-    Edition.HOLO: 8.75,
+    Edition.HOLOGRAPHIC: 8.75,
     Edition.POLYCHROME: 3.75,
 }

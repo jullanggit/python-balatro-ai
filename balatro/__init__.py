@@ -743,17 +743,17 @@ class Run:
 
         is_eternal, is_perishable, is_rental = False, False, False
         if allow_stickers:
-            roll = r.random()
+            eternal_perishable_roll = r.random()
             if (
                 self._stake >= Stake.BLACK
                 and joker_type not in NON_ETERNAL_JOKERS
-                and roll < 0.3
+                and eternal_perishable_roll < 0.3
             ):
                 is_eternal = True
             elif (
                 self._stake >= Stake.ORANGE
                 and joker_type not in NON_PERISHABLE_JOKERS
-                and roll < 0.6
+                and eternal_perishable_roll < 0.6
             ):
                 is_perishable = True
 
@@ -1580,7 +1580,7 @@ class Run:
         match scored_card:
             case Edition.FOIL:
                 self._chips += 50
-            case Edition.HOLO:
+            case Edition.HOLOGRAPHIC:
                 self._mult += 10
             case Edition.POLYCHROME:
                 self._mult *= 1.5
@@ -2267,7 +2267,7 @@ class Run:
             match joker:
                 case Edition.FOIL:
                     self._chips += 50
-                case Edition.HOLO:
+                case Edition.HOLOGRAPHIC:
                     self._mult += 10
 
             joker._on_independent(played_cards, scored_card_indices, poker_hands_played)

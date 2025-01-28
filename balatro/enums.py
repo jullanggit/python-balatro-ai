@@ -271,7 +271,7 @@ class Spectral(Enum):
 class Edition(Enum):
     BASE = "Base"
     FOIL = "Foil"
-    HOLO = "Holographic"
+    HOLOGRAPHIC = "Holographic"
     POLYCHROME = "Polychrome"
     NEGATIVE = "Negative"
 

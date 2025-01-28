@@ -562,8 +562,8 @@ class Card:
     seal: Seal | None = None
     edition: Edition = Edition.BASE
 
-    bonus_chips: int = field(default=0, init=False, repr=False)
     debuffed: bool = field(default=False, init=False, repr=False)
+    extra_chips: int = field(default=0, init=False, repr=False)
     flipped: bool = field(default=False, init=False, repr=False)
 
     def __eq__(self, other: Card | Rank | Suit | Enhancement | Seal | Edition) -> bool:
@@ -606,7 +606,7 @@ class Card:
     def chips(self) -> int:
         if self.debuffed:
             return 0
-        return (50 if self.is_stone_card else self.rank.chips) + self.bonus_chips
+        return (50 if self.is_stone_card else self.rank.chips) + self.extra_chips
 
     @property
     def is_stone_card(self) -> bool:

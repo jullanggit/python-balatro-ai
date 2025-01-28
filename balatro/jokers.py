@@ -475,7 +475,7 @@ class Hiker(BaseJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        scored_card.bonus_chips += 5
+        scored_card.extra_chips += 5
 
     @property
     def joker_type(self) -> JokerType:
