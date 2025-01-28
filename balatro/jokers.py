@@ -2818,7 +2818,7 @@ class Egg(BaseJoker):
     """
 
     def _round_ended_action(self) -> None:
-        self.extra_sell_value += 3
+        self._extra_sell_value += 3
 
     @property
     def joker_type(self) -> JokerType:
@@ -2967,9 +2967,9 @@ class GiftCard(BaseJoker):
 
     def _round_ended_action(self) -> None:
         for joker in self._run._jokers:
-            joker.extra_sell_value += 1
+            joker._extra_sell_value += 1
         for consumable in self._run._consumables:
-            consumable.extra_sell_value += 1
+            consumable._extra_sell_value += 1
 
     @property
     def joker_type(self) -> JokerType:

@@ -11,7 +11,7 @@ from .enums import *
 
 @dataclass(eq=False)
 class Sellable:
-    extra_sell_value: int = field(default=0, init=False, repr=False)
+    _extra_sell_value: int = field(default=0, init=False, repr=False)
 
 
 @dataclass(eq=False)
@@ -45,7 +45,7 @@ class BaseJoker(Sellable, ABC):
         return NotImplemented
 
     def __str__(self) -> str:
-        return f"{self.joker_type}"
+        return self.joker_type.value
 
     def _repr_png_(self, card_back: Deck = Deck.RED) -> bytes:
         from .sprites import get_sprite
@@ -595,7 +595,7 @@ class Card:
         return NotImplemented
 
     def __str__(self) -> str:
-        return f"{self.rank} of {self.suit}"
+        return f"{self.rank.value} of {self.suit.value}"
 
     def _repr_png_(self, card_back: Deck = Deck.RED) -> bytes:
         from .sprites import get_sprite

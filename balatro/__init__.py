@@ -97,6 +97,7 @@ class Run:
                     ]
                 )
 
+        # TODO: organize
         self._num_played_hands: int = 0
         self._first_hand: bool | None = None
         self._first_discard: bool | None = None
@@ -250,10 +251,10 @@ class Run:
                     base_cost = 4
 
         buy_cost = (base_cost + edition_cost) * discount_percent
-        return max(round(buy_cost - 0.001), 1)
+        return max(1, round(buy_cost - 1e-9))
 
     def _calculate_sell_value(self, item: Sellable) -> int:
-        return max(1, self._calculate_buy_cost(item) // 2) + item.extra_sell_value
+        return max(1, self._calculate_buy_cost(item) // 2) + item._extra_sell_value
 
     def _chance(self, hit: int, pool: int) -> bool:
         hit *= 2 ** self._jokers.count(JokerType.OOPS_ALL_SIXES)

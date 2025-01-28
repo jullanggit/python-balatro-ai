@@ -159,9 +159,6 @@ class JokerType(Enum):
     CHICOT = "Chicot"
     PERKEO = "Perkeo"
 
-    def __str__(self) -> str:
-        return self.value
-
 
 class Voucher(Enum):
     OVERSTOCK = "Overstock"
@@ -445,9 +442,6 @@ class Suit(Enum):
     CLUBS = "Clubs"
     DIAMONDS = "Diamonds"
 
-    def __str__(self) -> str:
-        return self.value
-
 
 @total_ordering
 class Rank(Enum):
@@ -474,9 +468,6 @@ class Rank(Enum):
                 return list(Rank).index(self) > list(Rank).index(other)
 
         return NotImplemented
-
-    def __str__(self) -> str:
-        return self.value
 
     @property
     def chips(self) -> int:
@@ -513,9 +504,6 @@ class PokerHand(Enum):
                 return list(PokerHand).index(self) > list(PokerHand).index(other)
 
         return NotImplemented
-
-    def __str__(self) -> str:
-        return self.value
 
     @property
     def planet(self) -> Planet:
