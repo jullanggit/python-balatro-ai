@@ -98,7 +98,7 @@ class JokerType(Enum):
     TURTLE_BEAN = "Turtle Bean"
     EROSION = "Erosion"
     TO_THE_MOON = "To the Moon"
-    STONE = "Stone Joker"
+    STONE_JOKER = "Stone Joker"
     LUCKY_CAT = "Lucky Cat"
     BULL = "Bull"
     DIET_COLA = "Diet Cola"

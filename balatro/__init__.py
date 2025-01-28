@@ -38,8 +38,8 @@ class Run:
         stake: Stake = Stake.WHITE,
         seed: str | None = None,
     ) -> None:
-        if not isinstance(self, ChallengeRun):
-            assert deck is not Deck.CHALLENGE
+        if deck is Deck.CHALLENGE:
+            assert isinstance(self, ChallengeRun)
 
         r.seed(seed)
 
@@ -703,14 +703,14 @@ class Run:
         if not self._gros_michel_extinct:
             prohibited_joker_types.add(JokerType.CAVENDISH)
         deck_card_enhancements = {
-            deck_card.enhancement for deck_card in self._deck_cards
+            deck_card.enhancement for deck_card in self._deck_cards if deck_card.enhancement is not None
         }
         if Enhancement.GOLD not in deck_card_enhancements:
             prohibited_joker_types.add(JokerType.GOLDEN_TICKET)
         if Enhancement.STEEL not in deck_card_enhancements:
             prohibited_joker_types.add(JokerType.STEEL_JOKER)
         if Enhancement.STONE not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.STONE)
+            prohibited_joker_types.add(JokerType.STONE_JOKER)
         if Enhancement.LUCKY not in deck_card_enhancements:
             prohibited_joker_types.add(JokerType.LUCKY_CAT)
         if Enhancement.GLASS not in deck_card_enhancements:
@@ -2938,9 +2938,9 @@ class Run:
         return self._vouchers
 
 class ChallengeRun(Run):
-    def __init__(self, challenge: Challenge) -> None:
+    def __init__(self, challenge: Challenge, seed: str | None = None) -> None:
         self._challenge: Challenge = challenge
-        super().__init__(Deck.CHALLENGE)
+        super().__init__(Deck.CHALLENGE, seed=seed)
     
     @property
     def challenge(self) -> Challenge:

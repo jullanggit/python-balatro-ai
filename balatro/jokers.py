@@ -1756,7 +1756,7 @@ class StoneJoker(BaseJoker):
 
     @property
     def joker_type(self) -> JokerType:
-        return JokerType.STONE
+        return JokerType.STONE_JOKER
 
 
 @dataclass(eq=False)

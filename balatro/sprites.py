@@ -150,7 +150,7 @@ JOKER_COORDINATES = {
     JokerType.DROLL_JOKER: [0, 6],
     JokerType.HALF_JOKER: [0, 7],
     JokerType.MERRY_ANDY: [0, 8],
-    JokerType.STONE: [0, 9],
+    JokerType.STONE_JOKER: [0, 9],
     JokerType.JUGGLER: [1, 0],
     JokerType.DRUNKARD: [1, 1],
     JokerType.ACROBAT: [1, 2],
