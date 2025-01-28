@@ -31,19 +31,15 @@ def format_number(number: float) -> str:
         return f"{number:,.0f}"
     return f"{number:,.1f}" if number >= 10 else f"{number:,.2f}"
 
-
 class Run:
     def __init__(
         self,
         deck: Deck,
         stake: Stake = Stake.WHITE,
-        challenge: Challenge | None = None,
         seed: str | None = None,
     ) -> None:
-        if challenge is not None:
-            raise NotImplementedError
-            deck = Deck.CHALLENGE
-            stake = Stake.WHITE
+        if not isinstance(self, ChallengeRun):
+            assert deck is not Deck.CHALLENGE
 
         r.seed(seed)
 
@@ -2940,3 +2936,12 @@ class Run:
         """The vouchers in possession"""
 
         return self._vouchers
+
+class ChallengeRun(Run):
+    def __init__(self, challenge: Challenge) -> None:
+        self._challenge: Challenge = challenge
+        super().__init__(Deck.CHALLENGE)
+    
+    @property
+    def challenge(self) -> Challenge:
+        return self._challenge

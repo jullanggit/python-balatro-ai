@@ -397,6 +397,7 @@ class Deck(Enum):
     ANAGLYPH = "Anaglyph"
     PLASMA = "Plasma"
     ERRATIC = "Erratic"
+    CHALLENGE = "Challenge"
 
     def _repr_png_(self) -> bytes:
         from .sprites import get_sprite
