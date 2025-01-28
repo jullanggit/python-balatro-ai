@@ -3096,10 +3096,6 @@ class Troubadour(BaseJoker):
     -1 hand per round
     """
 
-    def _blind_selected_action(self) -> None:
-        if self._run._hands > 1:
-            self._run._hands -= 1
-
     @property
     def joker_type(self) -> JokerType:
         return JokerType.TROUBADOUR
@@ -3185,10 +3181,12 @@ class InvisibleJoker(BaseJoker):
             duplicated_joker = copy(
                 r.choice([joker for joker in self._run._jokers if joker is not self])
             )
+
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
             if duplicated_joker.joker_type is JokerType.INVISIBLE_JOKER:
                 duplicated_joker.rounds_remaining = 2
+
             self._run._add_joker(duplicated_joker)
 
     @property

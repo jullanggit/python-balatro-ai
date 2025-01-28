@@ -377,7 +377,7 @@ class Run:
             case Blind.THE_WALL:
                 self._round_goal //= 2
             case Blind.THE_WATER:
-                self._discards = self._discards_each_round
+                self._discards = self._discards_per_round
             case Blind.THE_NEEDLE:
                 self._hands = self._hands_per_round
             case Blind.VIOLET_VESSEL:
@@ -634,14 +634,14 @@ class Run:
     def _get_random_consumable(self, consumable_type: type) -> Consumable:
         match consumable_type.__name__:
             case Tarot.__name__:
-                card_pool = list(Tarot)
+                consumable_card_pool = list(Tarot)
             case Planet.__name__:
-                card_pool = [
+                consumable_card_pool = [
                     unlocked_poker_hand.planet
                     for unlocked_poker_hand in self._unlocked_poker_hands
                 ]
             case Spectral.__name__:
-                card_pool = list(Spectral)[:-2]
+                consumable_card_pool = list(Spectral)[:-2]
 
         prohibited_consumable_cards = set()
         if JokerType.SHOWMAN not in self._jokers:
@@ -657,19 +657,22 @@ class Run:
                     and isinstance(shop_card[0], Consumable)
                 )
 
-            if self._opened_pack is not None:
+            if self._pack_items is not None:
                 prohibited_consumable_cards.update(
                     pack_item.card
                     for pack_item in self._pack_items
                     if isinstance(pack_item, Consumable)
                 )
 
+        valid_consumable_cards = [
+            consumable_card
+            for consumable_card in consumable_card_pool
+            if consumable_card not in prohibited_consumable_cards
+        ]
         return Consumable(
-            r.choice(
-                [card for card in card_pool if card not in prohibited_consumable_cards]
-            )
-            if len(prohibited_consumable_cards) < len(card_pool)
-            else card_pool[0]
+            r.choice(valid_consumable_cards)
+            if valid_consumable_cards
+            else consumable_type.DEFAULT
         )
 
     def _get_random_joker(
@@ -683,6 +686,7 @@ class Run:
                 weights=JOKER_BASE_RARITY_WEIGHTS.values(),
                 k=1,
             )[0]
+        print(rarity)
 
         prohibited_joker_types = set()
         if JokerType.SHOWMAN not in self._jokers:
@@ -723,12 +727,13 @@ class Run:
         if Enhancement.GLASS not in deck_card_enhancements:
             prohibited_joker_types.add(JokerType.GLASS_JOKER)
 
-        joker_type = r.choice(
-            [
-                joker_type
-                for joker_type in JOKER_TYPE_RARITIES[rarity]
-                if joker_type not in prohibited_joker_types
-            ]
+        valid_joker_types = [
+            joker_type
+            for joker_type in JOKER_TYPE_RARITIES[rarity]
+            if joker_type not in prohibited_joker_types
+        ]
+        joker_type = (
+            r.choice(valid_joker_types) if valid_joker_types else JokerType.DEFAULT
         )
 
         edition_chances = (
@@ -2405,7 +2410,7 @@ class Run:
         self._round_score = 0
         self._round_goal = self._get_round_goal(self._blind)
         self._hands = self._hands_per_round
-        self._discards = self._discards_each_round
+        self._discards = self._discards_per_round
         self._hand = []
         self._deck_cards_left = self._deck_cards.copy()
         self._round_poker_hands = []
@@ -2592,30 +2597,30 @@ class Run:
         return sum(money for money, *_ in self._cash_out_money)
 
     @property
-    def _discards_each_round(self) -> int:
-        discards_each_round = 3
+    def _discards_per_round(self) -> int:
+        discards_per_round = 3
 
         if self._deck is Deck.RED:
-            discards_each_round += 1
+            discards_per_round += 1
 
         if self._stake >= Stake.BLUE:
-            discards_each_round -= 1
+            discards_per_round -= 1
 
         if Voucher.WASTEFUL in self._vouchers:
-            discards_each_round += 1
+            discards_per_round += 1
         if Voucher.RECYCLOMANCY in self._vouchers:
-            discards_each_round += 1
+            discards_per_round += 1
         if Voucher.PETROGLYPH in self._vouchers:
-            discards_each_round -= 1
+            discards_per_round -= 1
 
         for joker in self.jokers:
             match joker:
                 case JokerType.DRUNKARD:
-                    discards_each_round += 1
+                    discards_per_round += 1
                 case JokerType.MERRY_ANDY:
-                    discards_each_round += 3
+                    discards_per_round += 3
 
-        return discards_each_round
+        return discards_per_round
 
     @property
     def _hands_per_round(self) -> int:
@@ -2634,7 +2639,12 @@ class Run:
         if Voucher.HIEROGLYPH in self._vouchers:
             hands_per_round -= 1
 
-        return hands_per_round
+        for joker in self.jokers:
+            match joker:
+                case JokerType.TROUBADOUR:
+                    hands_per_round -= 1
+
+        return max(1, hands_per_round)
 
     @property
     def _is_boss_blind(self) -> bool:
@@ -2761,7 +2771,7 @@ class Run:
         """The number of discards left in the round"""
 
         return (
-            self._discards if self._discards is not None else self._discards_each_round
+            self._discards if self._discards is not None else self._discards_per_round
         )
 
     @property

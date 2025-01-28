@@ -159,6 +159,8 @@ class JokerType(Enum):
     CHICOT = "Chicot"
     PERKEO = "Perkeo"
 
+    DEFAULT = JOKER
+
 
 class Voucher(Enum):
     OVERSTOCK = "Overstock"
@@ -224,6 +226,8 @@ class Tarot(Enum):
     JUDGEMENT = "Judgement"
     THE_WORLD = "The World"
 
+    DEFAULT = STRENGTH
+
 
 class Planet(Enum):
     ERIS = "Eris"
@@ -238,6 +242,8 @@ class Planet(Enum):
     URANUS = "Uranus"
     MERCURY = "Mercury"
     PLUTO = "Pluto"
+
+    DEFAULT = PLUTO
 
     @property
     def poker_hand(self) -> Planet:
@@ -263,6 +269,8 @@ class Spectral(Enum):
     CRYPTID = "Cryptid"
     THE_SOUL = "The Soul"
     BLACK_HOLE = "Black Hole"
+
+    DEFAULT = INCANTATION
 
 
 class Edition(Enum):
