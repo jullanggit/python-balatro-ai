@@ -89,8 +89,7 @@ class DNA(BaseJoker):
     ) -> None:
         if self._run._first_hand and len(played_cards) == 1:
             card_copy = copy(played_cards[0])
-            self._run._add_card(card_copy)
-            self._run._hand.append(card_copy)
+            self._run._add_card(card_copy, draw_to_hand=True)
 
     @property
     def joker_type(self) -> JokerType:
@@ -2870,6 +2869,7 @@ class SixthSense(BaseJoker):
             and len(played_cards) == 1
             and played_cards[0] == Rank.SIX
         ):
+            # TODO: destroy when no room?
             self._run._destroy_card(played_cards[0])
             if self._run.consumable_slots > len(self._run._consumables):
                 self._run._consumables.append(
@@ -3110,8 +3110,7 @@ class Certificate(BaseJoker):
     def _blind_selected_ability(self) -> None:
         added_card = self._run._get_random_card()
         added_card.seal = r.choice(list(Seal))
-        self._run._add_card(added_card)
-        self._run._hand.append(added_card)
+        self._run._add_card(added_card, draw_to_hand=True)
 
     @property
     def joker_type(self) -> JokerType:

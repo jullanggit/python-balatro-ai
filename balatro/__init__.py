@@ -152,8 +152,11 @@ class Run:
             case State.SELECTING_BLIND:
                 return self._repr_selecting_blind()
 
-    def _add_card(self, card: Card) -> None:
+    def _add_card(self, card: Card, draw_to_hand: bool = False) -> None:
         self._deck_cards.append(card)
+        if draw_to_hand:
+            self._hand.append(card)
+        
         for joker in self._jokers:
             joker._on_card_added(card)
 
@@ -337,6 +340,8 @@ class Run:
     def _destroy_card(self, card: Card) -> None:
         try:
             self._deck_cards.remove(card)
+            if card in self._hand:
+                self._hand.remove(card)
 
             for joker in self._jokers:
                 joker._on_card_destroyed(card)
@@ -1787,9 +1792,7 @@ class Run:
                     case Spectral.FAMILIAR:
                         assert self._hand
 
-                        i = r.randint(0, len(self._hand) - 1)
-                        self._destroy_card(self._hand[i])
-                        self._hand.pop(i)
+                        self._destroy_card(r.choice(self._hand))
 
                         for _ in range(3):
                             random_face_card = self._get_random_card(
@@ -1802,14 +1805,11 @@ class Run:
                                     if enhancement is not Enhancement.STONE
                                 ]
                             )
-                            self._add_card(random_face_card)
-                            self._hand.append(random_face_card)
+                            self._add_card(random_face_card, draw_to_hand=True)
                     case Spectral.GRIM:
                         assert self._hand
 
-                        i = r.randint(0, len(self._hand) - 1)
-                        self._destroy_card(self._hand[i])
-                        self._hand.pop(i)
+                        self._destroy_card(r.choice(self._hand))
 
                         for _ in range(2):
                             random_ace = self._get_random_card(ranks=[Rank.ACE])
@@ -1820,14 +1820,11 @@ class Run:
                                     if enhancement is not Enhancement.STONE
                                 ]
                             )
-                            self._add_card(random_ace)
-                            self._hand.append(random_ace)
+                            self._add_card(random_ace, draw_to_hand=True)
                     case Spectral.INCANTATION:
                         assert self._hand
 
-                        i = r.randint(0, len(self._hand) - 1)
-                        self._destroy_card(self._hand[i])
-                        self._hand.pop(i)
+                        self._destroy_card(r.choice(self._hand))
 
                         for _ in range(4):
                             random_numbered_card = self._get_random_card(
@@ -1840,8 +1837,7 @@ class Run:
                                     if enhancement is not Enhancement.STONE
                                 ]
                             )
-                            self._add_card(random_numbered_card)
-                            self._hand.append(random_numbered_card)
+                            self._add_card(random_numbered_card, draw_to_hand=True)
                     case Spectral.TALISMAN:
                         assert len(selected_cards) == 1
 
@@ -1886,9 +1882,8 @@ class Run:
                         for _ in range(5):
                             if not self._hand:
                                 break
-                            i = r.randint(0, len(self._hand) - 1)
-                            self._destroy_card(self._hand[i])
-                            self._hand.pop(i)
+
+                            self._destroy_card(r.choice(self._hand))
                         self._money += 20
                     case Spectral.ANKH:
                         assert self._jokers
@@ -1945,8 +1940,7 @@ class Run:
 
                         for _ in range(2):
                             card_copy = copy(selected_cards[0])
-                            self._add_card(card_copy)
-                            self._hand.append(card_copy)
+                            self._add_card(card_copy, draw_to_hand=True)
                     case Spectral.THE_SOUL:
                         assert len(self._jokers) < self.joker_slots
 
