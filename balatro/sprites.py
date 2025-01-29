@@ -135,6 +135,7 @@ ENHANCER_COORDINATES = {
     Deck.ERRATIC: [3, 2],
     Deck.ABANDONED: [3, 3],
     Deck.PAINTED: [3, 4],
+    Deck.CHALLENGE: [4, 0],
     Deck.ANAGLYPH: [4, 2],
     Deck.ZODIAC: [4, 3],
     Seal.PURPLE: [4, 4],

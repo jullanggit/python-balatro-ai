@@ -28,7 +28,6 @@ class Brainstorm(CopyJoker):
     Copies the ability of leftmost Joker
     """
 
-    # TODO: maybe custom hash
     def _on_jokers_moved(self) -> None:
         self._copied_joker = self._run._jokers[0]
 
@@ -83,7 +82,7 @@ class DNA(BaseJoker):
 
 
 @dataclass(eq=False)
-class ToDoList(BaseJoker):
+class ToDoList(DynamicJoker):
     """
     Earn $4 if poker hand is a [poker hand], poker hand changes at end of round
     """
@@ -91,6 +90,9 @@ class ToDoList(BaseJoker):
     poker_hand: PokerHand = field(
         default_factory=lambda: r.choice(list(PokerHand)[3:]), init=False, repr=False
     )
+
+    def _change_state(self) -> None:
+        self.poker_hand = r.choice(self._run._unlocked_poker_hands)
 
     def _hand_played_ability(
         self,
@@ -100,15 +102,6 @@ class ToDoList(BaseJoker):
     ) -> None:
         if poker_hands_played[0] is self.poker_hand:
             self._run._money += 4
-
-    def _on_created_action(self) -> None:
-        self._set_random_poker_hand()
-
-    def _round_ended_action(self) -> None:
-        self._set_random_poker_hand()
-
-    def _set_random_poker_hand(self) -> None:
-        self.poker_hand = r.choice(self._run._unlocked_poker_hands)
 
 
 @dataclass(eq=False)
@@ -428,7 +421,7 @@ class Photograph(BaseJoker):
 
 
 @dataclass(eq=False)
-class AncientJoker(BaseJoker):
+class AncientJoker(DynamicJoker):
     """
     Each played card with [suit] suit gives X1.5 Mult when scored,
     suit changes at end of round
@@ -446,13 +439,7 @@ class AncientJoker(BaseJoker):
         if self.suit in self._run._get_card_suits(scored_card):
             self._run._mult *= 1.5
 
-    def _on_created_action(self) -> None:
-        self._set_random_suit()
-
-    def _round_ended_action(self) -> None:
-        self._set_random_suit()
-
-    def _set_random_suit(self) -> None:
+    def _change_state(self) -> None:
         self.suit = r.choice([suit for suit in Suit if suit is not self.suit])
 
 
@@ -474,6 +461,7 @@ class WalkieTalkie(BaseJoker):
             self._run._mult += 4
 
 
+# TODO: maybe all perishables could be checked for perishing at like end of hand? and then abstracted out into a PerishableJoker class
 @dataclass(eq=False)
 class Seltzer(BaseJoker):
     """
@@ -639,7 +627,7 @@ class OnyxAgate(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheIdol(BaseJoker):
+class TheIdol(DynamicJoker):
     """
     Each played [card] gives X2 Mult when scored
     Card changes every round
@@ -662,13 +650,7 @@ class TheIdol(BaseJoker):
         ):
             self._run._mult *= 2
 
-    def _on_created_action(self) -> None:
-        self._set_random_card()
-
-    def _round_ended_action(self) -> None:
-        self._set_random_card()
-
-    def _set_random_card(self) -> None:
+    def _change_state(self) -> None:
         valid_deck_cards = [
             deck_card
             for deck_card in self._run._deck_cards
@@ -979,12 +961,10 @@ class JokerStencil(BaseJoker):
 
 
 @dataclass(eq=False)
-class CeremonialDagger(BaseJoker):
+class CeremonialDagger(MultScalingJoker):
     """
     When Blind is selected, destroy Joker to the right and permanently add double its sell value to this Mult
     """
-
-    mult: int = field(default=0, init=False, repr=False)
 
     def _blind_selected_action(self) -> None:
         i = self._run._jokers.index(self)
@@ -992,14 +972,6 @@ class CeremonialDagger(BaseJoker):
             right_joker = self._run._jokers[i + 1]
             if self._run._destroy_joker(right_joker):
                 self.mult += self._run._calculate_sell_value(right_joker) * 2
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
 
 
 @dataclass(eq=False)
@@ -1170,21 +1142,13 @@ class Blackboard(BaseJoker):
 
 
 @dataclass(eq=False)
-class IceCream(BaseJoker):
+class IceCream(ChipsScalingJoker):
     """
     +100 Chips
     -5 Chips for every hand played
     """
 
     chips: int = field(default=100, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._chips += self.chips
 
     def _scoring_completed_action(
         self,
@@ -1213,20 +1177,10 @@ class BlueJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class Constellation(BaseJoker):
+class Constellation(XMultScalingJoker):
     """
     This Joker gains X0.1 Mult every time a Planet card is used
     """
-
-    xmult: float = field(default=1.0, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
     def _planet_used_action(self) -> None:
         self.xmult += 0.1
@@ -1290,50 +1244,32 @@ class CardSharp(BaseJoker):
 
 
 @dataclass(eq=False)
-class RedCard(BaseJoker):
+class RedCard(MultScalingJoker):
     """
     This Joker gains +3 Mult when any Booster Pack is skipped
     """
-
-    mult: int = field(default=0, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
 
     def _pack_skipped_action(self) -> None:
         self.mult += 3
 
 
 @dataclass(eq=False)
-class Madness(BaseJoker):
+class Madness(XMultScalingJoker):
     """
     When Small Blind or Big Blind is selected, gain X0.5 Mult and destroy a random Joker
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _blind_selected_action(self) -> None:
         if not self._run._is_boss_blind:
             self.xmult += 0.5
-            if len(self._run._jokers) > 1:
-                self._run._destroy_joker(
-                    r.choice(
-                        [joker for joker in self._run._jokers if joker is not self]
-                    )
-                )
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
+            valid_destroys = [
+                joker
+                for joker in self._run._jokers
+                if joker is not self and not joker.is_eternal
+            ]
+            if valid_destroys:
+                self._run._destroy_joker(r.choice(valid_destroys))
 
 
 @dataclass(eq=False)
@@ -1357,23 +1293,13 @@ class Seance(BaseJoker):
 
 
 @dataclass(eq=False)
-class Hologram(BaseJoker):
+class Hologram(XMultScalingJoker):
     """
     This Joker gains X0.25 Mult every time a playing card is added to your deck
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _card_added_action(self, added_card: Card) -> None:
         self.xmult += 0.25
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
 
 @dataclass(eq=False)
@@ -1470,41 +1396,23 @@ class Bull(BaseJoker):
 
 
 @dataclass(eq=False)
-class FlashCard(BaseJoker):
+class FlashCard(MultScalingJoker):
     """
     This Joker gains +2 Mult per reroll in the shop
     """
-
-    mult: int = field(default=0, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
 
     def _shop_rerolled_action(self) -> None:
         self.mult += 2
 
 
 @dataclass(eq=False)
-class Popcorn(BaseJoker):
+class Popcorn(MultScalingJoker):
     """
     +20 Mult
     -4 Mult per round played
     """
 
     mult: int = field(default=20, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
 
     def _round_ended_action(self) -> None:
         self.mult -= 4
@@ -1513,23 +1421,13 @@ class Popcorn(BaseJoker):
 
 
 @dataclass(eq=False)
-class Campfire(BaseJoker):
+class Campfire(XMultScalingJoker):
     """
     This Joker gains X0.25 Mult for each card sold, resets when Boss Blind is defeated
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _boss_defeated_action(self) -> None:
         self.xmult = 1.0
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
     def _item_sold_action(self, sold_item: Sellable) -> None:
         self.xmult += 0.25
@@ -1586,24 +1484,14 @@ class Throwback(BaseJoker):
 
 
 @dataclass(eq=False)
-class GlassJoker(BaseJoker):
+class GlassJoker(XMultScalingJoker):
     """
     This Joker gains X0.75 Mult for every Glass Card that is destroyed
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
         if destroyed_card == Enhancement.GLASS:
             self.xmult += 0.75
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
 
 @dataclass(eq=False)
@@ -1813,24 +1701,14 @@ class Bootstraps(BaseJoker):
 
 
 @dataclass(eq=False)
-class Canio(BaseJoker):
+class Canio(XMultScalingJoker):
     """
     This Joker gains X1 Mult when a face card is destroyed
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _card_destroyed_action(self, destroyed_card: Card) -> None:
         if self._run._is_face_card(destroyed_card):
             self.xmult += 1.0
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
 
 # ---- /independent ---- #
@@ -1839,12 +1717,10 @@ class Canio(BaseJoker):
 
 
 @dataclass(eq=False)
-class RideTheBus(BaseJoker):
+class RideTheBus(MultScalingJoker):
     """
     This Joker gains +1 Mult per consecutive hand played without a scoring face card
     """
-
-    mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1859,22 +1735,12 @@ class RideTheBus(BaseJoker):
         else:
             self.mult = 0
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
-
 
 @dataclass(eq=False)
-class Runner(BaseJoker):
+class Runner(ChipsScalingJoker):
     """
     Gains +15 Chips if played hand contains a Straight
     """
-
-    chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1885,23 +1751,13 @@ class Runner(BaseJoker):
         if PokerHand.STRAIGHT in poker_hands_played:
             self.chips += 15
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._chips += self.chips
-
 
 @dataclass(eq=False)
-class GreenJoker(BaseJoker):
+class GreenJoker(MultScalingJoker):
     """
     +1 Mult per hand played
     -1 Mult per discard
     """
-
-    mult: int = field(default=0, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.mult = max(0, self.mult - 1)
@@ -1914,22 +1770,12 @@ class GreenJoker(BaseJoker):
     ) -> None:
         self.mult += 1
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
-
 
 @dataclass(eq=False)
-class SquareJoker(BaseJoker):
+class SquareJoker(ChipsScalingJoker):
     """
     This Joker gains +4 Chips if played hand has exactly 4 cards
     """
-
-    chips: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1940,22 +1786,12 @@ class SquareJoker(BaseJoker):
         if len(played_cards) == 4:
             self.chips += 4
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._chips += self.chips
-
 
 @dataclass(eq=False)
-class Vampire(BaseJoker):
+class Vampire(XMultScalingJoker):
     """
     This Joker gains X0.1 Mult per scoring Enhanced card played, removes card Enhancement
     """
-
-    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1969,22 +1805,12 @@ class Vampire(BaseJoker):
                 self.xmult += 0.1
                 scored_card.enhancement = None
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
-
 
 @dataclass(eq=False)
-class Obelisk(BaseJoker):
+class Obelisk(XMultScalingJoker):
     """
     This Joker gains X0.2 Mult per consecutive hand played without playing your most played poker hand
     """
-
-    xmult: float = field(default=1.0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -2000,42 +1826,22 @@ class Obelisk(BaseJoker):
         else:
             self.xmult = 1.0
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
-
 
 @dataclass(eq=False)
-class LuckyCat(BaseJoker):
+class LuckyCat(XMultScalingJoker):
     """
     This Joker gains X0.25 Mult every time a Lucky card successfully triggers
     """
-
-    xmult: float = field(default=1.0, init=False, repr=False)
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
     def _lucky_card_triggered_action(self) -> None:
         self.xmult += 0.25
 
 
 @dataclass(eq=False)
-class SpareTrousers(BaseJoker):
+class SpareTrousers(MultScalingJoker):
     """
     This Joker gains +2 Mult if played hand contains a Two Pair
     """
-
-    mult: int = field(default=0, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -2046,17 +1852,9 @@ class SpareTrousers(BaseJoker):
         if PokerHand.TWO_PAIR in poker_hands_played:
             self.mult += 2
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult += self.mult
-
 
 @dataclass(eq=False)
-class Ramen(BaseJoker):
+class Ramen(XMultScalingJoker):
     """
     X2 Mult, loses X0.01 Mult per card discarded
     """
@@ -2068,45 +1866,16 @@ class Ramen(BaseJoker):
         if self.xmult <= 1.0:
             self._run._destroy_joker(self)
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
-
 
 @dataclass(eq=False)
-class Castle(BaseJoker):
+class Castle(ChipsScalingJoker, DynamicJoker):
     """
     This Joker gains +3 Chips per discarded [suit] card, suit changes every round
     """
 
-    chips: int = field(default=0, init=False, repr=False)
     suit: Suit = field(default=Suit.SPADES, init=False, repr=False)
 
-    def _discard_action(self, discarded_cards: list[Card]) -> None:
-        self.chips += 3 * sum(
-            self.suit in self._run._get_card_suits(discarded_card)
-            for discarded_card in discarded_cards
-        )
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._chips += self.chips
-
-    def _on_created_action(self) -> None:
-        self._set_random_suit()
-
-    def _round_ended_action(self) -> None:
-        self._set_random_suit()
-
-    def _set_random_suit(self) -> None:
+    def _change_state(self) -> None:
         valid_suits = [
             deck_card.suit
             for deck_card in self._run._deck_cards
@@ -2114,14 +1883,18 @@ class Castle(BaseJoker):
         ]
         self.suit = r.choice(valid_suits) if valid_suits else Suit.SPADES
 
+    def _discard_action(self, discarded_cards: list[Card]) -> None:
+        self.chips += 3 * sum(
+            self.suit in self._run._get_card_suits(discarded_card)
+            for discarded_card in discarded_cards
+        )
+
 
 @dataclass(eq=False)
-class WeeJoker(BaseJoker):
+class WeeJoker(ChipsScalingJoker):
     """
     This Joker gains +8 Chips when each played 2 is scored
     """
-
-    chips: int = field(default=0, init=False, repr=False)
 
     def _card_scored_action(
         self,
@@ -2133,45 +1906,26 @@ class WeeJoker(BaseJoker):
         if scored_card == Rank.TWO:
             self.chips += 8
 
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._chips += self.chips
-
 
 @dataclass(eq=False)
-class HitTheRoad(BaseJoker):
+class HitTheRoad(XMultScalingJoker):
     """
     This Joker gains X0.5 Mult for every Jack discarded this round
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
-
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         self.xmult += 0.5 * (discarded_cards.count(Rank.JACK))
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
     def _round_ended_action(self) -> None:
         self.xmult = 1.0
 
 
 @dataclass(eq=False)
-class Yorick(BaseJoker):
+class Yorick(XMultScalingJoker):
     """
     This Joker gains X1 Mult every 23 cards discarded
     """
 
-    xmult: float = field(default=1.0, init=False, repr=False)
     discards_remaining: int = field(default=23, init=False, repr=False)
 
     def _discard_action(self, discarded_cards: list[Card]) -> None:
@@ -2179,14 +1933,6 @@ class Yorick(BaseJoker):
         while self.discards_remaining <= 0:
             self.xmult += 1.0
             self.discards_remaining += 23
-
-    def _independent_ability(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        self._run._mult *= self.xmult
 
 
 # ---- /mixed ---- #
@@ -2230,29 +1976,23 @@ class FacelessJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class MailInRebate(BaseJoker):
+class MailInRebate(DynamicJoker):
     """
     Earn $5 for each discarded [rank], rank changes every round
     """
 
     rank: Rank = field(default=Rank.ACE, init=False, repr=False)
 
-    def _discard_ability(self, discarded_cards: list[Card]) -> None:
-        self._run._money += 5 * discarded_cards.count(self.rank)
-
-    def _on_created_action(self) -> None:
-        self._set_random_rank()
-
-    def _round_ended_action(self) -> None:
-        self._set_random_rank()
-
-    def _set_random_rank(self) -> None:
+    def _change_state(self) -> None:
         valid_ranks = [
             deck_card.rank
             for deck_card in self._run._deck_cards
             if not deck_card.is_stone_card
         ]
         self.rank = r.choice(valid_ranks) if valid_ranks else Rank.ACE
+
+    def _discard_ability(self, discarded_cards: list[Card]) -> None:
+        self._run._money += 5 * discarded_cards.count(self.rank)
 
 
 @dataclass(eq=False)
@@ -2597,8 +2337,7 @@ class InvisibleJoker(BaseJoker):
     rounds_remaining: int = field(default=2, init=False, repr=False)
 
     def _round_ended_action(self) -> None:
-        if self.rounds_remaining > 0:
-            self.rounds_remaining -= 1
+        self.rounds_remaining = max(0, self.rounds_remaining - 1)
 
     def _sold_action(self) -> None:
         if self.rounds_remaining == 0 and len(self._run._jokers) > 1:

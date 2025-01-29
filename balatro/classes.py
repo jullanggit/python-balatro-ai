@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -610,7 +611,7 @@ class Card:
         return self.enhancement is Enhancement.STONE
 
 
-@dataclass
+@dataclass(eq=False)
 class ChallengeSetup:
     initial_jokers: list[BaseJoker] = field(default_factory=list)
     initial_consumables: list[Consumable] = field(default_factory=list)
@@ -634,3 +635,55 @@ class ChallengeSetup:
     consumable_slots: int = 2
     starting_money: int = 4
     base_reroll_cost: int = 5
+
+
+@dataclass(eq=False)
+class ChipsScalingJoker(BaseJoker):
+    chips: int = field(default=0, init=False, repr=False)
+
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        self._run._chips += self.chips
+
+
+@dataclass(eq=False)
+class DynamicJoker(BaseJoker, ABC):
+    def _on_created_action(self) -> None:
+        self._change_state()
+
+    def _round_ended_action(self) -> None:
+        self._change_state()
+
+    @abstractmethod
+    def _change_state(self) -> None:
+        pass
+
+
+@dataclass(eq=False)
+class MultScalingJoker(BaseJoker):
+    mult: int = field(default=0, init=False, repr=False)
+
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        self._run._mult += self.mult
+
+
+@dataclass(eq=False)
+class XMultScalingJoker(BaseJoker):
+    xmult: float = field(default=1.0, init=False, repr=False)
+
+    def _independent_ability(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        self._run._mult *= self.xmult

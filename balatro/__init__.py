@@ -2693,6 +2693,10 @@ class Run:
         return self._boss_blind
 
     @property
+    def challenge(self) -> Challenge | None:
+        return self._challenge if isinstance(self, ChallengeRun) else None
+
+    @property
     def consumable_slots(self) -> int:
         """The number of consumable slots available"""
 
@@ -2937,7 +2941,3 @@ class ChallengeRun(Run):
     def __init__(self, challenge: Challenge, seed: str | None = None) -> None:
         self._challenge: Challenge = challenge
         super().__init__(Deck.CHALLENGE, seed=seed)
-
-    @property
-    def challenge(self) -> Challenge:
-        return self._challenge
