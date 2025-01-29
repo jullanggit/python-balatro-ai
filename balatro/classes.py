@@ -44,6 +44,9 @@ class BaseJoker(Sellable, ABC):
 
         return NotImplemented
 
+    def __hash__(self) -> int:
+        return id(self)
+
     def __str__(self) -> str:
         return self.joker_type.value
 
@@ -586,6 +589,9 @@ class Card:
                 return not self.debuffed and self.edition is other
 
         return NotImplemented
+
+    def __hash__(self) -> int:
+        return id(self)
 
     def __lt__(self, other: Card) -> bool:
         match other:

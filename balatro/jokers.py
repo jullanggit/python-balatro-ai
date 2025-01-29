@@ -40,10 +40,11 @@ class Brainstorm(CopyJoker):
         visited_jokers = set()
         joker = self
         while isinstance(joker, CopyJoker):
-            if id(joker) in visited_jokers:
+            if joker in visited_jokers:
                 self._copy_loop = True
                 return
-            visited_jokers.add(id(joker))
+
+            visited_jokers.add(joker)
             joker = joker.copied_joker
 
     @property
@@ -2873,8 +2874,6 @@ class SixthSense(BaseJoker):
             and len(played_cards) == 1
             and played_cards[0] == Rank.SIX
         ):
-            # TODO: destroy when no room?
-            # TODO: check if last 2 lines are needed
             self._run._destroy_card(played_cards[0])
             if self._run.consumable_slots > len(self._run._consumables):
                 self._run._consumables.append(

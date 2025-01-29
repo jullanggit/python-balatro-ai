@@ -116,7 +116,7 @@ class Run:
         self._deck_cards_left: list[Card] | None = None
 
         self._reroll_cost: int | None = None
-        self._chaos_used: set[int] | None = None
+        self._chaos_used: set[ChaosTheClown] | None = None
         self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
         self._shop_packs: list[tuple[Pack, int]] | None = None
         self._opened_pack: Pack | None = None
@@ -512,7 +512,7 @@ class Run:
             return red_suits if card.suit in red_suits else black_suits
         return [card.suit]
 
-    def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, set[int]]:
+    def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, list[int]]:
         poker_hands = {}
 
         flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._jokers) else 5
@@ -563,9 +563,10 @@ class Run:
                 longest_straight.add(Rank.ACE)
 
             if len(longest_straight) >= flush_straight_len:  # straight
-                straight = list(longest_straight)
                 straight_indices = [
-                    i for i, card in enumerate(played_cards) if card in straight
+                    i
+                    for i, card in enumerate(played_cards)
+                    if card.rank in longest_straight
                 ]
                 if PokerHand.FLUSH in poker_hands:  # straight flush
                     poker_hands[PokerHand.STRAIGHT_FLUSH] = straight_indices
@@ -594,10 +595,7 @@ class Run:
                     poker_hands[PokerHand.FULL_HOUSE] = list(range(5))
                     if PokerHand.FLUSH in poker_hands:  # flush house
                         poker_hands[PokerHand.FLUSH_HOUSE] = list(range(5))
-                if (
-                    PokerHand.PAIR in poker_hands
-                    and played_cards[poker_hands[PokerHand.PAIR][0]] != rank
-                ):  # two pair
+                if PokerHand.PAIR in poker_hands:  # two pair
                     poker_hands[PokerHand.TWO_PAIR] = (
                         poker_hands[PokerHand.PAIR]
                         + [
@@ -836,7 +834,7 @@ class Run:
 
         self._shop_vouchers: list[tuple[Voucher, int]] | None = None
         self._rerolled_boss_blind: bool = False
-        self._cards_played_ante: set[int] = set()
+        self._cards_played_ante: set[Card] = set()
 
         self._blind: Blind = Blind.SMALL_BLIND
 
@@ -2130,6 +2128,9 @@ class Run:
 
         played_cards = [self._hand[i] for i in card_indices]
 
+        # TODO: check this
+        self._cards_played_ante.update(played_cards)
+
         for i in sorted(card_indices, reverse=True):
             self._hand.pop(i)
 
@@ -2138,14 +2139,13 @@ class Run:
 
         poker_hands = self._get_poker_hands(played_cards)
         poker_hands_played = sorted(poker_hands, reverse=True)
-        poker_hand_card_indices = poker_hands[poker_hands_played[0]]
         scored_card_indices = (
             list(range(len(played_cards)))
             if JokerType.SPLASH in self._jokers
             else [
                 i
                 for i, card in enumerate(played_cards)
-                if i in poker_hand_card_indices or card.is_stone_card
+                if i in poker_hands[poker_hands_played[0]] or card.is_stone_card
             ]
         )
 
@@ -2371,11 +2371,8 @@ class Run:
             self._reroll_cost += 1
         else:
             for joker in self._jokers:
-                if (
-                    joker == JokerType.CHAOS_THE_CLOWN
-                    and id(joker) not in self._chaos_used
-                ):
-                    self._chaos_used.add(id(joker))
+                if joker == JokerType.CHAOS_THE_CLOWN and joker not in self._chaos_used:
+                    self._chaos_used.add(joker)
                     break
 
         self._shop_cards = None
@@ -2440,7 +2437,7 @@ class Run:
                         card.debuffed = True
             case Blind.THE_PILLAR:
                 for card in self._deck_cards:
-                    if id(card) in self._cards_played_ante:
+                    if card in self._cards_played_ante:
                         card.debuffed = True
             case Blind.THE_NEEDLE:
                 self._hands = 1
@@ -2872,7 +2869,7 @@ class Run:
         return (
             0
             if any(
-                id(joker) not in self._chaos_used
+                joker not in self._chaos_used
                 for joker in self._jokers
                 if joker == JokerType.CHAOS_THE_CLOWN
             )
