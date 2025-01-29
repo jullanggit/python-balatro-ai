@@ -217,14 +217,14 @@ class Run:
                 if item.is_rental:
                     return 1
 
-                base_cost = JOKER_BASE_COSTS[item.joker_type]
+                base_cost = JOKER_BASE_COSTS[type(item)]
                 edition_cost = EDITION_COSTS[item.edition]
             case Consumable():
                 match item.card:
                     case Tarot():
                         base_cost = 3
                     case Planet():
-                        if JokerType.ASTRONOMER in self._jokers:
+                        if Astronomer in self._jokers:
                             return 0
                         base_cost = 3
                     case Spectral():
@@ -239,10 +239,7 @@ class Run:
                 base_cost = 10
                 # discount_percent = 1.0
             case Pack():
-                if (
-                    item.name.endswith("CELESTIAL")
-                    and JokerType.ASTRONOMER in self._jokers
-                ):
+                if item.name.endswith("CELESTIAL") and Astronomer in self._jokers:
                     return 0
                 if item.name.startswith("MEGA"):
                     base_cost = 8
@@ -258,7 +255,7 @@ class Run:
         return max(1, self._calculate_buy_cost(item) // 2) + item._extra_sell_value
 
     def _chance(self, hit: int, pool: int) -> bool:
-        hit *= 2 ** self._jokers.count(JokerType.OOPS_ALL_SIXES)
+        hit *= 2 ** self._jokers.count(OopsAllSixes)
         return hit >= pool or (r.randint(1, pool) <= hit)
 
     def _close_pack(self) -> None:
@@ -280,13 +277,13 @@ class Run:
 
     def _create_joker(
         self,
-        joker_type: JokerType,
+        joker_type: type[BaseJoker],
         edition: Edition = Edition.BASE,
         is_eternal: bool = False,
         is_perishable: bool = False,
         is_rental: bool = False,
     ) -> BaseJoker:
-        joker = JOKER_CLASSES[joker_type](
+        joker = joker_type(
             edition=edition,
             is_eternal=is_eternal,
             is_perishable=is_perishable,
@@ -326,18 +323,27 @@ class Run:
                 case Blind.THE_HOUSE:
                     if self._first_hand:
                         for hand_card in self._hand:
-                            hand_card.flipped = True
+                            hand_card.is_face_down = True
                 case Blind.THE_WHEEL:
                     for hand_card in self._hand:
-                        hand_card.flipped = self._chance(1, 7)
+                        hand_card.is_face_down = self._chance(1, 7)
                 case Blind.THE_FISH:
                     if after_hand_played:
                         for hand_card in self._hand:
-                            hand_card.flipped = True
+                            hand_card.is_face_down = True
                 case Blind.CERULEAN_BELL:
                     self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
 
         return True
+
+    def _debuff_random_joker(self) -> None:
+        valid_debuff_jokers = [joker for joker in self._jokers if not joker.is_debuffed]
+        if valid_debuff_jokers:
+            for joker in self._jokers:
+                if joker.is_debuffed and joker.num_perishable_rounds_left > 0:
+                    joker.is_debuffed = False
+                    break
+            r.choice(valid_debuff_jokers).is_debuffed = True
 
     def _destroy_card(self, card: Card) -> None:
         self._deck_cards.remove(card)
@@ -365,13 +371,13 @@ class Run:
         self._boss_blind_disabled = True
 
         for joker in self._jokers:
-            if joker._perishable_rounds_left > 0:
-                joker.debuffed = False
-            joker.flipped = False
+            if joker.num_perishable_rounds_left > 0:
+                joker.is_debuffed = False
+            joker.is_flipped = False
 
         for card in self._deck_cards:
-            card.debuffed = False
-            card.flipped = False
+            card.is_debuffed = False
+            card.is_face_down = False
 
         match self._blind:
             case Blind.THE_WALL:
@@ -388,11 +394,11 @@ class Run:
     def _discard(self, discard_indices: list[int]) -> None:
         discarded_cards = [self._hand[i] for i in discard_indices]
 
-        for joker in self._jokers[:]:
-            joker._on_discard(discarded_cards)
-
         for i in sorted(discard_indices, reverse=True):
             self._hand.pop(i)
+
+        for joker in self._jokers[:]:
+            joker._on_discard(discarded_cards)
 
     def _end_hand(
         self,
@@ -412,7 +418,7 @@ class Run:
         if self._hands == 0:  # game over
             if self._round_score >= self._round_goal // 4:
                 for joker in self._jokers:
-                    if joker == JokerType.MR_BONES:  # saved by mr. bones
+                    if joker == MrBones:  # saved by mr. bones
                         self._destroy_joker(joker)
                         self._end_round(poker_hands_played[0], saved=True)
                         return
@@ -456,7 +462,7 @@ class Run:
         for joker in self._jokers:
             round_end_money = joker._on_round_ended_money()
             if round_end_money > 0:
-                self._cash_out_money.append((round_end_money, joker.joker_type))
+                self._cash_out_money.append((round_end_money, type(joker)))
 
         if self._is_boss_blind:
             while Tag.INVESTMENT in self._tags:
@@ -464,9 +470,7 @@ class Run:
                 self._tags.remove(Tag.INVESTMENT)
 
         interest_amt, interest_cap = (
-            0
-            if self._deck is Deck.GREEN
-            else (1 + self._jokers.count(JokerType.TO_THE_MOON))
+            0 if self._deck is Deck.GREEN else (1 + self._jokers.count(ToTheMoon))
         ), (
             20
             if Voucher.MONEY_TREE in self._vouchers
@@ -500,11 +504,11 @@ class Run:
         self._state = State.GAME_OVER
 
     def _get_card_suits(self, card: Card, force_base_suit: bool = False) -> list[Suit]:
-        if (card.debuffed and not force_base_suit) or card.is_stone_card:
+        if (card.is_debuffed and not force_base_suit) or card.is_stone_card:
             return []
         if card == Enhancement.WILD:
             return list(Suit)
-        if JokerType.SMEARED_JOKER in self._jokers:
+        if SmearedJoker in self._jokers:
             red_suits, black_suits = [Suit.HEARTS, Suit.DIAMONDS], [
                 Suit.SPADES,
                 Suit.CLUBS,
@@ -515,8 +519,8 @@ class Run:
     def _get_poker_hands(self, played_cards: list[Card]) -> dict[PokerHand, list[int]]:
         poker_hands = {}
 
-        flush_straight_len = 4 if (JokerType.FOUR_FINGERS in self._jokers) else 5
-        max_straight_gap = 2 if (JokerType.SHORTCUT in self._jokers) else 1
+        flush_straight_len = 4 if (FourFingers in self._jokers) else 5
+        max_straight_gap = 2 if (Shortcut in self._jokers) else 1
 
         suit_counts = Counter()
         for played_card in played_cards:
@@ -630,19 +634,18 @@ class Run:
         return card
 
     def _get_random_consumable(self, consumable_type: type) -> Consumable:
-        match consumable_type.__name__:
-            case Tarot.__name__:
-                consumable_card_pool = list(Tarot)
-            case Planet.__name__:
-                consumable_card_pool = [
-                    unlocked_poker_hand.planet
-                    for unlocked_poker_hand in self._unlocked_poker_hands
-                ]
-            case Spectral.__name__:
-                consumable_card_pool = list(Spectral)[:-2]
+        if consumable_type is Tarot:
+            consumable_card_pool = list(Tarot)
+        elif consumable_type is Planet:
+            consumable_card_pool = [
+                unlocked_poker_hand.planet
+                for unlocked_poker_hand in self._unlocked_poker_hands
+            ]
+        elif consumable_type is Spectral:
+            consumable_card_pool = list(Spectral)[:-2]
 
         prohibited_consumable_cards = set()
-        if JokerType.SHOWMAN not in self._jokers:
+        if Showman not in self._jokers:
             prohibited_consumable_cards.update(
                 consumable.card for consumable in self.consumables
             )
@@ -684,15 +687,14 @@ class Run:
                 weights=JOKER_BASE_RARITY_WEIGHTS.values(),
                 k=1,
             )[0]
-        print(rarity)
 
         prohibited_joker_types = set()
-        if JokerType.SHOWMAN not in self._jokers:
-            prohibited_joker_types.update(joker.joker_type for joker in self.jokers)
+        if Showman not in self._jokers:
+            prohibited_joker_types.update(type(joker) for joker in self.jokers)
 
             if self._shop_cards is not None:
                 prohibited_joker_types.update(
-                    shop_card[0].joker_type
+                    type(shop_card[0])
                     for shop_card in self._shop_cards
                     if isinstance(shop_card, tuple)
                     and isinstance(shop_card[0], BaseJoker)
@@ -700,39 +702,37 @@ class Run:
 
             if self._opened_pack is not None:
                 prohibited_joker_types.update(
-                    pack_item.joker_type
+                    type(pack_item)
                     for pack_item in self._pack_items
                     if isinstance(pack_item, BaseJoker)
                 )
 
         if self._gros_michel_extinct:
-            prohibited_joker_types.add(JokerType.GROS_MICHEL)
+            prohibited_joker_types.add(GrosMichel)
         if not self._gros_michel_extinct:
-            prohibited_joker_types.add(JokerType.CAVENDISH)
+            prohibited_joker_types.add(Cavendish)
         deck_card_enhancements = {
             deck_card.enhancement
             for deck_card in self._deck_cards
             if deck_card.enhancement is not None
         }
         if Enhancement.GOLD not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.GOLDEN_TICKET)
+            prohibited_joker_types.add(GoldenTicket)
         if Enhancement.STEEL not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.STEEL_JOKER)
+            prohibited_joker_types.add(SteelJoker)
         if Enhancement.STONE not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.STONE_JOKER)
+            prohibited_joker_types.add(StoneJoker)
         if Enhancement.LUCKY not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.LUCKY_CAT)
+            prohibited_joker_types.add(LuckyCat)
         if Enhancement.GLASS not in deck_card_enhancements:
-            prohibited_joker_types.add(JokerType.GLASS_JOKER)
+            prohibited_joker_types.add(GlassJoker)
 
         valid_joker_types = [
             joker_type
-            for joker_type in JOKER_TYPE_RARITIES[rarity]
+            for joker_type in JOKER_RARITIES[rarity]
             if joker_type not in prohibited_joker_types
         ]
-        joker_type = (
-            r.choice(valid_joker_types) if valid_joker_types else JokerType.DEFAULT
-        )
+        joker_type = r.choice(valid_joker_types) if valid_joker_types else Joker
 
         edition_chances = (
             JOKER_EDITION_CHANCES_GLOW_UP
@@ -791,11 +791,7 @@ class Run:
         return float("nan") if round_goal == float("inf") else round_goal
 
     def _is_face_card(self, card: Card) -> bool:
-        return (
-            not card.debuffed
-            and card.rank.is_face
-            or JokerType.PAREIDOLIA in self._jokers
-        )
+        return not card.is_debuffed and card.rank.is_face or Pareidolia in self._jokers
 
     def _lucky_check(self) -> bool:
         triggered = False
@@ -1303,7 +1299,7 @@ class Run:
             <div style='height: 546px; width: 772px; background-color: {pack_background_colors[" ".join(self._opened_pack.value.split(" ")[-2:])] if self._opened_pack is not None else BLIND_COLORS[self._blind] if self._state is State.PLAYING_BLIND and self._is_boss_blind else "#365a46"}'>
                 <div style='position: absolute; height: 132px; width: 492px; background-color: rgba(0, 0, 0, 0.1); border-radius: 12px; left: 336px; top: 42px; display: flex; align-items: center; justify-content: space-evenly;'>
                     {' '.join(f"""
-                        <img src='data:image/png;base64,{joker_images[i]}' style='width: {68.88 if joker.joker_type is JokerType.WEE_JOKER else 98.4}px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
+                        <img src='data:image/png;base64,{joker_images[i]}' style='width: {68.88 if isinstance(joker, WeeJoker) else 98.4}px; position: relative; z-index: {i+1}; margin-left: {-(98.4 * max(0, len(self._jokers) - 5))/(len(self._jokers) - 1) if i > 0 else 0}px; filter: drop-shadow(0px 8.4px rgba(0, 0, 0, 0.5))'/>
                     """ for i, joker in enumerate(self._jokers))}
                 </div>
                 <span style='color: white; font-size: 14px; position: absolute; left: 348px; top: 175.2px'>{len(self._jokers)}/{self.joker_slots}</span>
@@ -1349,7 +1345,7 @@ class Run:
         for item, cost in self._shop_cards:
             png_bytes = item._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            item_html = f"<img style='width: {68.88 if isinstance(item, BaseJoker) and item.joker_type is JokerType.WEE_JOKER else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
+            item_html = f"<img style='width: {68.88 if isinstance(item, BaseJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
                     <div style='display: flex; flex-direction: column; align-items: center;'>
@@ -1412,7 +1408,7 @@ class Run:
         html = f"""
             <div style='position: absolute; height: 132px; width: 574px; left: 335px; bottom: 85px; display: flex; align-items: center; justify-content: center; gap: {5 if isinstance(self._pack_items[0], Consumable) else 15}px'>
                 {' '.join(f"""
-                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BaseJoker) and item.joker_type is JokerType.WEE_JOKER else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
+                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BaseJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
                 """ for i, item in enumerate(self._pack_items))}
             </div>
             <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
@@ -1898,7 +1894,7 @@ class Run:
 
                         copied_joker = r.choice(self._jokers)
                         joker_copy = self._create_joker(
-                            copied_joker.joker_type,
+                            type(copied_joker),
                             (
                                 Edition.BASE
                                 if copied_joker.edition is Edition.NEGATIVE
@@ -2135,13 +2131,13 @@ class Run:
             self._hand.pop(i)
 
         for played_card in played_cards:
-            played_card.flipped = False
+            played_card.is_face_down = False
 
         poker_hands = self._get_poker_hands(played_cards)
         poker_hands_played = sorted(poker_hands, reverse=True)
         scored_card_indices = (
             list(range(len(played_cards)))
-            if JokerType.SPLASH in self._jokers
+            if Splash in self._jokers
             else [
                 i
                 for i, card in enumerate(played_cards)
@@ -2222,7 +2218,7 @@ class Run:
         for i in scored_card_indices:
             scored_card = played_cards[i]
 
-            if scored_card.debuffed:
+            if scored_card.is_debuffed:
                 boss_blind_triggered = True
 
             self._trigger_scored_card(
@@ -2296,12 +2292,16 @@ class Run:
             - 1e-9
         )
         self._round_score += score
-
         self._chips = None
         self._mult = None
 
+        for played_card in played_cards:
+            played_card.is_debuffed = False
+
         for joker in self._jokers[:]:
-            joker._on_end_hand(played_cards, scored_card_indices, poker_hands_played)
+            joker._on_scoring_completed(
+                played_cards, scored_card_indices, poker_hands_played
+            )
 
         for i in scored_card_indices:
             scored_card = played_cards[i]
@@ -2321,12 +2321,7 @@ class Run:
                     elif len(self._hand) == 1:
                         self._discard([0])
                 case Blind.CRIMSON_HEART:
-                    for joker in self._jokers:
-                        if joker.debuffed and joker._perishable_rounds_left > 0:
-                            joker.debuffed = False
-                    r.choice(
-                        [joker for joker in self._jokers if not joker.debuffed]
-                    ).debuffed = True
+                    self._debuff_random_joker()
 
         self._end_hand(played_cards, scored_card_indices, poker_hands_played)
 
@@ -2371,7 +2366,7 @@ class Run:
             self._reroll_cost += 1
         else:
             for joker in self._jokers:
-                if joker == JokerType.CHAOS_THE_CLOWN and joker not in self._chaos_used:
+                if joker == ChaosTheClown and joker not in self._chaos_used:
                     self._chaos_used.add(joker)
                     break
 
@@ -2420,46 +2415,44 @@ class Run:
             case Blind.THE_CLUB:
                 for card in self._deck_cards:
                     if card.suit is Suit.CLUBS:
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_GOAD:
                 for card in self._deck_cards:
                     if card.suit is Suit.SPADES:
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_WATER:
                 self._discards = 0
             case Blind.THE_WINDOW:
                 for card in self._deck_cards:
                     if card.suit is Suit.DIAMONDS:
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_PLANT:
                 for card in self._deck_cards:
                     if self._is_face_card(card):
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_PILLAR:
                 for card in self._deck_cards:
                     if card in self._cards_played_ante:
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_NEEDLE:
                 self._hands = 1
             case Blind.THE_HEAD:
                 for card in self._deck_cards:
                     if card.suit is Suit.HEARTS:
-                        card.debuffed = True
+                        card.is_debuffed = True
             case Blind.THE_MARK:
                 for card in self._deck_cards:
                     if self._is_face_card(card):
-                        card.flipped = True
+                        card.is_face_down = True
             case Blind.AMBER_ACORN:
                 for joker in self._jokers:
-                    joker.flipped = True
+                    joker.is_flipped = True
                 r.shuffle(self._jokers)
             case Blind.VERDANT_LEAF:
                 for card in self._deck_cards:
-                    card.debuffed = True
+                    card.is_debuffed = True
             case Blind.CRIMSON_HEART:
-                r.choice(
-                    [joker for joker in self._jokers if not joker.debuffed]
-                ).debuffed = True
+                self._debuff_random_joker()
 
         while Tag.JUGGLE in self._tags:
             self._tags.remove(Tag.JUGGLE)
@@ -2587,7 +2580,7 @@ class Run:
 
     @property
     def _available_money(self) -> int:
-        return max(0, self._money + 20 * self._jokers.count(JokerType.CREDIT_CARD))
+        return max(0, self._money + 20 * self._jokers.count(CreditCard))
 
     @property
     def _cash_out_total(self) -> int:
@@ -2611,11 +2604,10 @@ class Run:
             discards_per_round -= 1
 
         for joker in self.jokers:
-            match joker:
-                case JokerType.DRUNKARD:
-                    discards_per_round += 1
-                case JokerType.MERRY_ANDY:
-                    discards_per_round += 3
+            if joker == Drunkard:
+                discards_per_round += 1
+            elif joker == MerryAndy:
+                discards_per_round += 3
 
         return discards_per_round
 
@@ -2637,11 +2629,10 @@ class Run:
             hands_per_round -= 1
 
         for joker in self.jokers:
-            match joker:
-                case JokerType.TROUBADOUR:
-                    hands_per_round -= 1
+            if joker == Troubadour:
+                hands_per_round -= 1
 
-        return max(1, hands_per_round)
+        return hands_per_round
 
     @property
     def _is_boss_blind(self) -> bool:
@@ -2710,8 +2701,6 @@ class Run:
         )
 
         match self._deck:
-            case Deck.MAGIC:
-                consumable_slots += 1
             case Deck.NEBULA:
                 consumable_slots -= 1
 
@@ -2740,7 +2729,7 @@ class Run:
     #     }
 
     #     for deck_card in self.deck_cards_left:
-    #         if deck_card.flipped or deck_card.is_stone_card:
+    #         if deck_card.is_face_down or deck_card.is_stone_card:
     #             continue
     #         deck_breakdown[deck_card.suit] += 1
     #         deck_breakdown[deck_card.rank] += 1
@@ -2798,17 +2787,16 @@ class Run:
             hand_size += 1
 
         for joker in self.jokers:
-            match joker:
-                case JokerType.STUNTMAN:
-                    hand_size -= 2
-                case JokerType.TURTLE_BEAN:
-                    hand_size += joker.hand_size_increase
-                case JokerType.JUGGLER:
-                    hand_size += 1
-                case JokerType.MERRY_ANDY:
-                    hand_size -= 1
-                case JokerType.TROUBADOUR:
-                    hand_size += 2
+            if joker == Stuntman:
+                hand_size -= 2
+            elif joker == TurtleBean:
+                hand_size += joker.hand_size_increase
+            elif joker == Juggler:
+                hand_size += 1
+            elif joker == MerryAndy:
+                hand_size -= 1
+            elif joker == Troubadour:
+                hand_size += 2
 
         hand_size -= self._hand_size_penalty
 
@@ -2869,9 +2857,9 @@ class Run:
         return (
             0
             if any(
-                joker not in self._chaos_used
+                joker
                 for joker in self._jokers
-                if joker == JokerType.CHAOS_THE_CLOWN
+                if joker == ChaosTheClown and joker not in self._chaos_used
             )
             else self._reroll_cost
         )

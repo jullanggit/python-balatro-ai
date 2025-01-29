@@ -60,7 +60,7 @@ run.sell_item(1, 1)
 
 # See your jokers
 for i, joker in enumerate(run.jokers):
-    print(f"{i}: {joker.joker_type} ({joker.edition})")
+    print(f"{i}: {joker}")
 # Rearrange them
 run.move_joker(3, 0)
 ```

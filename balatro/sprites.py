@@ -9,6 +9,7 @@ import random as r
 
 from .classes import *
 from .enums import *
+from .jokers import *
 
 DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT = 142, 190
 DEFAULT_CHIP_WIDTH, DEFAULT_CHIP_HEIGHT = 58, 58
@@ -141,155 +142,155 @@ ENHANCER_COORDINATES = {
     Seal.BLUE: [4, 6],
 }
 JOKER_COORDINATES = {
-    JokerType.JOKER: [0, 0],
-    JokerType.CHAOS_THE_CLOWN: [0, 1],
-    JokerType.JOLLY_JOKER: [0, 2],
-    JokerType.ZANY_JOKER: [0, 3],
-    JokerType.MAD_JOKER: [0, 4],
-    JokerType.CRAZY_JOKER: [0, 5],
-    JokerType.DROLL_JOKER: [0, 6],
-    JokerType.HALF_JOKER: [0, 7],
-    JokerType.MERRY_ANDY: [0, 8],
-    JokerType.STONE_JOKER: [0, 9],
-    JokerType.JUGGLER: [1, 0],
-    JokerType.DRUNKARD: [1, 1],
-    JokerType.ACROBAT: [1, 2],
-    JokerType.SOCK_AND_BUSKIN: [1, 3],
-    JokerType.MIME: [1, 4],
-    JokerType.CREDIT_CARD: [1, 5],
-    JokerType.GREEDY_JOKER: [1, 6],
-    JokerType.LUSTY_JOKER: [1, 7],
-    JokerType.WRATHFUL_JOKER: [1, 8],
-    JokerType.GLUTTONOUS_JOKER: [1, 9],
-    JokerType.TROUBADOUR: [2, 0],
-    JokerType.BANNER: [2, 1],
-    JokerType.MYSTIC_SUMMIT: [2, 2],
-    JokerType.MARBLE_JOKER: [2, 3],
-    JokerType.LOYALTY_CARD: [2, 4],
-    JokerType.HACK: [2, 5],
-    JokerType.MISPRINT: [2, 6],
-    JokerType.STEEL_JOKER: [2, 7],
-    JokerType.RAISED_FIST: [2, 8],
-    JokerType.GOLDEN_JOKER: [2, 9],
-    JokerType.BLUEPRINT: [3, 0],
-    JokerType.GLASS_JOKER: [3, 1],
-    JokerType.SCARY_FACE: [3, 2],
-    JokerType.ABSTRACT_JOKER: [3, 3],
-    JokerType.DELAYED_GRATIFICATION: [3, 4],
-    JokerType.GOLDEN_TICKET: [3, 5],
-    JokerType.PAREIDOLIA: [3, 6],
-    JokerType.CARTOMANCER: [3, 7],
-    JokerType.EVEN_STEVEN: [3, 8],
-    JokerType.ODD_TODD: [3, 9],
-    JokerType.SCHOLAR: [4, 0],
-    JokerType.BUSINESS_CARD: [4, 1],
-    JokerType.SUPERNOVA: [4, 2],
-    JokerType.MR_BONES: [4, 3],
-    JokerType.SEEING_DOUBLE: [4, 4],
-    JokerType.THE_DUO: [4, 5],
-    JokerType.THE_TRIO: [4, 6],
-    JokerType.THE_FAMILY: [4, 7],
-    JokerType.THE_ORDER: [4, 8],
-    JokerType.THE_TRIBE: [4, 9],
-    JokerType.EIGHT_BALL: [5, 0],
-    JokerType.FIBONACCI: [5, 1],
-    JokerType.JOKER_STENCIL: [5, 2],
-    JokerType.SPACE_JOKER: [5, 3],
-    JokerType.MATADOR: [5, 4],
-    JokerType.CEREMONIAL_DAGGER: [5, 5],
-    JokerType.SHOWMAN: [5, 6],
-    JokerType.FORTUNE_TELLER: [5, 7],
-    JokerType.HIT_THE_ROAD: [5, 8],
-    JokerType.SWASHBUCKLER: [5, 9],
-    JokerType.FLOWER_POT: [6, 0],
-    JokerType.RIDE_THE_BUS: [6, 1],
-    JokerType.SHOOT_THE_MOON: [6, 2],
-    JokerType.SMEARED_JOKER: [6, 4],
-    JokerType.OOPS_ALL_SIXES: [6, 5],
-    JokerType.FOUR_FINGERS: [6, 6],
-    JokerType.GROS_MICHEL: [6, 7],
-    JokerType.STUNTMAN: [6, 8],
-    JokerType.HANGING_CHAD: [6, 9],
-    JokerType.DRIVERS_LICENSE: [7, 0],
-    JokerType.INVISIBLE_JOKER: [7, 1],
-    JokerType.ASTRONOMER: [7, 2],
-    JokerType.BURNT_JOKER: [7, 3],
-    JokerType.DUSK: [7, 4],
-    JokerType.THROWBACK: [7, 5],
-    JokerType.THE_IDOL: [7, 6],
-    JokerType.BRAINSTORM: [7, 7],
-    JokerType.SATELLITE: [7, 8],
-    JokerType.ROUGH_GEM: [7, 9],
-    JokerType.BLOODSTONE: [8, 0],
-    JokerType.ARROWHEAD: [8, 1],
-    JokerType.ONYX_AGATE: [8, 2],
-    JokerType.CANIO: [8, 3],
-    JokerType.TRIBOULET: [8, 4],
-    JokerType.YORICK: [8, 5],
-    JokerType.CHICOT: [8, 6],
-    JokerType.PERKEO: [8, 7],
-    JokerType.CERTIFICATE: [8, 8],
-    JokerType.BOOTSTRAPS: [8, 9],
-    JokerType.EGG: [10, 0],
-    JokerType.BURGLAR: [10, 1],
-    JokerType.BLACKBOARD: [10, 2],
-    JokerType.RUNNER: [10, 3],
-    JokerType.ICE_CREAM: [10, 4],
-    JokerType.DNA: [10, 5],
-    JokerType.SPLASH: [10, 6],
-    JokerType.BLUE_JOKER: [10, 7],
-    JokerType.SIXTH_SENSE: [10, 8],
-    JokerType.CONSTELLATION: [10, 9],
-    JokerType.HIKER: [11, 0],
-    JokerType.FACELESS_JOKER: [11, 1],
-    JokerType.GREEN_JOKER: [11, 2],
-    JokerType.SUPERPOSITION: [11, 3],
-    JokerType.TODO_LIST: [11, 4],
-    JokerType.CAVENDISH: [11, 5],
-    JokerType.CARD_SHARP: [11, 6],
-    JokerType.RED_CARD: [11, 7],
-    JokerType.MADNESS: [11, 8],
-    JokerType.SQUARE_JOKER: [11, 9],
-    JokerType.SEANCE: [12, 0],
-    JokerType.RIFF_RAFF: [12, 1],
-    JokerType.VAMPIRE: [12, 2],
-    JokerType.SHORTCUT: [12, 3],
-    JokerType.HOLOGRAM: [12, 4],
-    JokerType.VAGABOND: [12, 5],
-    JokerType.BARON: [12, 6],
-    JokerType.CLOUD_NINE: [12, 7],
-    JokerType.ROCKET: [12, 8],
-    JokerType.OBELISK: [12, 9],
-    JokerType.MIDAS_MASK: [13, 0],
-    JokerType.LUCHADOR: [13, 1],
-    JokerType.PHOTOGRAPH: [13, 2],
-    JokerType.GIFT_CARD: [13, 3],
-    JokerType.TURTLE_BEAN: [13, 4],
-    JokerType.EROSION: [13, 5],
-    JokerType.RESERVED_PARKING: [13, 6],
-    JokerType.MAIL_IN_REBATE: [13, 7],
-    JokerType.TO_THE_MOON: [13, 8],
-    JokerType.HALLUCINATION: [13, 9],
-    JokerType.SLY_JOKER: [14, 0],
-    JokerType.WILY_JOKER: [14, 1],
-    JokerType.CLEVER_JOKER: [14, 2],
-    JokerType.DEVIOUS_JOKER: [14, 3],
-    JokerType.CRAFTY_JOKER: [14, 4],
-    JokerType.LUCKY_CAT: [14, 5],
-    JokerType.BASEBALL_CARD: [14, 6],
-    JokerType.BULL: [14, 7],
-    JokerType.DIET_COLA: [14, 8],
-    JokerType.TRADING_CARD: [14, 9],
-    JokerType.FLASH_CARD: [15, 0],
-    JokerType.POPCORN: [15, 1],
-    JokerType.RAMEN: [15, 2],
-    JokerType.SELTZER: [15, 3],
-    JokerType.SPARE_TROUSERS: [15, 4],
-    JokerType.CAMPFIRE: [15, 5],
-    JokerType.SMILEY_FACE: [15, 6],
-    JokerType.ANCIENT_JOKER: [15, 7],
-    JokerType.WALKIE_TALKIE: [15, 8],
-    JokerType.CASTLE: [15, 9],
+    Joker: [0, 0],
+    ChaosTheClown: [0, 1],
+    JollyJoker: [0, 2],
+    ZanyJoker: [0, 3],
+    MadJoker: [0, 4],
+    CrazyJoker: [0, 5],
+    DrollJoker: [0, 6],
+    HalfJoker: [0, 7],
+    MerryAndy: [0, 8],
+    StoneJoker: [0, 9],
+    Juggler: [1, 0],
+    Drunkard: [1, 1],
+    Acrobat: [1, 2],
+    SockAndBuskin: [1, 3],
+    Mime: [1, 4],
+    CreditCard: [1, 5],
+    GreedyJoker: [1, 6],
+    LustyJoker: [1, 7],
+    WrathfulJoker: [1, 8],
+    GluttonousJoker: [1, 9],
+    Troubadour: [2, 0],
+    Banner: [2, 1],
+    MysticSummit: [2, 2],
+    MarbleJoker: [2, 3],
+    LoyaltyCard: [2, 4],
+    Hack: [2, 5],
+    Misprint: [2, 6],
+    SteelJoker: [2, 7],
+    RaisedFist: [2, 8],
+    GoldenJoker: [2, 9],
+    Blueprint: [3, 0],
+    GlassJoker: [3, 1],
+    ScaryFace: [3, 2],
+    AbstractJoker: [3, 3],
+    DelayedGratification: [3, 4],
+    GoldenTicket: [3, 5],
+    Pareidolia: [3, 6],
+    Cartomancer: [3, 7],
+    EvenSteven: [3, 8],
+    OddTodd: [3, 9],
+    Scholar: [4, 0],
+    BusinessCard: [4, 1],
+    Supernova: [4, 2],
+    MrBones: [4, 3],
+    SeeingDouble: [4, 4],
+    TheDuo: [4, 5],
+    TheTrio: [4, 6],
+    TheFamily: [4, 7],
+    TheOrder: [4, 8],
+    TheTribe: [4, 9],
+    EightBall: [5, 0],
+    Fibonacci: [5, 1],
+    JokerStencil: [5, 2],
+    SpaceJoker: [5, 3],
+    Matador: [5, 4],
+    CeremonialDagger: [5, 5],
+    Showman: [5, 6],
+    FortuneTeller: [5, 7],
+    HitTheRoad: [5, 8],
+    Swashbuckler: [5, 9],
+    FlowerPot: [6, 0],
+    RideTheBus: [6, 1],
+    ShootTheMoon: [6, 2],
+    SmearedJoker: [6, 4],
+    OopsAllSixes: [6, 5],
+    FourFingers: [6, 6],
+    GrosMichel: [6, 7],
+    Stuntman: [6, 8],
+    HangingChad: [6, 9],
+    DriversLicense: [7, 0],
+    InvisibleJoker: [7, 1],
+    Astronomer: [7, 2],
+    BurntJoker: [7, 3],
+    Dusk: [7, 4],
+    Throwback: [7, 5],
+    TheIdol: [7, 6],
+    Brainstorm: [7, 7],
+    Satellite: [7, 8],
+    RoughGem: [7, 9],
+    Bloodstone: [8, 0],
+    Arrowhead: [8, 1],
+    OnyxAgate: [8, 2],
+    Canio: [8, 3],
+    Triboulet: [8, 4],
+    Yorick: [8, 5],
+    Chicot: [8, 6],
+    Perkeo: [8, 7],
+    Certificate: [8, 8],
+    Bootstraps: [8, 9],
+    Egg: [10, 0],
+    Burglar: [10, 1],
+    Blackboard: [10, 2],
+    Runner: [10, 3],
+    IceCream: [10, 4],
+    DNA: [10, 5],
+    Splash: [10, 6],
+    BlueJoker: [10, 7],
+    SixthSense: [10, 8],
+    Constellation: [10, 9],
+    Hiker: [11, 0],
+    FacelessJoker: [11, 1],
+    GreenJoker: [11, 2],
+    Superposition: [11, 3],
+    ToDoList: [11, 4],
+    Cavendish: [11, 5],
+    CardSharp: [11, 6],
+    RedCard: [11, 7],
+    Madness: [11, 8],
+    SquareJoker: [11, 9],
+    Seance: [12, 0],
+    RiffRaff: [12, 1],
+    Vampire: [12, 2],
+    Shortcut: [12, 3],
+    Hologram: [12, 4],
+    Vagabond: [12, 5],
+    Baron: [12, 6],
+    CloudNine: [12, 7],
+    Rocket: [12, 8],
+    Obelisk: [12, 9],
+    MidasMask: [13, 0],
+    Luchador: [13, 1],
+    Photograph: [13, 2],
+    GiftCard: [13, 3],
+    TurtleBean: [13, 4],
+    Erosion: [13, 5],
+    ReservedParking: [13, 6],
+    MailInRebate: [13, 7],
+    ToTheMoon: [13, 8],
+    Hallucination: [13, 9],
+    SlyJoker: [14, 0],
+    WilyJoker: [14, 1],
+    CleverJoker: [14, 2],
+    DeviousJoker: [14, 3],
+    CraftyJoker: [14, 4],
+    LuckyCat: [14, 5],
+    BaseballCard: [14, 6],
+    Bull: [14, 7],
+    DietCola: [14, 8],
+    TradingCard: [14, 9],
+    FlashCard: [15, 0],
+    Popcorn: [15, 1],
+    Ramen: [15, 2],
+    Seltzer: [15, 3],
+    SpareTrousers: [15, 4],
+    Campfire: [15, 5],
+    SmileyFace: [15, 6],
+    AncientJoker: [15, 7],
+    WalkieTalkie: [15, 8],
+    Castle: [15, 9],
 }
 PACK_COORDINATES = {
     Pack.ARCANA: [[0, 0], [0, 1], [0, 2], [0, 3]],
@@ -893,18 +894,18 @@ def get_sprite(
 ) -> bytes:
     match item:
         case BaseJoker():
-            match item.joker_type:
-                case JokerType.HALF_JOKER:
+            match item:
+                case HalfJoker():
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, int(DEFAULT_CARD_HEIGHT // 1.7)
-                case JokerType.SQUARE_JOKER:
+                case SquareJoker():
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_WIDTH
-                case JokerType.PHOTOGRAPH:
+                case Photograph():
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, int(DEFAULT_CARD_HEIGHT // 1.2)
                 case _:
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, DEFAULT_CARD_HEIGHT
 
-            if item.flipped:
-                if item.joker_type is JokerType.WEE_JOKER:
+            if item.is_flipped:
+                if isinstance(item, WeeJoker):
                     WIDTH, HEIGHT = int(WIDTH * 0.7), int(HEIGHT * 0.7)
                 sprite = get_sprite(card_back)
                 sprite = sprite.resize((WIDTH, HEIGHT))
@@ -916,24 +917,18 @@ def get_sprite(
                         io.BytesIO(base64.b64decode(file.read()))
                     )
 
-                i, j = JOKER_COORDINATES.get(item.joker_type, [0, 0])
+                i, j = JOKER_COORDINATES.get(type(item), [0, 0])
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + WIDTH, y1 + HEIGHT
                 sprite = joker_sheet.crop((x1, y1, x2, y2))
 
                 sprite = _apply_edition(sprite, item.edition)
 
-                match item.joker_type:
-                    case JokerType.WEE_JOKER:
+                match item:
+                    case WeeJoker():
                         WIDTH, HEIGHT = int(WIDTH * 0.7), int(HEIGHT * 0.7)
                         sprite = sprite.resize((WIDTH, HEIGHT))
-                    case (
-                        JokerType.CANIO
-                        | JokerType.TRIBOULET
-                        | JokerType.YORICK
-                        | JokerType.CHICOT
-                        | JokerType.PERKEO
-                    ):
+                    case Canio() | Triboulet() | Yorick() | Chicot() | Perkeo():
                         i, j = i + 1, j
                         x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                         x2, y2 = x1 + WIDTH, y1 + HEIGHT
@@ -944,7 +939,7 @@ def get_sprite(
                         face_shadow_sprite.paste((0, 0, 0, 70), (0, 5), face_sprite)
                         sprite = Image.alpha_composite(sprite, face_shadow_sprite)
                         sprite = Image.alpha_composite(sprite, face_sprite)
-                    case JokerType.HOLOGRAM:
+                    case Hologram():
                         i, j = 9, 2
                         x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                         x2, y2 = x1 + WIDTH, y1 + HEIGHT
@@ -971,7 +966,7 @@ def get_sprite(
                     rental_sprite = stickers_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, rental_sprite)
 
-                if item.debuffed:
+                if item.is_debuffed:
                     sprite = _apply_debuff(sprite)
         case Consumable():
             with open("resources/textures/Tarots.txt") as file:
@@ -1000,7 +995,7 @@ def get_sprite(
                 sprite = Image.alpha_composite(sprite, soul_shadow_sprite)
                 sprite = Image.alpha_composite(sprite, soul_sprite)
         case Card():
-            if item.flipped:
+            if item.is_face_down:
                 sprite = get_sprite(card_back)
             else:
                 with open("resources/textures/8BitDeck.txt") as file:
@@ -1033,7 +1028,7 @@ def get_sprite(
                     seal_sprite = enhancers_sheet.crop((x1, y1, x2, y2))
                     sprite = Image.alpha_composite(sprite, seal_sprite)
 
-                if item.debuffed:
+                if item.is_debuffed:
                     sprite = _apply_debuff(sprite)
         case Voucher():
             with open("resources/textures/Vouchers.txt") as file:

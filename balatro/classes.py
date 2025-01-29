@@ -1,5 +1,4 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -15,31 +14,30 @@ class Sellable:
 
 
 @dataclass(eq=False)
-class BaseJoker(Sellable, ABC):
-    _perishable_rounds_left: int = field(default=5, init=False, repr=False)
+class BaseJoker(Sellable):
     _run: Run | None = field(default=None, init=False, repr=False)
 
     edition: Edition = Edition.BASE
-
     is_eternal: bool = False
     is_perishable: bool = False
     is_rental: bool = False
 
-    debuffed: bool = field(default=False, init=False, repr=False)
-    flipped: bool = field(default=False, init=False, repr=False)
+    is_debuffed: bool = field(default=False, init=False, repr=False)
+    is_flipped: bool = field(default=False, init=False, repr=False)
+    num_perishable_rounds_left: int = field(default=5, init=False, repr=False)
 
     def __post_init__(self) -> None:
         assert not (self.is_eternal and self.is_perishable)
 
-    def __eq__(self, other: BaseJoker | JokerType | Edition) -> bool:
+    def __eq__(self, other: BaseJoker | type[BaseJoker] | Edition) -> bool:
         match other:
             case BaseJoker():
                 return self is other
-            case JokerType():
-                return not self.debuffed and self.joker_type is other
+            case type() if issubclass(other, BaseJoker):
+                return not self.is_debuffed and isinstance(self, other)
             case Edition():
                 return (
-                    not self.debuffed or other is Edition.NEGATIVE
+                    not self.is_debuffed or other is Edition.NEGATIVE
                 ) and self.edition is other
 
         return NotImplemented
@@ -48,7 +46,7 @@ class BaseJoker(Sellable, ABC):
         return id(self)
 
     def __str__(self) -> str:
-        return self.joker_type.value
+        raise NotImplementedError
 
     def _repr_png_(self, card_back: Deck = Deck.RED) -> bytes:
         from .sprites import get_sprite
@@ -118,14 +116,6 @@ class BaseJoker(Sellable, ABC):
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         pass
 
-    def _end_hand_action(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        pass
-
     def _hand_played_ability(
         self,
         played_cards: list[Card],
@@ -157,44 +147,44 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _on_blind_selected(self) -> None:
-        if self.debuffed or self not in self._run._jokers:
+        if self.is_debuffed or self not in self._run._jokers:
             return
 
         self._blind_selected_ability()
         self._blind_selected_action()
 
     def _on_boss_blind_triggered(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._boss_blind_triggered_ability()
 
     def _on_boss_defeated(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._boss_defeated_action()
 
     def _on_card_added(self, added_card: Card) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._card_added_action(added_card)
 
     def _on_card_destroyed(self, destroyed_card: Card) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._card_destroyed_action(destroyed_card)
 
     def _on_card_held(self, held_card: Card) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._card_held_ability(held_card)
 
     def _on_card_held_retriggers(self, held_card: Card) -> int:
-        if self.debuffed:
+        if self.is_debuffed:
             return 0
         return self._card_held_retriggers(held_card)
 
@@ -205,7 +195,7 @@ class BaseJoker(Sellable, ABC):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._card_scored_action(
@@ -222,7 +212,7 @@ class BaseJoker(Sellable, ABC):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> int:
-        if self.debuffed:
+        if self.is_debuffed:
             return 0
 
         return self._card_scored_retriggers(
@@ -234,28 +224,17 @@ class BaseJoker(Sellable, ABC):
         self._created_action()
 
     def _on_dependent(self, other_joker: BaseJoker) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._dependent_ability(other_joker)
 
     def _on_discard(self, discarded_cards: list[Card]) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._discard_action(discarded_cards)
         self._discard_ability(discarded_cards)
-
-    def _on_end_hand(
-        self,
-        played_cards: list[Card],
-        scored_card_indices: list[int],
-        poker_hands_played: list[PokerHand],
-    ) -> None:
-        if self.debuffed:
-            return
-
-        self._end_hand_action(played_cards, scored_card_indices, poker_hands_played)
 
     def _on_hand_played(
         self,
@@ -263,7 +242,7 @@ class BaseJoker(Sellable, ABC):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._hand_played_action(played_cards, scored_card_indices, poker_hands_played)
@@ -275,13 +254,13 @@ class BaseJoker(Sellable, ABC):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._independent_ability(played_cards, scored_card_indices, poker_hands_played)
 
     def _on_item_sold(self, sold_item: Sellable) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._item_sold_action(sold_item)
@@ -290,64 +269,77 @@ class BaseJoker(Sellable, ABC):
         pass
 
     def _on_lucky_card_triggered(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._lucky_card_triggered_action()
 
     def _on_pack_opened(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._pack_opened_ability()
 
     def _on_pack_skipped(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._pack_skipped_action()
 
     def _on_planet_used(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._planet_used_action()
 
     def _on_round_ended(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         if self.is_rental:
             self._run._money -= 3
 
         if self.is_perishable:
-            self._perishable_rounds_left -= 1
-            if self._perishable_rounds_left == 0:
-                self.debuffed = True
+            self.num_perishable_rounds_left -= 1
+            if self.num_perishable_rounds_left == 0:
+                self.is_debuffed = True
                 return
 
         self._round_ended_action()
 
     def _on_round_ended_money(self) -> int:
-        if self.debuffed:
+        if self.is_debuffed:
             return 0
 
         return self._round_ended_money()
 
+    def _on_scoring_completed(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        if self.is_debuffed:
+            return
+
+        self._scoring_completed_action(
+            played_cards, scored_card_indices, poker_hands_played
+        )
+
     def _on_shop_exited(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._shop_exited_ability()
 
     def _on_shop_rerolled(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._shop_rerolled_action()
 
     def _on_sold(self) -> None:
-        if self.debuffed:
+        if self.is_debuffed:
             return
 
         self._sold_action()
@@ -368,6 +360,14 @@ class BaseJoker(Sellable, ABC):
     def _round_ended_money(self) -> int:
         return 0
 
+    def _scoring_completed_action(
+        self,
+        played_cards: list[Card],
+        scored_card_indices: list[int],
+        poker_hands_played: list[PokerHand],
+    ) -> None:
+        pass
+
     def _shop_exited_ability(self) -> None:
         pass
 
@@ -380,49 +380,43 @@ class BaseJoker(Sellable, ABC):
     def _sold_action(self) -> None:
         pass
 
-    @property
-    @abstractmethod
-    def joker_type(self) -> JokerType:
-        pass
-
 
 @dataclass(eq=False)
 class CopyJoker(BaseJoker):
+    _copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
     _copy_loop: bool = field(default=False, init=False, repr=False)
-
-    copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
 
     def _blind_selected_ability(self) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._blind_selected_ability()
+            self._copied_joker._blind_selected_ability()
 
     def _boss_blind_triggered_ability(self) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._boss_blind_triggered_ability()
+            self._copied_joker._boss_blind_triggered_ability()
 
     def _card_held_ability(self, held_card: Card) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._card_held_ability(held_card)
+            self._copied_joker._card_held_ability(held_card)
 
     def _card_held_retriggers(self, held_card: Card) -> int:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            return self.copied_joker._card_held_retriggers(held_card)
+            return self._copied_joker._card_held_retriggers(held_card)
         return 0
 
     def _card_scored_ability(
@@ -434,10 +428,10 @@ class CopyJoker(BaseJoker):
     ) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._card_scored_ability(
+            self._copied_joker._card_scored_ability(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
 
@@ -450,10 +444,10 @@ class CopyJoker(BaseJoker):
     ) -> int:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            return self.copied_joker._card_scored_retriggers(
+            return self._copied_joker._card_scored_retriggers(
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
         return 0
@@ -461,18 +455,18 @@ class CopyJoker(BaseJoker):
     def _dependent_ability(self, other_joker: BaseJoker) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._dependent_ability(other_joker)
+            self._copied_joker._dependent_ability(other_joker)
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._discard_ability(discarded_cards)
+            self._copied_joker._discard_ability(discarded_cards)
 
     def _hand_played_ability(
         self,
@@ -482,10 +476,10 @@ class CopyJoker(BaseJoker):
     ) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._hand_played_ability(
+            self._copied_joker._hand_played_ability(
                 played_cards, scored_card_indices, poker_hands_played
             )
 
@@ -497,47 +491,41 @@ class CopyJoker(BaseJoker):
     ) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._independent_ability(
+            self._copied_joker._independent_ability(
                 played_cards, scored_card_indices, poker_hands_played
             )
 
     def _pack_opened_ability(self) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._pack_opened_ability()
+            self._copied_joker._pack_opened_ability()
 
     def _shop_exited_ability(self) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._shop_exited_ability()
+            self._copied_joker._shop_exited_ability()
 
     def _sold_ability(self) -> None:
         if (
             not self._copy_loop
-            and self.copied_joker is not None
-            and not self.copied_joker.debuffed
+            and self._copied_joker is not None
+            and not self._copied_joker.is_debuffed
         ):
-            self.copied_joker._sold_ability()
-
-    @property
-    @abstractmethod
-    def joker_type(self) -> JokerType:
-        pass
+            self._copied_joker._sold_ability()
 
 
 @dataclass(eq=False)
 class Consumable(Sellable):
     card: Tarot | Planet | Spectral
-
     is_negative: bool = False
 
     def __eq__(self, other: Consumable | Tarot | Planet | Spectral) -> bool:
@@ -560,14 +548,13 @@ class Consumable(Sellable):
 class Card:
     rank: Rank
     suit: Suit
-
     enhancement: Enhancement | None = None
     seal: Seal | None = None
     edition: Edition = Edition.BASE
 
-    debuffed: bool = field(default=False, init=False, repr=False)
     extra_chips: int = field(default=0, init=False, repr=False)
-    flipped: bool = field(default=False, init=False, repr=False)
+    is_debuffed: bool = field(default=False, init=False, repr=False)
+    is_face_down: bool = field(default=False, init=False, repr=False)
 
     def __eq__(self, other: Card | Rank | Suit | Enhancement | Seal | Edition) -> bool:
         match other:
@@ -575,18 +562,22 @@ class Card:
                 return self is other
             case Rank():
                 return (
-                    not self.debuffed and not self.is_stone_card and self.rank is other
+                    not self.is_debuffed
+                    and not self.is_stone_card
+                    and self.rank is other
                 )
             case Suit():
                 return (
-                    not self.debuffed and not self.is_stone_card and self.suit is other
+                    not self.is_debuffed
+                    and not self.is_stone_card
+                    and self.suit is other
                 )
             case Enhancement():
-                return not self.debuffed and self.enhancement is other
+                return not self.is_debuffed and self.enhancement is other
             case Seal():
-                return not self.debuffed and self.seal is other
+                return not self.is_debuffed and self.seal is other
             case Edition():
-                return not self.debuffed and self.edition is other
+                return not self.is_debuffed and self.edition is other
 
         return NotImplemented
 
@@ -610,7 +601,7 @@ class Card:
 
     @property
     def chips(self) -> int:
-        if self.debuffed:
+        if self.is_debuffed:
             return 0
         return (50 if self.is_stone_card else self.rank.chips) + self.extra_chips
 
@@ -625,7 +616,7 @@ class ChallengeSetup:
     initial_consumables: list[Consumable] = field(default_factory=list)
     initial_vouchers: set[Voucher] = field(default_factory=set)
 
-    banned_jokers: set[JokerType] = field(default_factory=set)
+    banned_jokers: set[type] = field(default_factory=set)
     banned_consumables: set[Consumable] = field(default_factory=set)
     banned_vouchers: set[Voucher] = field(default_factory=set)
     banned_packs: set[Pack] = field(default_factory=set)
