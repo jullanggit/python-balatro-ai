@@ -67,7 +67,7 @@ class Sellable:
 
 
 @dataclass(eq=False)
-class BaseJoker(Sellable):
+class BalatroJoker(Sellable):
     _run: Run | None = field(default=None, init=False, repr=False)
 
     edition: Edition = Edition.BASE
@@ -83,11 +83,11 @@ class BaseJoker(Sellable):
         if self.is_eternal and self.is_perishable:
             raise ValueError("Jokers cannot be both eternal and perishable.")
 
-    def __eq__(self, other: BaseJoker | type[BaseJoker] | Edition) -> bool:
+    def __eq__(self, other: BalatroJoker | type[BalatroJoker] | Edition) -> bool:
         match other:
-            case BaseJoker():
+            case BalatroJoker():
                 return self is other
-            case type() if issubclass(other, BaseJoker):
+            case type() if issubclass(other, BalatroJoker):
                 return not self.is_debuffed and isinstance(self, other)
             case Edition():
                 return (
@@ -161,7 +161,7 @@ class BaseJoker(Sellable):
     def _created_action(self) -> None:
         pass
 
-    def _dependent_ability(self, other_joker: BaseJoker) -> None:
+    def _dependent_ability(self, other_joker: BalatroJoker) -> None:
         pass
 
     def _discard_ability(self, discarded_cards: list[Card]) -> None:
@@ -277,7 +277,7 @@ class BaseJoker(Sellable):
         self._run = run
         self._created_action()
 
-    def _on_dependent(self, other_joker: BaseJoker) -> None:
+    def _on_dependent(self, other_joker: BalatroJoker) -> None:
         if self.is_debuffed:
             return
 
@@ -436,8 +436,8 @@ class BaseJoker(Sellable):
 
 
 @dataclass(eq=False)
-class CopyJoker(BaseJoker):
-    _copied_joker: BaseJoker | None = field(default=None, init=False, repr=False)
+class CopyJoker(BalatroJoker):
+    _copied_joker: BalatroJoker | None = field(default=None, init=False, repr=False)
     _copy_loop: bool = field(default=False, init=False, repr=False)
 
     def _blind_selected_ability(self) -> None:
@@ -506,7 +506,7 @@ class CopyJoker(BaseJoker):
             )
         return 0
 
-    def _dependent_ability(self, other_joker: BaseJoker) -> None:
+    def _dependent_ability(self, other_joker: BalatroJoker) -> None:
         if (
             not self._copy_loop
             and self._copied_joker is not None
@@ -666,7 +666,7 @@ class Card:
 
 @dataclass(eq=False)
 class ChallengeSetup:
-    initial_jokers: list[BaseJoker] = field(default_factory=list)
+    initial_jokers: list[BalatroJoker] = field(default_factory=list)
     initial_consumables: list[Consumable] = field(default_factory=list)
     initial_vouchers: set[Voucher] = field(default_factory=set)
 
@@ -691,7 +691,7 @@ class ChallengeSetup:
 
 
 @dataclass(eq=False)
-class ChipsScalingJoker(BaseJoker):
+class ChipsScalingJoker(BalatroJoker):
     chips: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
@@ -704,7 +704,7 @@ class ChipsScalingJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class DynamicJoker(BaseJoker, ABC):
+class DynamicJoker(BalatroJoker, ABC):
     def _on_created_action(self) -> None:
         self._change_state()
 
@@ -717,7 +717,7 @@ class DynamicJoker(BaseJoker, ABC):
 
 
 @dataclass(eq=False)
-class MultScalingJoker(BaseJoker):
+class MultScalingJoker(BalatroJoker):
     mult: int = field(default=0, init=False, repr=False)
 
     def _independent_ability(
@@ -730,7 +730,7 @@ class MultScalingJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class XMultScalingJoker(BaseJoker):
+class XMultScalingJoker(BalatroJoker):
     xmult: float = field(default=1.0, init=False, repr=False)
 
     def _independent_ability(

@@ -7,7 +7,7 @@ A Python implementation of the hit roguelike deckbuilder [**Balatro**](https://w
 
 **Note:** This is a work in progress. While some core features are functional, there are likely bugs and things left to be tested.
 
-![game preview](game-preview.png)
+![main preview](resources/previews/main_preview.png)
 
 ## Important Considerations
 
@@ -30,28 +30,60 @@ A Python implementation of the hit roguelike deckbuilder [**Balatro**](https://w
 
 ```python
 from balatro import *
+```
 
-# Create a new run with the Red Deck on White Stake
-run = Run(Deck.RED, stake=Stake.WHITE)
+```python
+# Create a new run with the Black Deck on Black Stake
+run = Run(Deck.BLACK, stake=Stake.BLACK)
 
-# Get information about the current state
+run  # Display it
+```
+
+![selecting blind preview](resources/previews/selecting_blind_preview.png)
+
+```python
+# Alternatively, manually get information about the current state
 print(f"Current Ante: {run.ante}")
 print(f"Current Blind: {run.blind}")
 print(f"Available Money: {run.money}")
+```
 
-# Select the Small Blind
+> Current Ante: 1\
+> Current Blind: Blind.SMALL_BLIND\
+> Available Money: 4
+
+```python
+# Select the small blind
 run.select_blind()
+
 # Or skip it
-run.skip_blind()
+# run.skip_blind()
 
-# Play a hand (example: playing the first five cards in your hand)
-run.play_hand([0, 1, 2, 3, 4])
+run
+```
 
-# Discard cards (example: discarding the last five cards in your hand)
-run.discard([3, 4, 5, 6, 7])
+![playing blind preview](resources/previews/playing_blind_preview.png)
 
-...
+```python
+# Play the flush
+run.play_hand([0, 1, 2, 5, 7])
 
+# Alternatively, discard
+# run.discard([3, 4, 6])
+
+run
+```
+
+WIP: Cashing Out Screen
+
+```python
+# Continue to the shop
+run.cash_out()
+
+run
+```
+
+```python
 # Buy the first pack in the shop
 run.buy_shop_item(2, 0)
 

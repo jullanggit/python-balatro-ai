@@ -69,7 +69,7 @@ class Run:
             for rank in Rank
         ]
 
-        self._jokers: list[BaseJoker] = []
+        self._jokers: list[BalatroJoker] = []
         self._consumables: list[Consumable] = []
 
         match self._deck:
@@ -120,10 +120,12 @@ class Run:
 
         self._reroll_cost: int | None = None
         self._chaos_used: set[ChaosTheClown] | None = None
-        self._shop_cards: list[tuple[BaseJoker | Consumable | Card, int]] | None = None
+        self._shop_cards: list[tuple[BalatroJoker | Consumable | Card, int]] | None = (
+            None
+        )
         self._shop_packs: list[tuple[Pack, int]] | None = None
         self._opened_pack: Pack | None = None
-        self._pack_items: list[BaseJoker | Consumable | Card] | None = None
+        self._pack_items: list[BalatroJoker | Consumable | Card] | None = None
         self._pack_choices_left: int | None = None
         self._unique_planet_cards_used: set[Planet] = set()
         self._boss_blind_pool: list[Blind] = []
@@ -165,14 +167,14 @@ class Run:
         for joker in self._jokers:
             joker._on_card_added(card)
 
-    def _add_joker(self, joker: BaseJoker) -> None:
+    def _add_joker(self, joker: BalatroJoker) -> None:
         self._jokers.append(joker)
         for other_joker in self._jokers:
             other_joker._on_jokers_moved()
 
     def _buy_shop_item(
         self, section_index: int, item_index: int, use: bool = False
-    ) -> tuple[BaseJoker | Consumable | Card | Pack | Voucher, int]:
+    ) -> tuple[BalatroJoker | Consumable | Card | Pack | Voucher, int]:
         if self._state is not State.IN_SHOP:
             raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
 
@@ -202,7 +204,7 @@ class Run:
                 raise InvalidArgumentsError(f"Cannot use non-Consumable item {item}")
         else:
             match item:
-                case BaseJoker():
+                case BalatroJoker():
                     if (
                         len(self._jokers) == self.joker_slots
                         and item.edition is not Edition.NEGATIVE
@@ -220,7 +222,9 @@ class Run:
         return section_items.pop(item_index)
 
     def _calculate_buy_cost(
-        self, item: BaseJoker | Consumable | Card | Voucher | Pack, coupon: bool = False
+        self,
+        item: BalatroJoker | Consumable | Card | Voucher | Pack,
+        coupon: bool = False,
     ) -> int:
         if coupon and not isinstance(item, Voucher):
             return 0
@@ -233,7 +237,7 @@ class Run:
         )
 
         match item:
-            case BaseJoker():
+            case BalatroJoker():
                 if item.is_rental:
                     return 1
 
@@ -297,12 +301,12 @@ class Run:
 
     def _create_joker(
         self,
-        joker_type: type[BaseJoker],
+        joker_type: type[BalatroJoker],
         edition: Edition = Edition.BASE,
         is_eternal: bool = False,
         is_perishable: bool = False,
         is_rental: bool = False,
-    ) -> BaseJoker:
+    ) -> BalatroJoker:
         joker = joker_type(
             edition=edition,
             is_eternal=is_eternal,
@@ -373,7 +377,7 @@ class Run:
         for joker in self._jokers:
             joker._on_card_destroyed(card)
 
-    def _destroy_joker(self, joker: BaseJoker) -> bool:
+    def _destroy_joker(self, joker: BalatroJoker) -> bool:
         if joker.is_eternal:
             return False
 
@@ -653,7 +657,9 @@ class Run:
 
         return card
 
-    def _get_random_consumable(self, consumable_type: type) -> Consumable:
+    def _get_random_consumable(
+        self, consumable_type: type[Tarot | Planet | Spectral]
+    ) -> Consumable:
         if consumable_type is Tarot:
             consumable_card_pool = list(Tarot)
         elif consumable_type is Planet:
@@ -700,7 +706,7 @@ class Run:
         self,
         rarity: Rarity | None = None,
         allow_stickers: bool = False,
-    ) -> BaseJoker:
+    ) -> BalatroJoker:
         if rarity is None:
             rarity = r.choices(
                 list(JOKER_BASE_RARITY_WEIGHTS),
@@ -717,14 +723,14 @@ class Run:
                     type(shop_card[0])
                     for shop_card in self._shop_cards
                     if isinstance(shop_card, tuple)
-                    and isinstance(shop_card[0], BaseJoker)
+                    and isinstance(shop_card[0], BalatroJoker)
                 )
 
             if self._opened_pack is not None:
                 prohibited_joker_types.update(
                     type(pack_item)
                     for pack_item in self._pack_items
-                    if isinstance(pack_item, BaseJoker)
+                    if isinstance(pack_item, BalatroJoker)
                 )
 
         if self._gros_michel_extinct:
@@ -1055,13 +1061,13 @@ class Run:
                 break
             if tag is Tag.UNCOMMON or tag is Tag.RARE:
                 self._shop_cards[len(self._shop_cards) - k + joker_tags_used] = (
-                    BaseJoker
+                    BalatroJoker
                 )
                 joker_tags_used += 1
 
         for i in range(len(self._shop_cards) - k, len(self._shop_cards)):
             match self._shop_cards[i].__name__:
-                case BaseJoker.__name__:
+                case BalatroJoker.__name__:
                     buy_cost = None
 
                     rarity = None
@@ -1365,7 +1371,7 @@ class Run:
         for item, cost in self._shop_cards:
             png_bytes = item._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            item_html = f"<img style='width: {68.88 if isinstance(item, BaseJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
+            item_html = f"<img style='width: {68.88 if isinstance(item, BalatroJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
                     <div style='display: flex; flex-direction: column; align-items: center;'>
@@ -1428,7 +1434,7 @@ class Run:
         html = f"""
             <div style='position: absolute; height: 132px; width: 574px; left: 335px; bottom: 85px; display: flex; align-items: center; justify-content: center; gap: {5 if isinstance(self._pack_items[0], Consumable) else 15}px'>
                 {' '.join(f"""
-                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BaseJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
+                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BalatroJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
                 """ for i, item in enumerate(self._pack_items))}
             </div>
             <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
@@ -2110,7 +2116,7 @@ class Run:
                 raise
         else:
             match item:
-                case BaseJoker():
+                case BalatroJoker():
                     self._add_joker(item)
                 case Consumable():
                     self._consumables.append(item)
@@ -2183,7 +2189,7 @@ class Run:
         item = self._pack_items[item_index]
 
         match item:
-            case BaseJoker():
+            case BalatroJoker():
                 if (
                     len(self._jokers) == self.joker_slots
                     and item.edition is not Edition.NEGATIVE
@@ -2698,7 +2704,7 @@ class Run:
             )
 
         sold_item = section_items[item_index]
-        joker_sold = isinstance(sold_item, BaseJoker)
+        joker_sold = isinstance(sold_item, BalatroJoker)
 
         if joker_sold:
             if sold_item.is_eternal:
@@ -3061,7 +3067,7 @@ class Run:
         return joker_slots
 
     @property
-    def jokers(self) -> list[BaseJoker]:
+    def jokers(self) -> list[BalatroJoker]:
         """The Jokers in possession"""
 
         return self._jokers
@@ -3113,7 +3119,7 @@ class Run:
         return self._round_score if self._round_score is not None else 0
 
     @property
-    def shop_cards(self) -> list[tuple[BaseJoker | Consumable | Card, int]] | None:
+    def shop_cards(self) -> list[tuple[BalatroJoker | Consumable | Card, int]] | None:
         """The cards available in the shop"""
 
         return self._shop_cards

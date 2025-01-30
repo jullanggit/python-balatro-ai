@@ -49,7 +49,7 @@ class Brainstorm(CopyJoker):
 
 
 @dataclass(eq=False)
-class SpaceJoker(BaseJoker):
+class SpaceJoker(BalatroJoker):
     """
     1 in 4 chance to upgrade level of played poker hand
     """
@@ -65,7 +65,7 @@ class SpaceJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class DNA(BaseJoker):
+class DNA(BalatroJoker):
     """
     If first hand of round has only 1 card, add a permanent copy to deck and draw it to hand
     """
@@ -105,7 +105,7 @@ class ToDoList(DynamicJoker):
 
 
 @dataclass(eq=False)
-class MidasMask(BaseJoker):
+class MidasMask(BalatroJoker):
     """
     All played face cards become Gold cards when scored
     """
@@ -128,7 +128,7 @@ class MidasMask(BaseJoker):
 
 
 @dataclass(eq=False)
-class GreedyJoker(BaseJoker):
+class GreedyJoker(BalatroJoker):
     """
     Played cards with Diamond suit give +3 Mult when scored
     """
@@ -145,7 +145,7 @@ class GreedyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class LustyJoker(BaseJoker):
+class LustyJoker(BalatroJoker):
     """
     Played cards with Heart suit give +3 Mult when scored
     """
@@ -162,7 +162,7 @@ class LustyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class WrathfulJoker(BaseJoker):
+class WrathfulJoker(BalatroJoker):
     """
     Played cards with Spade suit give +3 Mult when scored
     """
@@ -179,7 +179,7 @@ class WrathfulJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class GluttonousJoker(BaseJoker):
+class GluttonousJoker(BalatroJoker):
     """
     Played cards with Club suit give +3 Mult when scored
     """
@@ -196,7 +196,7 @@ class GluttonousJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class EightBall(BaseJoker):
+class EightBall(BalatroJoker):
     """
     1 in 4 chance for each played 8 to create a Tarot card when scored
     (Must have room)
@@ -218,7 +218,7 @@ class EightBall(BaseJoker):
 
 
 @dataclass(eq=False)
-class Dusk(BaseJoker):
+class Dusk(BalatroJoker):
     """
     Retrigger all played cards in final hand of the round
     """
@@ -234,7 +234,7 @@ class Dusk(BaseJoker):
 
 
 @dataclass(eq=False)
-class Fibonacci(BaseJoker):
+class Fibonacci(BalatroJoker):
     """
     Each played Ace, 2, 3, 5, or 8 gives +8 Mult when scored
     """
@@ -257,7 +257,7 @@ class Fibonacci(BaseJoker):
 
 
 @dataclass(eq=False)
-class ScaryFace(BaseJoker):
+class ScaryFace(BalatroJoker):
     """
     Played face cards give +30 Chips when scored
     """
@@ -274,7 +274,7 @@ class ScaryFace(BaseJoker):
 
 
 @dataclass(eq=False)
-class Hack(BaseJoker):
+class Hack(BalatroJoker):
     """
     Retrigger each played 2, 3, 4, or 5
     """
@@ -298,7 +298,7 @@ class Hack(BaseJoker):
 
 
 @dataclass(eq=False)
-class EvenSteven(BaseJoker):
+class EvenSteven(BalatroJoker):
     """
     Played cards with even rank give +4 Mult when scored
     (10, 8, 6, 4, 2)
@@ -322,7 +322,7 @@ class EvenSteven(BaseJoker):
 
 
 @dataclass(eq=False)
-class OddTodd(BaseJoker):
+class OddTodd(BalatroJoker):
     """
     Played cards with odd rank give +31 Chips when scored
     (A, 9, 7, 5, 3)
@@ -346,7 +346,7 @@ class OddTodd(BaseJoker):
 
 
 @dataclass(eq=False)
-class Scholar(BaseJoker):
+class Scholar(BalatroJoker):
     """
     Played Aces give +20 Chips and +4 Mult when scored
     """
@@ -364,7 +364,7 @@ class Scholar(BaseJoker):
 
 
 @dataclass(eq=False)
-class BusinessCard(BaseJoker):
+class BusinessCard(BalatroJoker):
     """
     Played face cards have a 1 in 2 chance to give $2 when scored
     """
@@ -381,7 +381,7 @@ class BusinessCard(BaseJoker):
 
 
 @dataclass(eq=False)
-class Hiker(BaseJoker):
+class Hiker(BalatroJoker):
     """
     Every played card permanently gains +5 Chips when scored
     """
@@ -397,7 +397,7 @@ class Hiker(BaseJoker):
 
 
 @dataclass(eq=False)
-class Photograph(BaseJoker):
+class Photograph(BalatroJoker):
     """
     First played face card gives X2 Mult when scored
     """
@@ -444,7 +444,7 @@ class AncientJoker(DynamicJoker):
 
 
 @dataclass(eq=False)
-class WalkieTalkie(BaseJoker):
+class WalkieTalkie(BalatroJoker):
     """
     Each played 10 or 4 gives +10 Chips and +4 Mult when scored
     """
@@ -463,7 +463,7 @@ class WalkieTalkie(BaseJoker):
 
 # TODO: maybe all perishables could be checked for perishing at like end of hand? and then abstracted out into a PerishableJoker class
 @dataclass(eq=False)
-class Seltzer(BaseJoker):
+class Seltzer(BalatroJoker):
     """
     Retrigger all cards played for the next 10 hands
     """
@@ -491,7 +491,7 @@ class Seltzer(BaseJoker):
 
 
 @dataclass(eq=False)
-class SmileyFace(BaseJoker):
+class SmileyFace(BalatroJoker):
     """
     Played face cards give +5 Mult when scored
     """
@@ -508,7 +508,7 @@ class SmileyFace(BaseJoker):
 
 
 @dataclass(eq=False)
-class GoldenTicket(BaseJoker):
+class GoldenTicket(BalatroJoker):
     """
     Played Gold cards earn $4 when scored
     """
@@ -525,7 +525,7 @@ class GoldenTicket(BaseJoker):
 
 
 @dataclass(eq=False)
-class SockAndBuskin(BaseJoker):
+class SockAndBuskin(BalatroJoker):
     """
     Retrigger all played face cards
     """
@@ -541,7 +541,7 @@ class SockAndBuskin(BaseJoker):
 
 
 @dataclass(eq=False)
-class HangingChad(BaseJoker):
+class HangingChad(BalatroJoker):
     """
     Retrigger first played card used in scoring 2 additional times
     """
@@ -557,7 +557,7 @@ class HangingChad(BaseJoker):
 
 
 @dataclass(eq=False)
-class RoughGem(BaseJoker):
+class RoughGem(BalatroJoker):
     """
     Played cards with Diamond suit earn $1 when scored
     """
@@ -574,7 +574,7 @@ class RoughGem(BaseJoker):
 
 
 @dataclass(eq=False)
-class Bloodstone(BaseJoker):
+class Bloodstone(BalatroJoker):
     """
     1 in 2 chance for played cards with Heart suit to give X1.5 Mult when scored
     """
@@ -593,7 +593,7 @@ class Bloodstone(BaseJoker):
 
 
 @dataclass(eq=False)
-class Arrowhead(BaseJoker):
+class Arrowhead(BalatroJoker):
     """
     Played cards with Spade suit give +50 Chips when scored
     """
@@ -610,7 +610,7 @@ class Arrowhead(BaseJoker):
 
 
 @dataclass(eq=False)
-class OnyxAgate(BaseJoker):
+class OnyxAgate(BalatroJoker):
     """
     Played cards with Club suit give +7 Mult when scored
     """
@@ -664,7 +664,7 @@ class TheIdol(DynamicJoker):
 
 
 @dataclass(eq=False)
-class Triboulet(BaseJoker):
+class Triboulet(BalatroJoker):
     """
     Played Kings and Queens each give X2 Mult when scored
     """
@@ -686,7 +686,7 @@ class Triboulet(BaseJoker):
 
 
 @dataclass(eq=False)
-class Mime(BaseJoker):
+class Mime(BalatroJoker):
     """
     Retrigger all card held in hand abilities
     """
@@ -696,7 +696,7 @@ class Mime(BaseJoker):
 
 
 @dataclass(eq=False)
-class RaisedFist(BaseJoker):
+class RaisedFist(BalatroJoker):
     """
     Adds double the rank of lowest ranked card held in hand to Mult
     """
@@ -714,7 +714,7 @@ class RaisedFist(BaseJoker):
 
 
 @dataclass(eq=False)
-class Baron(BaseJoker):
+class Baron(BalatroJoker):
     """
     Each King held in hand gives X1.5 Mult
     """
@@ -725,7 +725,7 @@ class Baron(BaseJoker):
 
 
 @dataclass(eq=False)
-class ReservedParking(BaseJoker):
+class ReservedParking(BalatroJoker):
     """
     Each face card held in hand has a 1 in 2 chance to give $1
     """
@@ -736,7 +736,7 @@ class ReservedParking(BaseJoker):
 
 
 @dataclass(eq=False)
-class ShootTheMoon(BaseJoker):
+class ShootTheMoon(BalatroJoker):
     """
     Each Queen held in hand gives +13 Mult
     """
@@ -752,7 +752,7 @@ class ShootTheMoon(BaseJoker):
 
 
 @dataclass(eq=False)
-class Joker(BaseJoker):
+class Joker(BalatroJoker):
     """
     +4 Mult
     """
@@ -767,7 +767,7 @@ class Joker(BaseJoker):
 
 
 @dataclass(eq=False)
-class JollyJoker(BaseJoker):
+class JollyJoker(BalatroJoker):
     """
     +8 Mult if played hand contains a Pair
     """
@@ -783,7 +783,7 @@ class JollyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class ZanyJoker(BaseJoker):
+class ZanyJoker(BalatroJoker):
     """
     +12 Mult if played hand contains a Three of a Kind
     """
@@ -799,7 +799,7 @@ class ZanyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class MadJoker(BaseJoker):
+class MadJoker(BalatroJoker):
     """
     +10 Mult if played hand contains a Two Pair
     """
@@ -815,7 +815,7 @@ class MadJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class CrazyJoker(BaseJoker):
+class CrazyJoker(BalatroJoker):
     """
     +12 Mult if played hand contains a Straight
     """
@@ -831,7 +831,7 @@ class CrazyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class DrollJoker(BaseJoker):
+class DrollJoker(BalatroJoker):
     """
     +10 Mult if played hand contains a Flush
     """
@@ -847,7 +847,7 @@ class DrollJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class SlyJoker(BaseJoker):
+class SlyJoker(BalatroJoker):
     """
     +50 Chips if played hand contains a Pair
     """
@@ -863,7 +863,7 @@ class SlyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class WilyJoker(BaseJoker):
+class WilyJoker(BalatroJoker):
     """
     +100 Chips if played hand contains a Three of a Kind
     """
@@ -879,7 +879,7 @@ class WilyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class CleverJoker(BaseJoker):
+class CleverJoker(BalatroJoker):
     """
     +80 Chips if played hand contains a Two Pair
     """
@@ -895,7 +895,7 @@ class CleverJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class DeviousJoker(BaseJoker):
+class DeviousJoker(BalatroJoker):
     """
     +100 Chips if played hand contains a Straight
     """
@@ -911,7 +911,7 @@ class DeviousJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class CraftyJoker(BaseJoker):
+class CraftyJoker(BalatroJoker):
     """
     +80 Chips if played hand contains a Flush
     """
@@ -927,7 +927,7 @@ class CraftyJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class HalfJoker(BaseJoker):
+class HalfJoker(BalatroJoker):
     """
     +20 Mult if played hand contains 3 or fewer cards.
     """
@@ -943,7 +943,7 @@ class HalfJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class JokerStencil(BaseJoker):
+class JokerStencil(BalatroJoker):
     """
     X1 Mult for each empty Joker slot
     Joker Stencil included
@@ -975,7 +975,7 @@ class CeremonialDagger(MultScalingJoker):
 
 
 @dataclass(eq=False)
-class Banner(BaseJoker):
+class Banner(BalatroJoker):
     """
     +30 Chips for each remaining discard
     """
@@ -990,7 +990,7 @@ class Banner(BaseJoker):
 
 
 @dataclass(eq=False)
-class MysticSummit(BaseJoker):
+class MysticSummit(BalatroJoker):
     """
     +15 Mult when 0 discards remaining
     """
@@ -1006,7 +1006,7 @@ class MysticSummit(BaseJoker):
 
 
 @dataclass(eq=False)
-class LoyaltyCard(BaseJoker):
+class LoyaltyCard(BalatroJoker):
     """
     X4 Mult every 6 hands played
     """
@@ -1035,7 +1035,7 @@ class LoyaltyCard(BaseJoker):
 
 
 @dataclass(eq=False)
-class Misprint(BaseJoker):
+class Misprint(BalatroJoker):
     """
     +0-23 Mult
     """
@@ -1050,7 +1050,7 @@ class Misprint(BaseJoker):
 
 
 @dataclass(eq=False)
-class SteelJoker(BaseJoker):
+class SteelJoker(BalatroJoker):
     """
     Gives X0.2 Mult for each Steel Card in your full deck
     """
@@ -1071,7 +1071,7 @@ class SteelJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class AbstractJoker(BaseJoker):
+class AbstractJoker(BalatroJoker):
     """
     +3 Mult for each Joker card
     """
@@ -1086,7 +1086,7 @@ class AbstractJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class GrosMichel(BaseJoker):
+class GrosMichel(BalatroJoker):
     """
     +15 Mult
     1 in 6 chance this is destroyed at the end of round.
@@ -1107,7 +1107,7 @@ class GrosMichel(BaseJoker):
 
 
 @dataclass(eq=False)
-class Supernova(BaseJoker):
+class Supernova(BalatroJoker):
     """
     Adds the number of times poker hand has been played this run to Mult
     """
@@ -1122,7 +1122,7 @@ class Supernova(BaseJoker):
 
 
 @dataclass(eq=False)
-class Blackboard(BaseJoker):
+class Blackboard(BalatroJoker):
     """
     X3 Mult if all cards held in hand are Spades or Clubs
     """
@@ -1162,7 +1162,7 @@ class IceCream(ChipsScalingJoker):
 
 
 @dataclass(eq=False)
-class BlueJoker(BaseJoker):
+class BlueJoker(BalatroJoker):
     """
     +2 Chips for each remaining card in deck
     """
@@ -1187,7 +1187,7 @@ class Constellation(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class Superposition(BaseJoker):
+class Superposition(BalatroJoker):
     """
     Create a Tarot card if poker hand contains an Ace and a Straight
     (Must have room)
@@ -1208,7 +1208,7 @@ class Superposition(BaseJoker):
 
 
 @dataclass(eq=False)
-class Cavendish(BaseJoker):
+class Cavendish(BalatroJoker):
     """
     X3 Mult
     1 in 1000 chance this card is destroyed at the end of round
@@ -1228,7 +1228,7 @@ class Cavendish(BaseJoker):
 
 
 @dataclass(eq=False)
-class CardSharp(BaseJoker):
+class CardSharp(BalatroJoker):
     """
     X3 Mult if played poker hand has already been played this round
     """
@@ -1273,7 +1273,7 @@ class Madness(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class Seance(BaseJoker):
+class Seance(BalatroJoker):
     """
     If poker hand is a Straight Flush, create a random Spectral card
     (Must have room)
@@ -1303,7 +1303,7 @@ class Hologram(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class Vagabond(BaseJoker):
+class Vagabond(BalatroJoker):
     """
     Create a Tarot card if hand is played with $4 or less
     """
@@ -1331,7 +1331,7 @@ class Vagabond(BaseJoker):
 
 
 @dataclass(eq=False)
-class Erosion(BaseJoker):
+class Erosion(BalatroJoker):
     """
     +4 Mult for each card below [the deck's starting size] in your full deck
     """
@@ -1349,7 +1349,7 @@ class Erosion(BaseJoker):
 
 
 @dataclass(eq=False)
-class FortuneTeller(BaseJoker):
+class FortuneTeller(BalatroJoker):
     """
     +1 Mult per Tarot card used this run
     """
@@ -1364,7 +1364,7 @@ class FortuneTeller(BaseJoker):
 
 
 @dataclass(eq=False)
-class StoneJoker(BaseJoker):
+class StoneJoker(BalatroJoker):
     """
     Gives +25 Chips for each Stone Card in your full deck
     """
@@ -1381,7 +1381,7 @@ class StoneJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class Bull(BaseJoker):
+class Bull(BalatroJoker):
     """
     +2 Chips for each $1 you have
     """
@@ -1434,7 +1434,7 @@ class Campfire(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class Acrobat(BaseJoker):
+class Acrobat(BalatroJoker):
     """
     X3 Mult on final hand of round
     """
@@ -1450,7 +1450,7 @@ class Acrobat(BaseJoker):
 
 
 @dataclass(eq=False)
-class Swashbuckler(BaseJoker):
+class Swashbuckler(BalatroJoker):
     """
     Adds the sell value of all other owned Jokers to Mult
     """
@@ -1469,7 +1469,7 @@ class Swashbuckler(BaseJoker):
 
 
 @dataclass(eq=False)
-class Throwback(BaseJoker):
+class Throwback(BalatroJoker):
     """
     X0.25 Mult for each Blind skipped this run
     """
@@ -1495,7 +1495,7 @@ class GlassJoker(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class FlowerPot(BaseJoker):
+class FlowerPot(BalatroJoker):
     """
     X3 Mult if poker hand contains a Diamond card, Club card, Heart card, and Spade card
     """
@@ -1526,7 +1526,7 @@ class FlowerPot(BaseJoker):
 
 
 @dataclass(eq=False)
-class SeeingDouble(BaseJoker):
+class SeeingDouble(BalatroJoker):
     """
     X2 Mult if played hand has a scoring Club card and a scoring card of any other suit
     """
@@ -1559,7 +1559,7 @@ class SeeingDouble(BaseJoker):
 
 
 @dataclass(eq=False)
-class Matador(BaseJoker):
+class Matador(BalatroJoker):
     """
     Earn $8 if played hand triggers the Boss Blind ability
     """
@@ -1569,7 +1569,7 @@ class Matador(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheDuo(BaseJoker):
+class TheDuo(BalatroJoker):
     """
     X2 Mult if played hand contains a Pair
     """
@@ -1585,7 +1585,7 @@ class TheDuo(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheTrio(BaseJoker):
+class TheTrio(BalatroJoker):
     """
     X3 Mult if played hand contains a Three of a Kind
     """
@@ -1601,7 +1601,7 @@ class TheTrio(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheFamily(BaseJoker):
+class TheFamily(BalatroJoker):
     """
     X4 Mult if played hand contains a Four of a Kind
     """
@@ -1617,7 +1617,7 @@ class TheFamily(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheOrder(BaseJoker):
+class TheOrder(BalatroJoker):
     """
     X3 Mult if played hand contains a Straight
     """
@@ -1633,7 +1633,7 @@ class TheOrder(BaseJoker):
 
 
 @dataclass(eq=False)
-class TheTribe(BaseJoker):
+class TheTribe(BalatroJoker):
     """
     X2 Mult if played hand contains a Flush
     """
@@ -1649,7 +1649,7 @@ class TheTribe(BaseJoker):
 
 
 @dataclass(eq=False)
-class Stuntman(BaseJoker):
+class Stuntman(BalatroJoker):
     """
     +250 Chips,
     -2 hand size
@@ -1665,7 +1665,7 @@ class Stuntman(BaseJoker):
 
 
 @dataclass(eq=False)
-class DriversLicense(BaseJoker):
+class DriversLicense(BalatroJoker):
     """
     X3 Mult if you have at least 16 Enhanced cards in your full deck
     """
@@ -1686,7 +1686,7 @@ class DriversLicense(BaseJoker):
 
 
 @dataclass(eq=False)
-class Bootstraps(BaseJoker):
+class Bootstraps(BalatroJoker):
     """
     +2 Mult for every $5 you have
     """
@@ -1941,12 +1941,12 @@ class Yorick(XMultScalingJoker):
 
 
 @dataclass(eq=False)
-class BaseballCard(BaseJoker):
+class BaseballCard(BalatroJoker):
     """
     Uncommon Jokers each give X1.5 Mult
     """
 
-    def _dependent_ability(self, other_joker: BaseJoker) -> None:
+    def _dependent_ability(self, other_joker: BalatroJoker) -> None:
         from .constants import JOKER_RARITIES
 
         if other_joker in JOKER_RARITIES[Rarity.UNCOMMON]:
@@ -1959,7 +1959,7 @@ class BaseballCard(BaseJoker):
 
 
 @dataclass(eq=False)
-class FacelessJoker(BaseJoker):
+class FacelessJoker(BalatroJoker):
     """
     Earn $5 if 3 or more face cards are discarded at the same time
     """
@@ -1996,7 +1996,7 @@ class MailInRebate(DynamicJoker):
 
 
 @dataclass(eq=False)
-class TradingCard(BaseJoker):
+class TradingCard(BalatroJoker):
     """
     If first discard of round has only 1 card, destroy it and earn $3
     """
@@ -2010,7 +2010,7 @@ class TradingCard(BaseJoker):
 
 
 @dataclass(eq=False)
-class BurntJoker(BaseJoker):
+class BurntJoker(BalatroJoker):
     """
     Upgrade the level of the first discarded poker hand each round
     """
@@ -2028,21 +2028,21 @@ class BurntJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class FourFingers(BaseJoker):
+class FourFingers(BalatroJoker):
     """
     All Flushes and Straights can be made with 4 cards
     """
 
 
 @dataclass(eq=False)
-class CreditCard(BaseJoker):
+class CreditCard(BalatroJoker):
     """
     Go up to -$20 in debt
     """
 
 
 @dataclass(eq=False)
-class MarbleJoker(BaseJoker):
+class MarbleJoker(BalatroJoker):
     """
     Adds one Stone card to the deck when Blind is selected
     """
@@ -2054,14 +2054,14 @@ class MarbleJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class ChaosTheClown(BaseJoker):
+class ChaosTheClown(BalatroJoker):
     """
     1 free Reroll per shop
     """
 
 
 @dataclass(eq=False)
-class DelayedGratification(BaseJoker):
+class DelayedGratification(BalatroJoker):
     """
     Earn $2 per discard if no discards are used by end of the round
     """
@@ -2071,14 +2071,14 @@ class DelayedGratification(BaseJoker):
 
 
 @dataclass(eq=False)
-class Pareidolia(BaseJoker):
+class Pareidolia(BalatroJoker):
     """
     All cards are considered face cards
     """
 
 
 @dataclass(eq=False)
-class Egg(BaseJoker):
+class Egg(BalatroJoker):
     """
     Gains $3 of sell value at end of round
     """
@@ -2088,7 +2088,7 @@ class Egg(BaseJoker):
 
 
 @dataclass(eq=False)
-class Burglar(BaseJoker):
+class Burglar(BalatroJoker):
     """
     When Blind is selected, gain +3 Hands and lose all discards
     """
@@ -2099,14 +2099,14 @@ class Burglar(BaseJoker):
 
 
 @dataclass(eq=False)
-class Splash(BaseJoker):
+class Splash(BalatroJoker):
     """
     Every played card counts in scoring
     """
 
 
 @dataclass(eq=False)
-class SixthSense(BaseJoker):
+class SixthSense(BalatroJoker):
     """
     If first hand of round is a single 6, destroy it and create a Spectral card
     (Must have room)
@@ -2133,7 +2133,7 @@ class SixthSense(BaseJoker):
 
 
 @dataclass(eq=False)
-class RiffRaff(BaseJoker):
+class RiffRaff(BalatroJoker):
     """
     When Blind is selected, create 2 Common Jokers
     (Must have room)
@@ -2145,7 +2145,7 @@ class RiffRaff(BaseJoker):
 
 
 @dataclass(eq=False)
-class Shortcut(BaseJoker):
+class Shortcut(BalatroJoker):
     """
     Allows Straights to be made with gaps of 1 rank
     (ex: 10 8 6 5 3)
@@ -2153,7 +2153,7 @@ class Shortcut(BaseJoker):
 
 
 @dataclass(eq=False)
-class CloudNine(BaseJoker):
+class CloudNine(BalatroJoker):
     """
     Earn $1 for each 9 in your full deck at end of round
     """
@@ -2163,7 +2163,7 @@ class CloudNine(BaseJoker):
 
 
 @dataclass(eq=False)
-class Rocket(BaseJoker):
+class Rocket(BalatroJoker):
     """
     Earn $1 at end of round. Payout increases by $2 when Boss Blind is defeated
     """
@@ -2178,7 +2178,7 @@ class Rocket(BaseJoker):
 
 
 @dataclass(eq=False)
-class Luchador(BaseJoker):
+class Luchador(BalatroJoker):
     """
     Sell this card to disable the current Boss Blind
     """
@@ -2188,7 +2188,7 @@ class Luchador(BaseJoker):
 
 
 @dataclass(eq=False)
-class GiftCard(BaseJoker):
+class GiftCard(BalatroJoker):
     """
     Add $1 of sell value to every Joker and Consumable card at end of round
     """
@@ -2201,7 +2201,7 @@ class GiftCard(BaseJoker):
 
 
 @dataclass(eq=False)
-class TurtleBean(BaseJoker):
+class TurtleBean(BalatroJoker):
     """
     +5 hand size, reduces by 1 each round
     """
@@ -2215,14 +2215,14 @@ class TurtleBean(BaseJoker):
 
 
 @dataclass(eq=False)
-class ToTheMoon(BaseJoker):
+class ToTheMoon(BalatroJoker):
     """
     Earn an extra $1 of interest for every $5 you have at end of round
     """
 
 
 @dataclass(eq=False)
-class Hallucination(BaseJoker):
+class Hallucination(BalatroJoker):
     """
     1 in 2 chance to create a Tarot card when any Booster Pack is opened
     (Must have room)
@@ -2236,21 +2236,21 @@ class Hallucination(BaseJoker):
 
 
 @dataclass(eq=False)
-class Juggler(BaseJoker):
+class Juggler(BalatroJoker):
     """
     +1 hand size
     """
 
 
 @dataclass(eq=False)
-class Drunkard(BaseJoker):
+class Drunkard(BalatroJoker):
     """
     +1 discard each round
     """
 
 
 @dataclass(eq=False)
-class GoldenJoker(BaseJoker):
+class GoldenJoker(BalatroJoker):
     """
     Earn $4 at end of round
     """
@@ -2260,7 +2260,7 @@ class GoldenJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class DietCola(BaseJoker):
+class DietCola(BalatroJoker):
     """
     Sell this card to create a free Double Tag
     """
@@ -2270,7 +2270,7 @@ class DietCola(BaseJoker):
 
 
 @dataclass(eq=False)
-class MrBones(BaseJoker):
+class MrBones(BalatroJoker):
     """
     Prevents Death if chips scored are at least 25% of required chips
     self destructs
@@ -2278,7 +2278,7 @@ class MrBones(BaseJoker):
 
 
 @dataclass(eq=False)
-class Troubadour(BaseJoker):
+class Troubadour(BalatroJoker):
     """
     +2 hand size,
     -1 hand each round
@@ -2286,7 +2286,7 @@ class Troubadour(BaseJoker):
 
 
 @dataclass(eq=False)
-class Certificate(BaseJoker):
+class Certificate(BalatroJoker):
     """
     When round begins, add a random playing card with a random seal to your hand
     """
@@ -2298,21 +2298,21 @@ class Certificate(BaseJoker):
 
 
 @dataclass(eq=False)
-class SmearedJoker(BaseJoker):
+class SmearedJoker(BalatroJoker):
     """
     Hearts and Diamonds count as the same suit, Spades and Clubs count as the same suit
     """
 
 
 @dataclass(eq=False)
-class Showman(BaseJoker):
+class Showman(BalatroJoker):
     """
     Joker, Tarot, Planet, and Spectral cards may appear multiple times
     """
 
 
 @dataclass(eq=False)
-class MerryAndy(BaseJoker):
+class MerryAndy(BalatroJoker):
     """
     +3 discards each round,
     -1 hand size
@@ -2320,7 +2320,7 @@ class MerryAndy(BaseJoker):
 
 
 @dataclass(eq=False)
-class OopsAllSixes(BaseJoker):
+class OopsAllSixes(BalatroJoker):
     """
     Doubles all listed probabilities
     (ex: 1 in 3 -> 2 in 3)
@@ -2328,7 +2328,7 @@ class OopsAllSixes(BaseJoker):
 
 
 @dataclass(eq=False)
-class InvisibleJoker(BaseJoker):
+class InvisibleJoker(BalatroJoker):
     """
     After 2 rounds, sell this card to Duplicate a random Joker
     (Removes Negative from copy)
@@ -2354,7 +2354,7 @@ class InvisibleJoker(BaseJoker):
 
 
 @dataclass(eq=False)
-class Satellite(BaseJoker):
+class Satellite(BalatroJoker):
     """
     Earn $1 at end of round per unique Planet card used this run
     """
@@ -2364,7 +2364,7 @@ class Satellite(BaseJoker):
 
 
 @dataclass(eq=False)
-class Cartomancer(BaseJoker):
+class Cartomancer(BalatroJoker):
     """
     Create a Tarot card when Blind is selected
     (Must have room)
@@ -2376,14 +2376,14 @@ class Cartomancer(BaseJoker):
 
 
 @dataclass(eq=False)
-class Astronomer(BaseJoker):
+class Astronomer(BalatroJoker):
     """
     All Planet cards and Celestial Packs in the shop are free
     """
 
 
 @dataclass(eq=False)
-class Chicot(BaseJoker):
+class Chicot(BalatroJoker):
     """
     Disables effect of every Boss Blind
     """
@@ -2393,7 +2393,7 @@ class Chicot(BaseJoker):
 
 
 @dataclass(eq=False)
-class Perkeo(BaseJoker):
+class Perkeo(BalatroJoker):
     """
     Creates a Negative copy of 1 random consumable card in your possession at the end of the shop
     """

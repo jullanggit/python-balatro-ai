@@ -889,12 +889,14 @@ def _get_hologram_sprite(face_sprite):
 
 
 def get_sprite(
-    item: BaseJoker | Consumable | Card | Voucher | Stake | Tag | Blind | Deck | Pack,
+    item: (
+        BalatroJoker | Consumable | Card | Voucher | Stake | Tag | Blind | Deck | Pack
+    ),
     card_back: Deck = Deck.RED,
     as_image: bool = True,
 ) -> bytes:
     match item:
-        case BaseJoker():
+        case BalatroJoker():
             match item:
                 case HalfJoker():
                     WIDTH, HEIGHT = DEFAULT_CARD_WIDTH, int(DEFAULT_CARD_HEIGHT // 1.7)

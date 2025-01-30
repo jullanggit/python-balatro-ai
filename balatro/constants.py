@@ -875,7 +875,7 @@ PROHIBITED_ANTE_1_TAGS = {
     Tag.TOP_UP,
     Tag.ORBITAL,
 }
-SHOP_BASE_CARD_WEIGHTS = {BaseJoker: 20, Tarot: 4, Planet: 4}
+SHOP_BASE_CARD_WEIGHTS = {BalatroJoker: 20, Tarot: 4, Planet: 4}
 SHOP_BASE_PACK_WEIGHTS = {
     Pack.ARCANA: 4,
     Pack.JUMBO_ARCANA: 2,
