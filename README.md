@@ -3,7 +3,7 @@
 ![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 
-A Python implementation of the hit roguelike deckbuilder **Balatro** by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python package for uses such as machine learning.
+A Python implementation of the hit roguelike deckbuilder [**Balatro**](https://www.playbalatro.com) by LocalThunk. This project aims to capture the core gameplay and mechanics of Balatro in a clean, lightweight, and modular Python package for uses such as machine learning.
 
 **Note:** This is a work in progress. While some core features are functional, there are likely bugs and things left to be tested.
 
@@ -11,9 +11,20 @@ A Python implementation of the hit roguelike deckbuilder **Balatro** by LocalThu
 
 ## Important Considerations
 
--   **Not a 1:1 Translation:** This project is a _Pythonic implementation_ of Balatro, not a direct Lua-to-Python port.
--   **Bugs/Edge Cases:** While I strive for accuracy, with the nature of Balatro's many Jokers and complex interactions there are likely subtle differences between this module and the actual game.
--   **Seed Incompatibility:** Seeds are **not** compatible between this module and the original game. This is disappointing, but it would take much work to ensure compatibility, maybe work for a future date.
+-   **Not a 1:1 Translation:**
+
+    -   This project is a _Pythonic implementation_ of Balatro, not a direct Lua-to-Python translation.
+    -   Thanks to LocalThunk the source code for the game is readily available, but the goal of this project was to avoid relying on it heavily so as to keep things as clean and Pythonic.
+
+-   **Bugs/Edge Cases:**
+
+    -   I try my best to sniff out as many edge cases as possible, sifting through the source code for specifics when needed.
+    -   However with Balatro's many Jokers and complex interactions there will inevitably be subtle differences between this module and the actual game mechanics.
+
+-   **Seed Incompatibility:**
+
+    -   Seeds are **not** compatible between this module and the actual game.
+    -   This is disappointing, but it would take much, much, much, work to do so, perhaps a project for a future date.
 
 ## Getting Started
 
