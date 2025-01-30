@@ -9,6 +9,58 @@ if TYPE_CHECKING:
 from .enums import *
 
 
+class BalatroError(Exception):
+    """Base class for all Balatro-sepcific exceptions"""
+
+
+class InvalidArgumentsError(BalatroError):
+    """Raised when an action is attempted with invalid arguments"""
+
+
+class IllegalActionError(BalatroError):
+    """Raised when an action is not allowed in the current state"""
+
+
+class InsufficientFundsError(IllegalActionError):
+    """Raised when an action requires more money than available"""
+
+
+class NotEnoughSpaceError(IllegalActionError):
+    """Raised when an action requires more Joker or Consumable slots than available"""
+
+
+class NoDiscardsRemainingError(IllegalActionError):
+    """Raised when discards are attempted when none are left"""
+
+
+class MissingForcedSelectedCardError(InvalidArgumentsError):
+    """Raised when a hand is played without the Cerulean Bell's forced selected card"""
+
+
+class IllegalBossRerollError(IllegalActionError):
+    """Raised when a boss is attempted to be rerolled without the sufficient Voucher"""
+
+
+class EternalJokerSoldError(InvalidArgumentsError):
+    """Raised when an eternal Joker is attempted to be sold"""
+
+
+class IllegalSkipError(IllegalActionError):
+    """Raised when a boss blind is attempted to be skipped"""
+
+
+class IllegalFoolUseError(IllegalActionError):
+    """Raised when the Fool is attempted to be used to create an illegal Consumable"""
+
+
+class NoValidJokersError(IllegalActionError):
+    """Raised when there are no valid Jokers to be acted upon"""
+
+
+class HandSizeOfOneError(IllegalActionError):
+    """Raised when an action cannot be performed due to a hand size of one"""
+
+
 @dataclass(eq=False)
 class Sellable:
     _extra_sell_value: int = field(default=0, init=False, repr=False)
@@ -28,7 +80,8 @@ class BaseJoker(Sellable):
     num_perishable_rounds_left: int = field(default=5, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        assert not (self.is_eternal and self.is_perishable)
+        if self.is_eternal and self.is_perishable:
+            raise ValueError("Jokers cannot be both eternal and perishable.")
 
     def __eq__(self, other: BaseJoker | type[BaseJoker] | Edition) -> bool:
         match other:

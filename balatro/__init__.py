@@ -24,7 +24,8 @@ def format_number(number: float) -> str:
         return "nan"
     if number == float("inf"):
         return "naneinf"
-    assert number >= 0
+    if number < 0:
+        raise ValueError("Number must be non-negative")
     if number >= 1e11:
         return f"{number:.3e}".replace("+", "")
     if number >= 100 or number.is_integer():
@@ -39,8 +40,10 @@ class Run:
         stake: Stake = Stake.WHITE,
         seed: str | None = None,
     ) -> None:
-        if deck is Deck.CHALLENGE:
-            assert isinstance(self, ChallengeRun)
+        if deck is Deck.CHALLENGE and not isinstance(self, ChallengeRun):
+            raise ValueError(
+                f"Cannot use {deck} with {Run}, use {ChallengeRun} instead"
+            )
 
         r.seed(seed)
 
@@ -170,31 +173,48 @@ class Run:
     def _buy_shop_item(
         self, section_index: int, item_index: int, use: bool = False
     ) -> tuple[BaseJoker | Consumable | Card | Pack | Voucher, int]:
-        assert self._state is State.IN_SHOP
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
 
-        assert section_index in [0, 1, 2]
+        if section_index not in [0, 1, 2]:
+            raise InvalidArgumentsError(
+                f"Invalid section index {section_index}, must be 0, 1, or 2"
+            )
 
         section_items = [self._shop_cards, self._shop_vouchers, self._shop_packs][
             section_index
         ]
 
-        assert 0 <= item_index < len(section_items)
+        if item_index not in range(len(section_items)):
+            raise InvalidArgumentsError(
+                f"Invalid item index {item_index}, must be in range(len(section_items))"
+            )
 
         item, cost = section_items[item_index]
 
-        assert self._available_money >= cost
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {item}, cost: {cost}, available: {self._available_money}"
+            )
 
         if use:
-            assert isinstance(item, Consumable)
+            if not isinstance(item, Consumable):
+                raise InvalidArgumentsError(f"Cannot use non-Consumable item {item}")
         else:
             match item:
                 case BaseJoker():
-                    assert (
-                        len(self._jokers) < self.joker_slots
-                        or item.edition is Edition.NEGATIVE
-                    )
+                    if (
+                        len(self._jokers) == self.joker_slots
+                        and item.edition is not Edition.NEGATIVE
+                    ):
+                        raise NotEnoughSpaceError(
+                            f"Cannot buy {item}, Joker slots full"
+                        )
                 case Consumable():
-                    assert len(self._consumables) < self.consumable_slots
+                    if len(self._consumables) == self.consumable_slots:
+                        raise NotEnoughSpaceError(
+                            f"Cannot buy {item}, Consumable slots full"
+                        )
 
         self._money -= cost
         return section_items.pop(item_index)
@@ -1635,10 +1655,22 @@ class Run:
         self, consumable: Consumable, selected_card_indices: list[int] | None = None
     ) -> None:
         if selected_card_indices is not None:
-            assert self._hand is not None
-            assert 1 <= len(selected_card_indices) <= 5
-            assert all(0 <= i < len(self._hand) for i in selected_card_indices)
-            assert len(set(selected_card_indices)) == len(selected_card_indices)
+            if self._hand is None:
+                raise TypeError(
+                    f"Selected card indices should be None when there is no hand, but got {selected_card_indices}"
+                )
+            if not (1 <= len(selected_card_indices) <= 5):
+                raise InvalidArgumentsError(
+                    f"Selected card indices should have length 1-5, but got {len(selected_card_indices)}"
+                )
+            if any((i not in range(len(self._hand)) for i in selected_card_indices)):
+                raise InvalidArgumentsError(
+                    f"Selected cards indices should all be within the range of the hand, but got {selected_card_indices}"
+                )
+            if len(set(selected_card_indices)) < len(selected_card_indices):
+                raise InvalidArgumentsError(
+                    f"Selected card indices should all be unique, but got {selected_card_indices}"
+                )
 
             selected_cards = [self._hand[i] for i in selected_card_indices]
         else:
@@ -1648,14 +1680,17 @@ class Run:
             case Tarot():
                 match consumable.card:
                     case Tarot.THE_FOOL:
-                        assert (
-                            self._fool_next is not None
-                            and self._fool_next is not Tarot.THE_FOOL
-                        )
+                        if self._fool_next in [None, Tarot.THE_FOOL]:
+                            raise IllegalFoolUseError(
+                                f"Cannot use The Fool without a valid consumable to create, got {self._fool_next}"
+                            )
 
                         self._consumables.append(Consumable(self._fool_next))
                     case Tarot.THE_MAGICIAN:
-                        assert 1 <= len(selected_cards) <= 2
+                        if not (1 <= len(selected_cards) <= 2):
+                            raise InvalidArgumentsError(
+                                f"The Magician requires 1-2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.enhancement = Enhancement.LUCKY
@@ -1670,7 +1705,10 @@ class Run:
                                 self._get_random_consumable(Planet)
                             )
                     case Tarot.THE_EMPRESS:
-                        assert 1 <= len(selected_cards) <= 2
+                        if not (1 <= len(selected_cards) <= 2):
+                            raise InvalidArgumentsError(
+                                f"The Empress requires 1-2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.enhancement = Enhancement.MULT
@@ -1683,34 +1721,47 @@ class Run:
                         ):
                             self._consumables.append(self._get_random_consumable(Tarot))
                     case Tarot.THE_HEIROPHANT:
-                        assert 1 <= len(selected_cards) <= 2
+                        if not (1 <= len(selected_cards) <= 2):
+                            raise InvalidArgumentsError(
+                                f"The Heirophant requires 1-2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.enhancement = Enhancement.BONUS
                     case Tarot.THE_LOVERS:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"The Lovers requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].enhancement = Enhancement.WILD
                     case Tarot.THE_CHARIOT:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"The Chariot requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].enhancement = Enhancement.STEEL
                     case Tarot.JUSTICE:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Justice requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].enhancement = Enhancement.GLASS
                     case Tarot.THE_HERMIT:
                         self._money += max(0, min(20, self._money))
                     case Tarot.THE_WHEEL_OF_FORTUNE:
-                        assert self._jokers
-
                         valid_jokers = [
                             joker
                             for joker in self._jokers
                             if joker.edition is Edition.BASE
                         ]
 
-                        assert valid_jokers
+                        if not valid_jokers:
+                            raise NoValidJokersError(
+                                "The Wheel of Fortune requires at least one base Joker to use"
+                            )
 
                         if self._chance(1, 4):
                             r.choice(valid_jokers).edition = r.choices(
@@ -1719,18 +1770,27 @@ class Run:
                                 k=1,
                             )[0]
                     case Tarot.STRENGTH:
-                        assert 1 <= len(selected_cards) <= 2
+                        if not (1 <= len(selected_cards) <= 2):
+                            raise InvalidArgumentsError(
+                                f"Strength requires 1-2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         ranks = list(Rank)
                         for card in selected_cards:
                             card.rank = ranks[(ranks.index(card.rank) - 1) % 13]
                     case Tarot.THE_HANGED_MAN:
-                        assert 1 <= len(selected_cards) <= 2
+                        if not (1 <= len(selected_cards) <= 2):
+                            raise InvalidArgumentsError(
+                                f"The Hanged Man requires 1-2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             self._destroy_card(card)
                     case Tarot.DEATH:
-                        assert len(selected_cards) == 2
+                        if len(selected_cards) != 2:
+                            raise InvalidArgumentsError(
+                                f"Death requires 2 selected cards, but got {len(selected_cards)}"
+                            )
 
                         left, right = selected_cards
                         left.suit = right.suit
@@ -1739,7 +1799,10 @@ class Run:
                         left.seal = right.seal
                         left.edition = right.edition
                     case Tarot.TEMPERANCE:
-                        assert self._jokers
+                        if not self._jokers:
+                            raise NoValidJokersError(
+                                "Temperance requires at least one Joker to use"
+                            )
 
                         self._money += min(
                             50,
@@ -1749,34 +1812,55 @@ class Run:
                             ),
                         )
                     case Tarot.THE_DEVIL:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"The Devil requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].enhancement = Enhancement.GOLD
                     case Tarot.THE_TOWER:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"The Tower requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].enhancement = Enhancement.STONE
                     case Tarot.THE_STAR:
-                        assert 1 <= len(selected_cards) <= 3
+                        if not (1 <= len(selected_cards) <= 3):
+                            raise InvalidArgumentsError(
+                                f"The Star requires 1-3 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.suit = Suit.DIAMONDS
                     case Tarot.THE_MOON:
-                        assert 1 <= len(selected_cards) <= 3
+                        if not (1 <= len(selected_cards) <= 3):
+                            raise InvalidArgumentsError(
+                                f"The Moon requires 1-3 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.suit = Suit.CLUBS
                     case Tarot.THE_SUN:
-                        assert 1 <= len(selected_cards) <= 3
+                        if not (1 <= len(selected_cards) <= 3):
+                            raise InvalidArgumentsError(
+                                f"The Sun requires 1-3 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.suit = Suit.HEARTS
                     case Tarot.JUDGEMENT:
-                        assert len(self._jokers) < self.joker_slots
+                        if len(self._jokers) == self.joker_slots:
+                            raise NotEnoughSpaceError(
+                                "Judgement requires an empty Joker slot to use"
+                            )
 
                         self._add_joker(self._get_random_joker())
                     case Tarot.THE_WORLD:
-                        assert 1 <= len(selected_cards) <= 3
+                        if not (1 <= len(selected_cards) <= 3):
+                            raise InvalidArgumentsError(
+                                f"The World requires 1-3 selected cards, but got {len(selected_cards)}"
+                            )
 
                         for card in selected_cards:
                             card.suit = Suit.SPADES
@@ -1794,7 +1878,8 @@ class Run:
             case Spectral():
                 match consumable.card:
                     case Spectral.FAMILIAR:
-                        assert self._hand
+                        if not self._hand:
+                            raise IllegalActionError("Familiar requires a hand to use")
 
                         self._destroy_card(r.choice(self._hand))
 
@@ -1811,7 +1896,8 @@ class Run:
                             )
                             self._add_card(random_face_card, draw_to_hand=True)
                     case Spectral.GRIM:
-                        assert self._hand
+                        if not self._hand:
+                            raise IllegalActionError("Grim requires a hand to use")
 
                         self._destroy_card(r.choice(self._hand))
 
@@ -1826,7 +1912,10 @@ class Run:
                             )
                             self._add_card(random_ace, draw_to_hand=True)
                     case Spectral.INCANTATION:
-                        assert self._hand
+                        if not self._hand:
+                            raise IllegalActionError(
+                                "Incantation requires a hand to use"
+                            )
 
                         self._destroy_card(r.choice(self._hand))
 
@@ -1843,11 +1932,17 @@ class Run:
                             )
                             self._add_card(random_numbered_card, draw_to_hand=True)
                     case Spectral.TALISMAN:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Talisman requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].seal = Seal.GOLD
                     case Spectral.AURA:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Aura requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].edition = r.choices(
                             list(UPGRADED_EDITION_WEIGHTS),
@@ -1855,33 +1950,50 @@ class Run:
                             k=1,
                         )[0]
                     case Spectral.WRAITH:
-                        assert len(self._jokers) < self.joker_slots
+                        if len(self._jokers) == self.joker_slots:
+                            raise NotEnoughSpaceError(
+                                "Wraith requires an empty Joker slot to use"
+                            )
 
                         self._add_joker(self._get_random_joker(rarity=Rarity.RARE))
                         self._money = 0
                     case Spectral.SIGIL:
-                        assert self._hand
+                        if not self._hand:
+                            raise IllegalActionError("Sigil requires a hand to use")
 
                         random_suit = r.choice(list(Suit))
                         for card in self._hand:
                             card.suit = random_suit
                     case Spectral.OUIJA:
-                        assert self._hand
-                        assert self.hand_size > 1
+                        if not self._hand:
+                            raise IllegalActionError("Ouija requires a hand to use")
+
+                        if self.hand_size == 1:
+                            raise HandSizeOfOneError(
+                                "Ouija requires a hand size greater than 1 to use"
+                            )
 
                         random_rank = r.choice(list(Rank))
                         for card in self._hand:
                             card.rank = random_rank
                         self._hand_size_penalty += 1
                     case Spectral.ECTOPLASM:
-                        assert self._jokers
-                        assert self.hand_size > 1
+                        if not self._jokers:
+                            raise NoValidJokersError(
+                                "Ectoplasm requires a Joker to use"
+                            )
+
+                        if self.hand_size == 1:
+                            raise HandSizeOfOneError(
+                                "Ectoplasm requires a hand size greater than 1 to use"
+                            )
 
                         r.choice(self._jokers).edition = Edition.NEGATIVE
                         self._hand_size_penalty += 1 + self._num_ectoplasms_used
                         self._num_ectoplasms_used += 1
                     case Spectral.IMMOLATE:
-                        assert self._hand
+                        if not self._hand:
+                            raise IllegalActionError("Immolate requires a hand to use")
 
                         for _ in range(5):
                             if not self._hand:
@@ -1890,7 +2002,8 @@ class Run:
                             self._destroy_card(r.choice(self._hand))
                         self._money += 20
                     case Spectral.ANKH:
-                        assert self._jokers
+                        if not self._jokers:
+                            raise NoValidJokersError("Ankh requires a Joker to use")
 
                         copied_joker = r.choice(self._jokers)
                         joker_copy = self._create_joker(
@@ -1911,19 +2024,23 @@ class Run:
                             self._destroy_joker(joker)
                         self._add_joker(joker_copy)
                     case Spectral.DEJA_VU:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Deja Vu requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].seal = Seal.RED
                     case Spectral.HEX:
-                        assert self._jokers
-
                         valid_jokers = [
                             joker
                             for joker in self._jokers
                             if joker.edition is Edition.BASE
                         ]
 
-                        assert valid_jokers
+                        if not valid_jokers:
+                            raise NoValidJokersError(
+                                "Hex requires at least one base Joker to use"
+                            )
 
                         random_joker = r.choice(valid_jokers)
                         random_joker.edition = Edition.POLYCHROME
@@ -1934,21 +2051,33 @@ class Run:
 
                             self._destroy_joker(joker)
                     case Spectral.TRANCE:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Trance requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].seal = Seal.BLUE
                     case Spectral.MEDIUM:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Medium requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         selected_cards[0].seal = Seal.PURPLE
                     case Spectral.CRYPTID:
-                        assert len(selected_cards) == 1
+                        if len(selected_cards) != 1:
+                            raise InvalidArgumentsError(
+                                f"Cryptid requires 1 selected card, but got {len(selected_cards)}"
+                            )
 
                         for _ in range(2):
                             card_copy = copy(selected_cards[0])
                             self._add_card(card_copy, draw_to_hand=True)
                     case Spectral.THE_SOUL:
-                        assert len(self._jokers) < self.joker_slots
+                        if len(self._jokers) == self.joker_slots:
+                            raise NotEnoughSpaceError(
+                                "The Soul requires an empty Joker slot to use"
+                            )
 
                         self._add_joker(self._get_random_joker(rarity=Rarity.LEGENDARY))
                     case Spectral.BLACK_HOLE:
@@ -1972,13 +2101,13 @@ class Run:
         if use:
             try:
                 self._use_consumable(item)
-            except AssertionError:
+            except BalatroError:
                 [self._shop_cards, self._shop_vouchers, self._shop_packs][
                     section_index
                 ].insert(item_index, (item, cost))
                 self._money += cost
 
-                assert False
+                raise
         else:
             match item:
                 case BaseJoker():
@@ -2004,7 +2133,10 @@ class Run:
         Collect the money earned from the round and proceed to the shop
         """
 
-        assert self._state is State.CASHING_OUT
+        if self._state is not State.CASHING_OUT:
+            raise IllegalActionError(
+                f"Excpected state to be CASHING_OUT, but got {self._state}"
+            )
 
         self._money += self._cash_out_total
         self._round_score = None
@@ -2038,19 +2170,25 @@ class Run:
             selected_card_indices (list[int], optional): The indices of the cards in hand to use the item on (0-indexed), or none
         """
 
-        assert self._state is State.OPENING_PACK
+        if self._state is not State.OPENING_PACK:
+            raise IllegalActionError(
+                f"Expected state to be OPENING_PACK, but got {self._state}"
+            )
 
-        assert 0 <= item_index < len(self._pack_items)
-        assert selected_card_indices is None or self._hand is not None
+        if item_index not in range(len(self._pack_items)):
+            raise InvalidArgumentsError(
+                f"Item index should be in range(len(pack_items)), but got {item_index}"
+            )
 
         item = self._pack_items[item_index]
 
         match item:
             case BaseJoker():
-                assert (
-                    len(self._jokers) < self.joker_slots
-                    or item.edition is Edition.NEGATIVE
-                )
+                if (
+                    len(self._jokers) == self.joker_slots
+                    and item.edition is not Edition.NEGATIVE
+                ):
+                    raise NotEnoughSpaceError(f"Cannot choose {item}, Joker slots full")
 
                 self._add_joker(item)
             case Consumable():
@@ -2072,12 +2210,27 @@ class Run:
             discard_indices (list[int]): The indices of the cards in hand to discard (0-indexed)
         """
 
-        assert self._state is State.PLAYING_BLIND
+        if self._state is not State.PLAYING_BLIND:
+            raise IllegalActionError(
+                f"Expected state to be PLAYING_BLIND, but got {self._state}"
+            )
 
-        assert self._discards > 0
-        assert 1 <= len(discard_indices) <= 5
-        assert all(0 <= i < len(self._hand) for i in discard_indices)
-        assert len(set(discard_indices)) == len(discard_indices)
+        if self._discards == 0:
+            raise NoDiscardsRemainingError("No discards left")
+
+        if not (1 <= len(discard_indices) <= 5):
+            raise InvalidArgumentsError(
+                f"Discard indices should have length 1-5, but got {len(discard_indices)}"
+            )
+        if any(i not in range(len(self._hand)) for i in discard_indices):
+            raise InvalidArgumentsError(
+                f"Discard indices should all be within the range of the hand, but got {discard_indices}"
+            )
+
+        if len(set(discard_indices)) < len(discard_indices):
+            raise InvalidArgumentsError(
+                f"Discard indices should all be unique, but got {discard_indices}"
+            )
 
         self._discard(discard_indices)
 
@@ -2092,7 +2245,10 @@ class Run:
         Exit the shop and proceed to the next round
         """
 
-        assert self._state is State.IN_SHOP
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(
+                f"Expected state to be IN_SHOP, but got {self._state}"
+            )
 
         self._reroll_cost = None
         self._chaos_used = None
@@ -2109,15 +2265,33 @@ class Run:
             card_indices (list[int]): The indices of the cards in hand to play, in order (0-indexed)
         """
 
-        assert self._state is State.PLAYING_BLIND
+        if self._state is not State.PLAYING_BLIND:
+            raise IllegalActionError(
+                f"Expected state to be PLAYING_BLIND, but got {self._state}"
+            )
 
-        assert 1 <= len(card_indices) <= 5
-        assert all(0 <= i < len(self._hand) for i in card_indices)
-        assert len(set(card_indices)) == len(card_indices)
-        assert (
-            self._forced_selected_card_index is None
-            or self._forced_selected_card_index in card_indices
-        )
+        if not (1 <= len(card_indices) <= 5):
+            raise InvalidArgumentsError(
+                f"Card indices should have length 1-5, but got {len(card_indices)}"
+            )
+
+        if any(i not in range(len(self._hand)) for i in card_indices):
+            raise InvalidArgumentsError(
+                f"Card indices should all be within the range of the hand, but got {card_indices}"
+            )
+
+        if len(set(card_indices)) < len(card_indices):
+            raise InvalidArgumentsError(
+                f"Card indices should all be unique, but got {card_indices}"
+            )
+
+        if (
+            self._forced_selected_card_index is not None
+            and self._forced_selected_card_index not in card_indices
+        ):
+            raise MissingForcedSelectedCardError(
+                f"Forced selected card index {self._forced_selected_card_index} not in card indices {card_indices}"
+            )
 
         self._hands -= 1
         self._num_played_hands += 1
@@ -2327,19 +2501,30 @@ class Run:
 
     def move_joker(self, joker_index: int, new_index: int) -> None:
         """
-        Move a joker to a new position in the joker slots
+        Move a Joker to a new position in the Joker slots
 
         Args:
-            joker_index (int): The index of the joker to move (0-indexed)
-            new_index (int): The index to move the joker to (0-indexed)
+            joker_index (int): The index of the Joker to move (0-indexed)
+            new_index (int): The index to move the Joker to (0-indexed)
         """
 
-        assert self._state is not State.GAME_OVER
+        if self._state is State.GAME_OVER:
+            raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
-        assert self._jokers
-        assert 0 <= joker_index < len(self._jokers)
-        assert 0 <= new_index < len(self._jokers)
-        assert new_index != joker_index
+        if joker_index not in range(len(self._jokers)):
+            raise InvalidArgumentsError(
+                f"Joker index should be in range(len(jokers)), but got {joker_index}"
+            )
+
+        if new_index not in range(len(self._jokers)):
+            raise InvalidArgumentsError(
+                f"New index should be in range(len(jokers)), but got {new_index}"
+            )
+
+        if new_index == joker_index:
+            raise InvalidArgumentsError(
+                f"New index should not be the same as the Joker index, but got {joker_index}, {new_index}"
+            )
 
         self._jokers.insert(new_index, self._jokers.pop(joker_index))
 
@@ -2351,11 +2536,17 @@ class Run:
         Reroll the shop cards
         """
 
-        assert self._state is State.IN_SHOP
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(
+                f"Expected state to be IN_SHOP, but got {self._state}"
+            )
 
         reroll_cost = self.reroll_cost
 
-        assert self._available_money >= reroll_cost
+        if self._available_money < reroll_cost:
+            raise InsufficientFundsError(
+                f"Cannot afford reroll cost {reroll_cost} with available money {self._available_money}"
+            )
 
         for joker in self._jokers:
             joker._on_shop_rerolled()
@@ -2378,12 +2569,25 @@ class Run:
         Reroll the boss blind (requires the Director's Cut voucher)
         """
 
-        assert self._state is State.SELECTING_BLIND
+        if self._state is not State.SELECTING_BLIND:
+            raise IllegalActionError(
+                f"Expected state to be SELECTING_BLIND, but got {self._state}"
+            )
 
-        assert Voucher.DIRECTORS_CUT in self._vouchers
-        if Voucher.RETCON not in self._vouchers:
-            assert not self._rerolled_boss_blind
-        assert self._available_money >= 10
+        if Voucher.DIRECTORS_CUT not in self._vouchers:
+            raise IllegalBossRerollError(
+                f"Cannot reroll boss blind without Director's Cut Voucher"
+            )
+
+        if Voucher.RETCON not in self._vouchers and self._rerolled_boss_blind:
+            raise IllegalBossRerollError(
+                f"Cannot reroll boss blind more than once per ante without Retcon Voucher"
+            )
+
+        if self._available_money < 10:
+            raise InsufficientFundsError(
+                f"Cannot afford boss blind reroll ($10) with available money {self._available_money}"
+            )
 
         self._money -= 10
 
@@ -2396,7 +2600,10 @@ class Run:
         Play the current blind
         """
 
-        assert self._state is State.SELECTING_BLIND
+        if self._state is not State.SELECTING_BLIND:
+            raise IllegalActionError(
+                f"Expected state to be SELECTING_BLIND, but got {self._state}"
+            )
 
         self._round += 1
         self._round_score = 0
@@ -2475,19 +2682,27 @@ class Run:
             item_index (int): The index of the item in the section (0-indexed)
         """
 
-        assert self._state is not State.GAME_OVER
+        if self._state is State.GAME_OVER:
+            raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
-        assert section_index in [0, 1]
+        if section_index not in [0, 1]:
+            raise InvalidArgumentsError(
+                f"Section index should be 0 or 1, but got {section_index}"
+            )
 
         section_items = [self._jokers, self._consumables][section_index]
 
-        assert 0 <= item_index < len(section_items)
+        if item_index not in range(len(section_items)):
+            raise InvalidArgumentsError(
+                f"Item index should be in range(len(section_items)), but got {item_index}"
+            )
 
         sold_item = section_items[item_index]
         joker_sold = isinstance(sold_item, BaseJoker)
 
         if joker_sold:
-            assert not sold_item.is_eternal
+            if sold_item.is_eternal:
+                raise EternalJokerSoldError(f"Cannot sell eternal Joker {sold_item}")
 
             if self._blind is Blind.VERDANT_LEAF:
                 self._disable_boss_blind()
@@ -2509,8 +2724,13 @@ class Run:
         Skip the current blind and obtain its skip tag
         """
 
-        assert self._state is State.SELECTING_BLIND
-        assert not self._is_boss_blind
+        if self._state is not State.SELECTING_BLIND:
+            raise IllegalActionError(
+                f"Expected state to be SELECTING_BLIND, but got {self._state}"
+            )
+
+        if self._is_boss_blind:
+            raise IllegalSkipError(f"Cannot skip boss blind {self._blind}")
 
         tag, orbital_hand = self._skip_tags[self._blind is Blind.BIG_BLIND]
 
@@ -2551,7 +2771,10 @@ class Run:
         Close the opened pack
         """
 
-        assert self._state is State.OPENING_PACK
+        if self._state is not State.OPENING_PACK:
+            raise IllegalActionError(
+                f"Expected state to be OPENING_PACK, but got {self._state}"
+            )
 
         for joker in self.jokers:
             joker._on_pack_skipped()
@@ -2569,10 +2792,13 @@ class Run:
             selected_card_indices (list[int], optional): The indices of the cards in hand to use the consumable on (0-indexed), or none
         """
 
-        assert self._state is not State.GAME_OVER
+        if self._state is State.GAME_OVER:
+            raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
-        assert 0 <= consumable_index < len(self._consumables)
-        assert selected_card_indices is None or self._hand is not None
+        if consumable_index not in range(len(self._consumables)):
+            raise InvalidArgumentsError(
+                f"Consumable index should be in range(len(consumables)), but got {consumable_index}"
+            )
 
         consumable = self._consumables[consumable_index]
         self._use_consumable(consumable, selected_card_indices)
@@ -2817,7 +3043,7 @@ class Run:
 
     @property
     def joker_slots(self) -> int:
-        """The number of joker slots available"""
+        """The number of Joker slots available"""
 
         joker_slots = 5
 
@@ -2836,7 +3062,7 @@ class Run:
 
     @property
     def jokers(self) -> list[BaseJoker]:
-        """The jokers in possession"""
+        """The Jokers in possession"""
 
         return self._jokers
 
