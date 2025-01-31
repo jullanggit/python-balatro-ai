@@ -42,7 +42,7 @@ class Run:
     ) -> None:
         if deck is Deck.CHALLENGE and not isinstance(self, ChallengeRun):
             raise ValueError(
-                f"Cannot use {deck} with {Run}, use {ChallengeRun} instead"
+                f"Cannot use {Deck.CHALLENGE} with {Run}, use {ChallengeRun} instead"
             )
 
         r.seed(seed)
@@ -1662,7 +1662,7 @@ class Run:
     ) -> None:
         if selected_card_indices is not None:
             if self._hand is None:
-                raise TypeError(
+                raise InvalidArgumentsError(
                     f"Selected card indices should be None when there is no hand, but got {selected_card_indices}"
                 )
             if not (1 <= len(selected_card_indices) <= 5):
@@ -2228,6 +2228,7 @@ class Run:
             raise InvalidArgumentsError(
                 f"Discard indices should have length 1-5, but got {len(discard_indices)}"
             )
+
         if any(i not in range(len(self._hand)) for i in discard_indices):
             raise InvalidArgumentsError(
                 f"Discard indices should all be within the range of the hand, but got {discard_indices}"
@@ -3170,6 +3171,8 @@ class Run:
 
 
 class ChallengeRun(Run):
-    def __init__(self, challenge: Challenge, seed: str | None = None) -> None:
+    def __init__(self, challenge: Challenge) -> None:
         self._challenge: Challenge = challenge
-        super().__init__(Deck.CHALLENGE, seed=seed)
+        super().__init__(Deck.CHALLENGE)
+
+        raise NotImplementedError
