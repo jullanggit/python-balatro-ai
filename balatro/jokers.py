@@ -954,8 +954,13 @@ class JokerStencil(BalatroJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self._run._mult *= (self._run.joker_slots - len(self._run._jokers)) + sum(
-            isinstance(joker, JokerStencil) for joker in self._run._jokers
+        self._run._mult *= max(
+            1.0,
+            1.0
+            * (
+                (self._run.joker_slots - len(self._run._jokers))
+                + sum(isinstance(joker, JokerStencil) for joker in self._run._jokers)
+            ),
         )
 
 
@@ -2139,7 +2144,7 @@ class RiffRaff(BalatroJoker):
     """
 
     def _blind_selected_ability(self) -> None:
-        for _ in range(min(2, self._run.joker_slots - len(self._run._jokers))):
+        for _ in range(min(2, max(0, self._run.joker_slots - len(self._run._jokers)))):
             self._run._add_joker(self._run._get_random_joker(Rarity.COMMON))
 
 

@@ -283,7 +283,7 @@ CHALLENGE_INFO = {
         banned_blinds={Blind.VERDANT_LEAF},
     ),
     Challenge.MEDUSA: ChallengeSetup(
-        initial_jokers=(MarbleJoker(is_eternal=True)),
+        initial_jokers=[MarbleJoker(is_eternal=True)],
         deck_cards=[
             Card(rank, suit, enhancement=(Enhancement.STONE if rank.is_face else None))
             for suit in Suit

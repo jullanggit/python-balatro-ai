@@ -174,6 +174,7 @@ class Run:
         self._forced_selected_card_index: int | None = None
         self._ox_poker_hand: PokerHand | None = None
         self._cash_out: list[tuple[int, ...]] | None = None
+        self._inflation_amount: int = 0
 
         self._new_ante()
 
@@ -231,26 +232,25 @@ class Run:
 
         if self._available_money < cost:
             raise InsufficientFundsError(
-                f"Insufficient funds to buy {item}, cost: {cost}, available: {self._available_money}"
+                f"Insufficient funds to buy {item!r}, cost: {cost}, available: {self._available_money}"
             )
 
         if use:
             if not isinstance(item, Consumable):
-                raise InvalidArgumentsError(f"Cannot use non-Consumable item {item}")
+                raise InvalidArgumentsError(f"Cannot use non-Consumable item {item!r}")
         else:
             match item:
                 case BalatroJoker():
-                    if (
-                        len(self._jokers) == self.joker_slots
-                        and item.edition is not Edition.NEGATIVE
+                    if len(self._jokers) >= self.joker_slots + (
+                        item.edition is Edition.NEGATIVE
                     ):
                         raise NotEnoughSpaceError(
-                            f"Cannot buy {item}, Joker slots full"
+                            f"Cannot buy {item!r}, Joker slots full"
                         )
                 case Consumable():
                     if len(self._consumables) == self.consumable_slots:
                         raise NotEnoughSpaceError(
-                            f"Cannot buy {item}, Consumable slots full"
+                            f"Cannot buy {item!r}, Consumable slots full"
                         )
 
         self._money -= cost
@@ -438,7 +438,7 @@ class Run:
                 joker.is_debuffed = False
             joker.is_flipped = False
 
-        for card in self._deck_cards:
+        for card in self._deck_cards_left:
             card.is_debuffed = False
             card.is_face_down = False
 
@@ -950,6 +950,12 @@ class Run:
             case _:
                 for joker in self._jokers:
                     joker._on_boss_defeated()
+
+                if self.challenge is Challenge.TYPECAST and self._ante == 4:
+                    for joker in self._jokers:
+                        if joker not in NON_ETERNAL_JOKERS:
+                            joker.is_eternal = True
+
                 self._new_ante()
 
     def _open_pack(self, pack: Pack) -> None:
@@ -1092,7 +1098,7 @@ class Run:
 
             for _ in range(needed_vouchers):
                 voucher = r.choice(possible_vouchers)
-                buy_cost = self._calculate_buy_cost(voucher)
+                buy_cost = self._calculate_buy_cost(voucher) + self._inflation_amount
                 self._shop_vouchers.append((voucher, buy_cost))
                 possible_vouchers.remove(voucher)
 
@@ -1120,7 +1126,9 @@ class Run:
             self._shop_packs[0] = Pack.BUFFOON
 
         for i, pack in enumerate(self._shop_packs):
-            buy_cost = 0 if coupon else self._calculate_buy_cost(pack)
+            buy_cost = (
+                0 if coupon else self._calculate_buy_cost(pack) + self._inflation_amount
+            )
             self._shop_packs[i] = (pack, buy_cost)
 
     def _populate_shop_cards(self, coupon: bool = False) -> None:
@@ -1137,6 +1145,8 @@ class Run:
             shop_card_weights[Planet] = 9.6
         if self._deck is Deck.GHOST:
             shop_card_weights[Spectral] = 2
+        if self.challenge in [Challenge.BRAM_POKER, Challenge.JOKERLESS]:
+            del shop_card_weights[BalatroJoker]
 
         if self._shop_cards is None:
             self._shop_cards = []
@@ -1191,11 +1201,21 @@ class Run:
                                 break
 
                     if buy_cost is None:
-                        buy_cost = 0 if coupon else self._calculate_buy_cost(joker)
+                        buy_cost = (
+                            0
+                            if coupon
+                            else self._calculate_buy_cost(joker)
+                            + self._inflation_amount
+                        )
                     self._shop_cards[i] = (joker, buy_cost)
                 case Tarot.__name__ | Planet.__name__ | Spectral.__name__:
                     consumable = self._get_random_consumable(self._shop_cards[i])
-                    buy_cost = 0 if coupon else self._calculate_buy_cost(consumable)
+                    buy_cost = (
+                        0
+                        if coupon
+                        else self._calculate_buy_cost(consumable)
+                        + self._inflation_amount
+                    )
                     self._shop_cards[i] = (consumable, buy_cost)
                 case Card.__name__:
                     card = self._get_random_card()
@@ -1210,7 +1230,11 @@ class Run:
                         # not in the Lua code despite it being in the voucher description (bug?)
                         # if r.random() < 0.2:
                         #     card.seal = r.choice(list(Seal))
-                    buy_cost = 0 if coupon else self._calculate_buy_cost(card)
+                    buy_cost = (
+                        0
+                        if coupon
+                        else self._calculate_buy_cost(card) + self._inflation_amount
+                    )
                     self._shop_cards[i] = (card, buy_cost)
 
     def _random_boss_blind(self) -> None:
@@ -1752,18 +1776,18 @@ class Run:
 
     def _update_shop_costs(self) -> None:
         for i, (shop_card, cost) in enumerate(self._shop_cards):
-            updated_cost = self._calculate_buy_cost(shop_card)
-            if updated_cost < cost:
+            updated_cost = self._calculate_buy_cost(shop_card) + self._inflation_amount
+            if cost != 0:
                 self._shop_cards[i] = (shop_card, updated_cost)
 
         for i, (voucher, cost) in enumerate(self._shop_vouchers):
-            updated_cost = self._calculate_buy_cost(voucher)
-            if updated_cost < cost:
+            updated_cost = self._calculate_buy_cost(voucher) + self._inflation_amount
+            if cost != 0:
                 self._shop_vouchers[i] = (voucher, updated_cost)
 
         for i, (pack, cost) in enumerate(self._shop_packs):
-            updated_cost = self._calculate_buy_cost(pack)
-            if updated_cost < cost:
+            updated_cost = self._calculate_buy_cost(pack) + self._inflation_amount
+            if cost != 0:
                 self._shop_packs[i] = (pack, updated_cost)
 
     def _use_consumable(
@@ -1965,7 +1989,7 @@ class Run:
                         for card in selected_cards:
                             card.suit = Suit.HEARTS
                     case Tarot.JUDGEMENT:
-                        if len(self._jokers) == self.joker_slots:
+                        if len(self._jokers) >= self.joker_slots:
                             raise NotEnoughSpaceError(
                                 "Judgement requires an empty Joker slot to use"
                             )
@@ -2065,7 +2089,7 @@ class Run:
                             k=1,
                         )[0]
                     case Spectral.WRAITH:
-                        if len(self._jokers) == self.joker_slots:
+                        if len(self._jokers) >= self.joker_slots:
                             raise NotEnoughSpaceError(
                                 "Wraith requires an empty Joker slot to use"
                             )
@@ -2189,7 +2213,7 @@ class Run:
                             card_copy = copy(selected_cards[0])
                             self._add_card(card_copy, draw_to_hand=True)
                     case Spectral.THE_SOUL:
-                        if len(self._jokers) == self.joker_slots:
+                        if len(self._jokers) >= self.joker_slots:
                             raise NotEnoughSpaceError(
                                 "The Soul requires an empty Joker slot to use"
                             )
@@ -2242,6 +2266,10 @@ class Run:
                             self._update_shop_costs()
                         case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
                             self._reroll_cost = max(0, self._reroll_cost - 2)
+
+        if self.challenge is Challenge.INFLATION:
+            self._inflation_amount += 1
+            self._update_shop_costs()
 
     def cash_out(self) -> None:
         """
@@ -2299,11 +2327,12 @@ class Run:
 
         match item:
             case BalatroJoker():
-                if (
-                    len(self._jokers) == self.joker_slots
-                    and item.edition is not Edition.NEGATIVE
+                if len(self._jokers) >= self.joker_slots + (
+                    item.edition is Edition.NEGATIVE
                 ):
-                    raise NotEnoughSpaceError(f"Cannot choose {item}, Joker slots full")
+                    raise NotEnoughSpaceError(
+                        f"Cannot choose {item!r}, Joker slots full"
+                    )
 
                 self._add_joker(item)
             case Consumable():
@@ -2352,6 +2381,9 @@ class Run:
 
         self._discards -= 1
         self._first_discard = False
+
+        if self.challenge is Challenge.GOLDEN_NEEDLE:
+            self._money -= 1
 
         if not self._deal():
             self._game_over()
@@ -2585,7 +2617,10 @@ class Run:
         self._mult = None
 
         for played_card in played_cards:
-            played_card.is_debuffed = False
+            if self.challenge is Challenge.DOUBLE_OR_NOTHING:
+                played_card.is_debuffed = True
+            else:
+                played_card.is_debuffed = False
 
         for joker in self._jokers[:]:
             joker._on_scoring_completed(
@@ -2874,7 +2909,9 @@ class Run:
                 case Tag.GARBAGE:
                     self._money += 1 * self._num_unused_discards
                 case Tag.TOP_UP:
-                    for _ in range(min(2, self.joker_slots - len(self._jokers))):
+                    for _ in range(
+                        min(2, max(0, self.joker_slots - len(self._jokers)))
+                    ):
                         self._add_joker(self._get_random_joker(Rarity.COMMON))
                 case Tag.SPEED:
                     self._money += 5 * self._num_blinds_skipped
@@ -2957,7 +2994,7 @@ class Run:
             elif joker == MerryAndy:
                 discards_per_round += 3
 
-        return discards_per_round
+        return max(0, discards_per_round)
 
     @property
     def _hands_per_round(self) -> int:
@@ -2984,7 +3021,7 @@ class Run:
             if joker == Troubadour:
                 hands_per_round -= 1
 
-        return hands_per_round
+        return max(1, hands_per_round)
 
     @property
     def _is_boss_blind(self) -> bool:
@@ -3045,6 +3082,7 @@ class Run:
             if (
                 (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
                 or self.challenge is Challenge.THE_OMELETTE
+                or (self.challenge is Challenge.CRUELTY and not self._is_boss_blind)
             )
             else BLIND_INFO[self._blind][2]
         )
@@ -3159,7 +3197,7 @@ class Run:
 
         hand_size = (
             CHALLENGE_INFO[self._challenge].hand_size
-            if isinstance(self, ChallengeRun) is not None
+            if isinstance(self, ChallengeRun)
             else 8
         )
 
@@ -3207,9 +3245,13 @@ class Run:
         """The number of Joker slots available"""
 
         joker_slots = (
-            CHALLENGE_INFO[self._challenge].joker_slots
-            if isinstance(self, ChallengeRun)
-            else 5
+            0
+            if (self.challenge is Challenge.TYPECAST and self._ante > 4)
+            else (
+                CHALLENGE_INFO[self._challenge].joker_slots
+                if isinstance(self, ChallengeRun)
+                else 5
+            )
         )
 
         match self._deck:
@@ -3323,7 +3365,5 @@ class Run:
 class ChallengeRun(Run):
     def __init__(self, challenge: Challenge) -> None:
         self._challenge: Challenge = challenge
-        super().__init__(Deck.CHALLENGE)
 
-        if self._challenge in list(Challenge)[9:]:
-            raise NotImplementedError
+        super().__init__(Deck.CHALLENGE)
