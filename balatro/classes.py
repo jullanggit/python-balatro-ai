@@ -436,7 +436,7 @@ class BalatroJoker(Sellable):
 
 
 @dataclass(eq=False)
-class CopyJoker(BalatroJoker):
+class CopyJoker(BalatroJoker, ABC):
     _copied_joker: BalatroJoker | None = field(default=None, init=False, repr=False)
     _copy_loop: bool = field(default=False, init=False, repr=False)
 
@@ -575,6 +575,10 @@ class CopyJoker(BalatroJoker):
             and not self._copied_joker.is_debuffed
         ):
             self._copied_joker._sold_ability()
+
+    @abstractmethod
+    def _on_jokers_moved(self) -> None:
+        pass
 
 
 @dataclass(eq=False)

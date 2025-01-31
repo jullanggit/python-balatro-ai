@@ -457,9 +457,8 @@ class Run:
         for held_card in self._hand:
             self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
-            match held_card:
-                case Seal.RED:
-                    self._trigger_held_card_round_end(held_card, last_poker_hand_played)
+            if held_card == Seal.RED:
+                self._trigger_held_card_round_end(held_card, last_poker_hand_played)
 
             for joker in self._jokers:
                 for _ in range(joker._on_card_held_retriggers(held_card)):
@@ -1371,7 +1370,7 @@ class Run:
         for item, cost in self._shop_cards:
             png_bytes = item._repr_png_()
             png_base64 = base64.b64encode(png_bytes).decode("utf-8")
-            item_html = f"<img style='width: {68.88 if isinstance(item, BalatroJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
+            item_html = f"<img style='width: {68.88 if isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 3.6px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{png_base64}'/>"
 
             html += f"""
                     <div style='display: flex; flex-direction: column; align-items: center;'>
@@ -1434,7 +1433,7 @@ class Run:
         html = f"""
             <div style='position: absolute; height: 132px; width: 574px; left: 335px; bottom: 85px; display: flex; align-items: center; justify-content: center; gap: {5 if isinstance(self._pack_items[0], Consumable) else 15}px'>
                 {' '.join(f"""
-                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, BalatroJoker) and isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
+                    <img src='data:image/png;base64,{pack_item_images[i]}' style='width: {68.88 if isinstance(item, WeeJoker) else 98.4}px; filter: drop-shadow(0px 2px rgba(0, 0, 0, 0.5)); position: relative;'/>
                 """ for i, item in enumerate(self._pack_items))}
             </div>
             <div style='display: flex; flex-direction: column; align-items: center; color: white; height: 61px; width: 170px; background-color: #333b3d; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid white; border-radius: 10px 10px 0 0; position: absolute; left: 538px; bottom: 9px'>
@@ -1604,9 +1603,8 @@ class Run:
                     for joker in self._jokers:
                         joker._on_lucky_card_triggered()
 
-        match scored_card:
-            case Seal.GOLD:
-                self._money += 3
+        if scored_card == Seal.GOLD:
+            self._money += 3
 
         match scored_card:
             case Edition.FOIL:
@@ -1622,9 +1620,8 @@ class Run:
             )
 
     def _trigger_held_card(self, held_card: Card) -> None:
-        match held_card:
-            case Enhancement.STEEL:
-                self._mult *= 1.5
+        if held_card == Enhancement.STEEL:
+            self._mult *= 1.5
 
         for joker in self._jokers:
             joker._on_card_held(held_card)
@@ -1632,14 +1629,12 @@ class Run:
     def _trigger_held_card_round_end(
         self, held_card: Card, last_poker_hand_played: PokerHand
     ) -> None:
-        match held_card:
-            case Enhancement.GOLD:
-                self._money += 3
+        if held_card == Enhancement.GOLD:
+            self._money += 3
 
-        match held_card:
-            case Seal.BLUE:
-                if self.consumable_slots > len(self._consumables):
-                    self._consumables.append(Consumable(last_poker_hand_played.planet))
+        if held_card == Seal.BLUE:
+            if self.consumable_slots > len(self._consumables):
+                self._consumables.append(Consumable(last_poker_hand_played.planet))
 
     def _update_shop_costs(self) -> None:
         for i, (shop_card, cost) in enumerate(self._shop_cards):
@@ -2406,14 +2401,13 @@ class Run:
                 scored_card, played_cards, scored_card_indices, poker_hands_played
             )
 
-            match scored_card:
-                case Seal.RED:
-                    self._trigger_scored_card(
-                        scored_card,
-                        played_cards,
-                        scored_card_indices,
-                        poker_hands_played,
-                    )
+            if scored_card == Seal.RED:
+                self._trigger_scored_card(
+                    scored_card,
+                    played_cards,
+                    scored_card_indices,
+                    poker_hands_played,
+                )
 
             for joker in self._jokers:
                 for _ in range(
@@ -2434,9 +2428,8 @@ class Run:
         for held_card in self._hand:
             self._trigger_held_card(held_card)
 
-            match held_card:
-                case Seal.RED:
-                    self._trigger_held_card(held_card)
+            if held_card == Seal.RED:
+                self._trigger_held_card(held_card)
 
             for joker in self._jokers:
                 for _ in range(joker._on_card_held_retriggers(held_card)):
@@ -2456,9 +2449,8 @@ class Run:
             for other_joker in self._jokers:
                 other_joker._on_dependent(joker)
 
-            match joker:
-                case Edition.POLYCHROME:
-                    self._mult *= 1.5
+            if joker == Edition.POLYCHROME:
+                self._mult *= 1.5
 
         if Voucher.OBSERVATORY in self._vouchers:
             self._mult *= 1.5 ** self._consumables.count(poker_hands_played[0].planet)

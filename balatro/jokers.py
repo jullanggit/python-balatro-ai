@@ -461,7 +461,6 @@ class WalkieTalkie(BalatroJoker):
             self._run._mult += 4
 
 
-# TODO: maybe all perishables could be checked for perishing at like end of hand? and then abstracted out into a PerishableJoker class
 @dataclass(eq=False)
 class Seltzer(BalatroJoker):
     """

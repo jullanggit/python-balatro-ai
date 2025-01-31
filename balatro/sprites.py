@@ -920,7 +920,10 @@ def get_sprite(
                         io.BytesIO(base64.b64decode(file.read()))
                     )
 
-                i, j = JOKER_COORDINATES.get(type(item), [0, 0])
+                if type(item) in JOKER_COORDINATES:
+                    i, j = JOKER_COORDINATES[type(item)]
+                else:
+                    raise NotImplementedError
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + WIDTH, y1 + HEIGHT
                 sprite = joker_sheet.crop((x1, y1, x2, y2))
