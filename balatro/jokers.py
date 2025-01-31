@@ -1308,7 +1308,7 @@ class Vagabond(BalatroJoker):
     Create a Tarot card if hand is played with $4 or less
     """
 
-    will_create: bool = field(default=False, init=False, repr=False)
+    _will_create: bool = field(default=False, init=False, repr=False)
 
     def _hand_played_action(
         self,
@@ -1316,7 +1316,7 @@ class Vagabond(BalatroJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        self.will_create = self._run._money <= 4
+        self._will_create = self._run._money <= 4
 
     def _independent_ability(
         self,
@@ -1324,7 +1324,7 @@ class Vagabond(BalatroJoker):
         scored_card_indices: list[int],
         poker_hands_played: list[PokerHand],
     ) -> None:
-        if self.will_create and self._run.consumable_slots > len(
+        if self._will_create and self._run.consumable_slots > len(
             self._run._consumables
         ):
             self._run._consumables.append(self._run._get_random_consumable(Tarot))
