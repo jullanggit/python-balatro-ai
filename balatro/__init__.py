@@ -49,28 +49,63 @@ class Run:
 
         self._deck: Deck = deck
         self._stake: Stake = stake
-        self._money: int = 14 if self._deck is Deck.YELLOW else 4
+        self._money: int = (
+            CHALLENGE_INFO[self._challenge].starting_money
+            if isinstance(self, ChallengeRun)
+            else (14 if self._deck is Deck.YELLOW else 4)
+        )
         self._ante: int = 0
         self._round: int = 0
 
         self._poker_hand_info: dict[PokerHand : list[int, int]] = {
             poker_hand: [1, 0] for poker_hand in PokerHand
         }
-        self._vouchers: set[Voucher] = set()
+        self._vouchers: set[Voucher] = (
+            copy(CHALLENGE_INFO[self._challenge].initial_vouchers)
+            if isinstance(self, ChallengeRun)
+            else set()
+        )
         self._tags: list[Tag] = []
 
-        self._deck_cards: list[Card] = [
-            (
-                self._get_random_card()
-                if self._deck is Deck.ERRATIC
-                else Card(rank, suit)
-            )
-            for suit in Suit
-            for rank in Rank
-        ]
+        self._deck_cards: list[Card] = (
+            [
+                copy(deck_card)
+                for deck_card in CHALLENGE_INFO[self._challenge].deck_cards
+            ]
+            if isinstance(self, ChallengeRun)
+            else [
+                (
+                    self._get_random_card()
+                    if self._deck is Deck.ERRATIC
+                    else Card(rank, suit)
+                )
+                for suit in Suit
+                for rank in Rank
+            ]
+        )
 
-        self._jokers: list[BalatroJoker] = []
-        self._consumables: list[Consumable] = []
+        self._jokers: list[BalatroJoker] = (
+            [
+                self._create_joker(
+                    type(joker),
+                    edition=joker.edition,
+                    is_eternal=joker.is_eternal,
+                    is_perishable=joker.is_perishable,
+                    is_rental=joker.is_rental,
+                )
+                for joker in CHALLENGE_INFO[self._challenge].initial_jokers
+            ]
+            if isinstance(self, ChallengeRun)
+            else []
+        )
+        self._consumables: list[Consumable] = (
+            [
+                copy(consumable)
+                for consumable in CHALLENGE_INFO[self._challenge].initial_consumables
+            ]
+            if isinstance(self, ChallengeRun)
+            else []
+        )
 
         match self._deck:
             case Deck.MAGIC:
@@ -138,7 +173,7 @@ class Run:
         self._boss_blind_disabled: bool | None = None
         self._forced_selected_card_index: int | None = None
         self._ox_poker_hand: PokerHand | None = None
-        self._cash_out_money: list[tuple[int, ...]] | None = None
+        self._cash_out: list[tuple[int, ...]] | None = None
 
         self._new_ante()
 
@@ -224,11 +259,7 @@ class Run:
     def _calculate_buy_cost(
         self,
         item: BalatroJoker | Consumable | Card | Voucher | Pack,
-        coupon: bool = False,
     ) -> int:
-        if coupon and not isinstance(item, Voucher):
-            return 0
-
         edition_cost = 0
         discount_percent = (
             0.5
@@ -307,6 +338,9 @@ class Run:
         is_perishable: bool = False,
         is_rental: bool = False,
     ) -> BalatroJoker:
+        if self.challenge is Challenge.NON_PERISHABLE:
+            is_eternal = True
+
         joker = joker_type(
             edition=edition,
             is_eternal=is_eternal,
@@ -334,29 +368,34 @@ class Run:
             and (not self._first_hand or not self._first_discard)
             else min(len(self._deck_cards_left), max(0, hand_size - len(self._hand)))
         )
+
         deal_indices = sorted(
             r.sample(range(len(self._deck_cards_left)), num_cards), reverse=True
         )
         for i in deal_indices:
-            self._hand.append(self._deck_cards_left.pop(i))
+            dealt_card = self._deck_cards_left.pop(i)
+
+            if self.challenge is Challenge.X_RAY_VISION and self._chance(1, 4):
+                dealt_card.is_face_down = True
+
+            if self._boss_blind_disabled is False:
+                match self._blind:
+                    case Blind.THE_HOUSE:
+                        if self._first_hand:
+                            dealt_card.is_face_down = True
+                    case Blind.THE_WHEEL:
+                        if self._chance(1, 7):
+                            dealt_card.is_face_down = True
+                    case Blind.THE_FISH:
+                        if after_hand_played:
+                            dealt_card.is_face_down = True
+
+            self._hand.append(dealt_card)
 
         self._sort_hand()
 
-        if self._boss_blind_disabled is False:
-            match self._blind:
-                case Blind.THE_HOUSE:
-                    if self._first_hand:
-                        for hand_card in self._hand:
-                            hand_card.is_face_down = True
-                case Blind.THE_WHEEL:
-                    for hand_card in self._hand:
-                        hand_card.is_face_down = self._chance(1, 7)
-                case Blind.THE_FISH:
-                    if after_hand_played:
-                        for hand_card in self._hand:
-                            hand_card.is_face_down = True
-                case Blind.CERULEAN_BELL:
-                    self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
+        if self._boss_blind_disabled is False and self._blind is Blind.CERULEAN_BELL:
+            self._forced_selected_card_index = r.randint(0, len(self._hand) - 1)
 
         return True
 
@@ -469,31 +508,37 @@ class Run:
         for joker in self._jokers[:]:
             joker._on_round_ended()
 
-        self._cash_out_money = []
+        self._cash_out = []
 
-        self._cash_out_money.append(
-            (self.blind_reward if not saved else 0, self._blind)
-        )
+        self._cash_out.append((self.blind_reward if not saved else 0, self._blind))
 
-        if self._deck is Deck.GREEN:
-            self._cash_out_money.append((2 * self._hands, 2))
-            self._cash_out_money.append((1 * self._discards, 1))
+        if self.challenge in [Challenge.THE_OMELETTE, Challenge.MAD_WORLD]:
+            self._cash_out.append((0 * self._hands, 0))
+            self._cash_out.append((0 * self._discards, 0))
+        elif self._deck is Deck.GREEN:
+            self._cash_out.append((2 * self._hands, 2))
+            self._cash_out.append((1 * self._discards, 1))
         else:
-            self._cash_out_money.append((1 * self._hands, 1))
-            self._cash_out_money.append((0 * self._discards, 0))
+            self._cash_out.append((1 * self._hands, 1))
+            self._cash_out.append((0 * self._discards, 0))
 
         for joker in self._jokers:
             round_end_money = joker._on_round_ended_money()
             if round_end_money > 0:
-                self._cash_out_money.append((round_end_money, type(joker)))
+                self._cash_out.append((round_end_money, type(joker)))
 
         if self._is_boss_blind:
             while Tag.INVESTMENT in self._tags:
-                self._cash_out_money.append((25, Tag.INVESTMENT))
+                self._cash_out.append((25, Tag.INVESTMENT))
                 self._tags.remove(Tag.INVESTMENT)
 
         interest_amt, interest_cap = (
-            0 if self._deck is Deck.GREEN else (1 + self._jokers.count(ToTheMoon))
+            0
+            if (
+                self._deck is Deck.GREEN
+                or self.challenge in [Challenge.THE_OMELETTE, Challenge.MAD_WORLD]
+            )
+            else (1 + self._jokers.count(ToTheMoon))
         ), (
             20
             if Voucher.MONEY_TREE in self._vouchers
@@ -504,7 +549,7 @@ class Run:
             interest_amt * interest_cap,
         )
         if interest > 0:
-            self._cash_out_money.append((interest, interest_amt, interest_cap))
+            self._cash_out.append((interest, interest_amt, interest_cap))
 
         self._state = State.CASHING_OUT
 
@@ -657,8 +702,32 @@ class Run:
         return card
 
     def _get_random_consumable(
-        self, consumable_type: type[Tarot | Planet | Spectral]
+        self,
+        consumable_type: type[Tarot | Planet | Spectral],
+        allow_black_hole: bool = False,
+        allow_the_soul: bool = False,
     ) -> Consumable:
+        if (
+            allow_black_hole
+            and (
+                not isinstance(self, ChallengeRun)
+                or Spectral.BLACK_HOLE
+                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+            )
+            and r.random() < 0.003
+        ):
+            return Consumable(Spectral.BLACK_HOLE)
+        if (
+            allow_the_soul
+            and (
+                not isinstance(self, ChallengeRun)
+                or Spectral.THE_SOUL
+                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+            )
+            and r.random() < 0.003
+        ):
+            return Consumable(Spectral.THE_SOUL)
+
         if consumable_type is Tarot:
             consumable_card_pool = list(Tarot)
         elif consumable_type is Planet:
@@ -694,6 +763,11 @@ class Run:
             consumable_card
             for consumable_card in consumable_card_pool
             if consumable_card not in prohibited_consumable_cards
+            and (
+                not isinstance(self, ChallengeRun)
+                or consumable_card
+                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+            )
         ]
         return Consumable(
             r.choice(valid_consumable_cards)
@@ -756,6 +830,10 @@ class Run:
             joker_type
             for joker_type in JOKER_RARITIES[rarity]
             if joker_type not in prohibited_joker_types
+            and (
+                not isinstance(self, ChallengeRun)
+                or joker_type not in CHALLENGE_INFO[self._challenge].banned_joker_types
+            )
         ]
         joker_type = r.choice(valid_joker_types) if valid_joker_types else Joker
 
@@ -833,7 +911,7 @@ class Run:
     def _new_ante(self) -> None:
         self._ante += 1
 
-        self._skip_tags: list[
+        self._ante_tags: list[
             tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]
         ] = [None, None]
         for i in range(2):
@@ -841,7 +919,11 @@ class Run:
                 [
                     tag
                     for tag in Tag
-                    if self._ante > 1 or tag not in PROHIBITED_ANTE_1_TAGS
+                    if (self._ante > 1 or tag not in PROHIBITED_ANTE_1_TAGS)
+                    and (
+                        not isinstance(self, ChallengeRun)
+                        or tag not in CHALLENGE_INFO[self._challenge].banned_tags
+                    )
                 ]
             )
 
@@ -849,7 +931,7 @@ class Run:
             if tag is Tag.ORBITAL:
                 orbital_hand = r.choice(self._unlocked_poker_hands)
 
-            self._skip_tags[i] = (tag, orbital_hand)
+            self._ante_tags[i] = (tag, orbital_hand)
 
         self._random_boss_blind()
 
@@ -893,19 +975,17 @@ class Run:
                     self._pack_items.append(self._get_random_joker(allow_stickers=True))
             case Pack.ARCANA | Pack.JUMBO_ARCANA | Pack.MEGA_ARCANA:
                 while len(self._pack_items) < of_up_to:
-                    if Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003:
-                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
-                    else:
-                        self._pack_items.append(
-                            self._get_random_consumable(
-                                (
-                                    Spectral
-                                    if Voucher.OMEN_GLOBE in self._vouchers
-                                    and r.random() < 0.2
-                                    else Tarot
-                                )
-                            )
+                    self._pack_items.append(
+                        self._get_random_consumable(
+                            (
+                                Spectral
+                                if Voucher.OMEN_GLOBE in self._vouchers
+                                and r.random() < 0.2
+                                else Tarot
+                            ),
+                            allow_the_soul=True,
                         )
+                    )
 
                 self._hand = []
                 self._deck_cards_left = self._deck_cards.copy()
@@ -916,26 +996,16 @@ class Run:
                     self._pack_items.append(Consumable(self._most_played_hand.planet))
 
                 while len(self._pack_items) < of_up_to:
-                    if (
-                        Spectral.BLACK_HOLE not in self._pack_items
-                        and r.random() < 0.003
-                    ):
-                        self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
-                    else:
-                        self._pack_items.append(self._get_random_consumable(Planet))
+                    self._pack_items.append(
+                        self._get_random_consumable(Planet, allow_black_hole=True)
+                    )
             case Pack.SPECTRAL | Pack.JUMBO_SPECTRAL | Pack.MEGA_SPECTRAL:
                 while len(self._pack_items) < (of_up_to - 1):
-                    if (
-                        Spectral.BLACK_HOLE not in self._pack_items
-                        and r.random() < 0.003
-                    ):
-                        self._pack_items.append(Consumable(Spectral.BLACK_HOLE))
-                    elif (
-                        Spectral.THE_SOUL not in self._pack_items and r.random() < 0.003
-                    ):
-                        self._pack_items.append(Consumable(Spectral.THE_SOUL))
-                    else:
-                        self._pack_items.append(self._get_random_consumable(Spectral))
+                    self._pack_items.append(
+                        self._get_random_consumable(
+                            Spectral, allow_black_hole=True, allow_the_soul=True
+                        )
+                    )
 
                 self._hand = []
                 self._deck_cards_left = self._deck_cards.copy()
@@ -970,10 +1040,15 @@ class Run:
             coupon = True
             self._tags.remove(Tag.COUPON)
 
-        self._reroll_cost = (
-            5
+        self._reroll_cost = max(
+            0,
+            (
+                CHALLENGE_INFO[self._challenge].base_reroll_cost
+                if isinstance(self, ChallengeRun)
+                else 5
+            )
             - 2 * (Voucher.REROLL_SURPLUS in self._vouchers)
-            - 2 * (Voucher.REROLL_GLUT in self._vouchers)
+            - 2 * (Voucher.REROLL_GLUT in self._vouchers),
         )
         if Tag.DSIX in self._tags:
             self._tags.remove(Tag.DSIX)
@@ -991,6 +1066,7 @@ class Run:
             self._tags.remove(Tag.VOUCHER)
             needed_vouchers += 1
 
+        # TODO: run out of vouchers (buch of voucher tags)
         if needed_vouchers > 0:
             voucher_list = list(Voucher)
             possible_vouchers = []
@@ -999,28 +1075,52 @@ class Run:
             ):
                 if upgraded_voucher in self._vouchers:
                     continue
+
                 possible_voucher = (
                     upgraded_voucher if base_voucher in self._vouchers else base_voucher
                 )
-                if possible_voucher in self._shop_vouchers:
+
+                if (
+                    possible_voucher in self._shop_vouchers
+                    or isinstance(self, ChallengeRun)
+                    and possible_voucher
+                    in CHALLENGE_INFO[self._challenge].banned_vouchers
+                ):
                     continue
+
                 possible_vouchers.append(possible_voucher)
 
             for _ in range(needed_vouchers):
                 voucher = r.choice(possible_vouchers)
-                buy_cost = self._calculate_buy_cost(voucher, coupon=coupon)
+                buy_cost = self._calculate_buy_cost(voucher)
                 self._shop_vouchers.append((voucher, buy_cost))
                 possible_vouchers.remove(voucher)
 
+        shop_base_pack_weights = [
+            (
+                weight
+                if (
+                    not isinstance(self, ChallengeRun)
+                    or pack not in CHALLENGE_INFO[self._challenge].banned_packs
+                )
+                else 0
+            )
+            for pack, weight in SHOP_BASE_PACK_WEIGHTS.items()
+        ]
         self._shop_packs = r.choices(
             list(SHOP_BASE_PACK_WEIGHTS),
-            weights=SHOP_BASE_PACK_WEIGHTS.values(),
+            weights=shop_base_pack_weights,
             k=2,
         )
-        if self._round == 1:
+
+        if self._round == 1 and (
+            not isinstance(self, ChallengeRun)
+            or Pack.BUFFOON not in CHALLENGE_INFO[self._challenge].banned_packs
+        ):
             self._shop_packs[0] = Pack.BUFFOON
+
         for i, pack in enumerate(self._shop_packs):
-            buy_cost = self._calculate_buy_cost(pack, coupon=coupon)
+            buy_cost = 0 if coupon else self._calculate_buy_cost(pack)
             self._shop_packs[i] = (pack, buy_cost)
 
     def _populate_shop_cards(self, coupon: bool = False) -> None:
@@ -1091,11 +1191,11 @@ class Run:
                                 break
 
                     if buy_cost is None:
-                        buy_cost = self._calculate_buy_cost(joker, coupon=coupon)
+                        buy_cost = 0 if coupon else self._calculate_buy_cost(joker)
                     self._shop_cards[i] = (joker, buy_cost)
                 case Tarot.__name__ | Planet.__name__ | Spectral.__name__:
                     consumable = self._get_random_consumable(self._shop_cards[i])
-                    buy_cost = self._calculate_buy_cost(consumable, coupon=coupon)
+                    buy_cost = 0 if coupon else self._calculate_buy_cost(consumable)
                     self._shop_cards[i] = (consumable, buy_cost)
                 case Card.__name__:
                     card = self._get_random_card()
@@ -1110,7 +1210,7 @@ class Run:
                         # not in the Lua code despite it being in the voucher description (bug?)
                         # if r.random() < 0.2:
                         #     card.seal = r.choice(list(Seal))
-                    buy_cost = self._calculate_buy_cost(card, coupon=coupon)
+                    buy_cost = 0 if coupon else self._calculate_buy_cost(card)
                     self._shop_cards[i] = (card, buy_cost)
 
     def _random_boss_blind(self) -> None:
@@ -1119,12 +1219,26 @@ class Run:
         self._ox_poker_hand: PokerHand | None = None
         if self._is_finisher_ante:
             if not self._finisher_blind_pool:
-                self._finisher_blind_pool = list(BLIND_INFO)[-5:]
+                self._finisher_blind_pool = [
+                    blind
+                    for blind in list(Blind)[-5:]
+                    if (
+                        not isinstance(self, ChallengeRun)
+                        or blind not in CHALLENGE_INFO[self._challenge].banned_blinds
+                    )
+                ]
             self._boss_blind = r.choice(self._finisher_blind_pool)
             self._finisher_blind_pool.remove(self._boss_blind)
         else:
             if not self._boss_blind_pool:
-                self._boss_blind_pool = list(BLIND_INFO)[2:-5]
+                self._boss_blind_pool = [
+                    blind
+                    for blind in list(Blind)[2:-5]
+                    if (
+                        not isinstance(self, ChallengeRun)
+                        or blind not in CHALLENGE_INFO[self._challenge].banned_blinds
+                    )
+                ]
             self._boss_blind = r.choice(
                 [
                     blind
@@ -1504,7 +1618,7 @@ class Run:
             html += f"""
                 <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
                     <div style='display: flex; align-items: center; justify-content: center;'>
-                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._skip_tags[0][0]._repr_png_()).decode("utf-8")}'/>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[0][0]._repr_png_()).decode("utf-8")}'/>
                         <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.SMALL_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
                     </div>
                 </div>
@@ -1535,7 +1649,7 @@ class Run:
             html += f"""
                 <div style='filter: drop-shadow(0px 3px rgba(0, 0, 0, 0.5)); position: absolute; top: 228px; display: flex; flex-direction: column; height: 57px; width: 80%; background-color: #172022; border-radius: 12px; align-items: center; justify-content: center; font-size: 43.2px; padding: 4px 6px'>
                     <div style='display: flex; align-items: center; justify-content: center;'>
-                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._skip_tags[1][0]._repr_png_()).decode("utf-8")}'/>
+                        <img style='margin-right: 3px; width: 37px; filter: drop-shadow(-3px 3px rgba(0, 0, 0, 0.5))' src='data:image/png;base64,{base64.b64encode(self._ante_tags[1][0]._repr_png_()).decode("utf-8")}'/>
                         <button style='display: flex; justify-content: center; align-items: center; background-color: {"#4f4f4f" if self._blind is not Blind.BIG_BLIND else"#e35646"}; border-radius: 12px; text-align: center; height: 48px; width: 100px; color: white; font-size: 17px; text-shadow: 1px 1px rgba(0, 0, 0, 0.5); filter: drop-shadow(3.6px 3.6px rgba(0, 0, 0, 0.5))'>Skip Blind</button>
                     </div>
                 </div>
@@ -2139,7 +2253,7 @@ class Run:
                 f"Excpected state to be CASHING_OUT, but got {self._state}"
             )
 
-        self._money += self._cash_out_total
+        self._money += self.cash_out_total
         self._round_score = None
         self._round_goal = None
         self._num_unused_discards += self._discards
@@ -2455,6 +2569,8 @@ class Run:
         if Voucher.OBSERVATORY in self._vouchers:
             self._mult *= 1.5 ** self._consumables.count(poker_hands_played[0].planet)
 
+        if self.challenge is Challenge.RICH_GET_RICHER:
+            self._chips = max(0, min(self._money, self._chips))
         self._mult = round(self._mult, 9)  # floating-point imprecision
         score = round(
             (
@@ -2525,6 +2641,13 @@ class Run:
                 f"New index should not be the same as the Joker index, but got {joker_index}, {new_index}"
             )
 
+        if self.challenge is Challenge.ON_A_KNIFES_EDGE and (
+            joker_index == 0 or new_index == 0
+        ):
+            raise PinnedJokerMovedError(
+                f"Cannot move the pinned {self._jokers[0]} during {Challenge.ON_A_KNIFES_EDGE}"
+            )
+
         self._jokers.insert(new_index, self._jokers.pop(joker_index))
 
         for joker in self._jokers:
@@ -2547,9 +2670,6 @@ class Run:
                 f"Cannot afford reroll cost {reroll_cost} with available money {self._available_money}"
             )
 
-        for joker in self._jokers:
-            joker._on_shop_rerolled()
-
         self._money -= reroll_cost
 
         if reroll_cost > 0:
@@ -2562,6 +2682,9 @@ class Run:
 
         self._shop_cards = None
         self._populate_shop_cards()
+
+        for joker in self._jokers:
+            joker._on_shop_rerolled()
 
     def reroll_boss_blind(self) -> None:
         """
@@ -2731,7 +2854,7 @@ class Run:
         if self._is_boss_blind:
             raise IllegalSkipError(f"Cannot skip boss blind {self._blind}")
 
-        tag, orbital_hand = self._skip_tags[self._blind is Blind.BIG_BLIND]
+        tag, orbital_hand = self._ante_tags[self._blind is Blind.BIG_BLIND]
 
         self._next_blind()
 
@@ -2808,12 +2931,12 @@ class Run:
         return max(0, self._money + 20 * self._jokers.count(CreditCard))
 
     @property
-    def _cash_out_total(self) -> int:
-        return sum(money for money, *_ in self._cash_out_money)
-
-    @property
     def _discards_per_round(self) -> int:
-        discards_per_round = 3
+        discards_per_round = (
+            CHALLENGE_INFO[self._challenge].discards_per_round
+            if isinstance(self, ChallengeRun)
+            else 3
+        )
 
         if self._deck is Deck.RED:
             discards_per_round += 1
@@ -2838,7 +2961,11 @@ class Run:
 
     @property
     def _hands_per_round(self) -> int:
-        hands_per_round = 4
+        hands_per_round = (
+            CHALLENGE_INFO[self._challenge].hands_per_round
+            if isinstance(self, ChallengeRun)
+            else 4
+        )
 
         match self._deck:
             case Deck.BLUE:
@@ -2896,6 +3023,14 @@ class Run:
         return ante
 
     @property
+    def ante_tags(
+        self,
+    ) -> list[tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]]:
+        """The skip tags for this ante"""
+
+        return self._ante_tags
+
+    @property
     def blind(self) -> Blind:
         """The current blind"""
 
@@ -2907,7 +3042,10 @@ class Run:
 
         return (
             0
-            if (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
+            if (
+                (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
+                or self.challenge is Challenge.THE_OMELETTE
+            )
             else BLIND_INFO[self._blind][2]
         )
 
@@ -2918,6 +3056,14 @@ class Run:
         return self._boss_blind
 
     @property
+    def cash_out_total(self) -> int | None:
+        return (
+            sum(money for money, *_ in self._cash_out)
+            if self._cash_out is not None
+            else None
+        )
+
+    @property
     def challenge(self) -> Challenge | None:
         return self._challenge if isinstance(self, ChallengeRun) else None
 
@@ -2925,8 +3071,10 @@ class Run:
     def consumable_slots(self) -> int:
         """The number of consumable slots available"""
 
-        consumable_slots = 2 + sum(
-            consumable.is_negative for consumable in self._consumables
+        consumable_slots = (
+            CHALLENGE_INFO[self._challenge].consumable_slots
+            if isinstance(self, ChallengeRun)
+            else 2
         )
 
         match self._deck:
@@ -2935,6 +3083,10 @@ class Run:
 
         if Voucher.CRYSTAL_BALL in self._vouchers:
             consumable_slots += 1
+
+        consumable_slots += sum(
+            consumable.is_negative for consumable in self._consumables
+        )
 
         return consumable_slots
 
@@ -3005,7 +3157,17 @@ class Run:
     def hand_size(self) -> int:
         """The current hand size"""
 
-        hand_size = 8
+        hand_size = (
+            CHALLENGE_INFO[self._challenge].hand_size
+            if isinstance(self, ChallengeRun) is not None
+            else 8
+        )
+
+        if self.challenge is Challenge.LUXURY_TAX:
+            if self._money >= 0:
+                hand_size -= 1 * (self._money // 5)
+            else:  # TODO: check this
+                hand_size += 1 * (abs(self._money) // 5)
 
         if self.deck is Deck.PAINTED:
             hand_size -= 2
@@ -3032,7 +3194,7 @@ class Run:
         if self._boss_blind_disabled is False and self._blind is Blind.THE_MANACLE:
             hand_size -= 1
 
-        return hand_size
+        return max(0, hand_size)
 
     @property
     def hands(self) -> int | None:
@@ -3044,7 +3206,11 @@ class Run:
     def joker_slots(self) -> int:
         """The number of Joker slots available"""
 
-        joker_slots = 5
+        joker_slots = (
+            CHALLENGE_INFO[self._challenge].joker_slots
+            if isinstance(self, ChallengeRun)
+            else 5
+        )
 
         match self._deck:
             case Deck.BLACK:
@@ -3130,14 +3296,6 @@ class Run:
         return self._shop_vouchers
 
     @property
-    def skip_tags(
-        self,
-    ) -> list[tuple[Tag, PokerHand | None], tuple[Tag, PokerHand | None]]:
-        """The skip tags for this ante"""
-
-        return self._skip_tags
-
-    @property
     def stake(self) -> Stake:
         """The stake for the run"""
 
@@ -3167,4 +3325,5 @@ class ChallengeRun(Run):
         self._challenge: Challenge = challenge
         super().__init__(Deck.CHALLENGE)
 
-        raise NotImplementedError
+        if self._challenge in list(Challenge)[9:]:
+            raise NotImplementedError

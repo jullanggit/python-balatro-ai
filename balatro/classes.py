@@ -13,52 +13,56 @@ class BalatroError(Exception):
     """Base class for all Balatro-sepcific exceptions"""
 
 
-class InvalidArgumentsError(BalatroError):
-    """Raised when an action is attempted with invalid arguments"""
-
-
 class IllegalActionError(BalatroError):
     """Raised when an action is not allowed in the current state"""
 
 
-class InsufficientFundsError(IllegalActionError):
-    """Raised when an action requires more money than available"""
+class InvalidArgumentsError(BalatroError):
+    """Raised when an action is attempted with invalid arguments"""
 
 
-class NotEnoughSpaceError(IllegalActionError):
-    """Raised when an action requires more Joker or Consumable slots than available"""
-
-
-class NoDiscardsRemainingError(IllegalActionError):
-    """Raised when discards are attempted when none are left"""
-
-
-class MissingForcedSelectedCardError(InvalidArgumentsError):
-    """Raised when a hand is played without the Cerulean Bell's forced selected card"""
+class HandSizeOfOneError(IllegalActionError):
+    """Raised when an action cannot be performed due to a hand size of one"""
 
 
 class IllegalBossRerollError(IllegalActionError):
     """Raised when a boss is attempted to be rerolled without the sufficient Voucher"""
 
 
-class EternalJokerSoldError(InvalidArgumentsError):
-    """Raised when an eternal Joker is attempted to be sold"""
+class IllegalFoolUseError(IllegalActionError):
+    """Raised when the Fool is attempted to be used to create an illegal Consumable"""
 
 
 class IllegalSkipError(IllegalActionError):
     """Raised when a boss blind is attempted to be skipped"""
 
 
-class IllegalFoolUseError(IllegalActionError):
-    """Raised when the Fool is attempted to be used to create an illegal Consumable"""
+class InsufficientFundsError(IllegalActionError):
+    """Raised when an action requires more money than available"""
+
+
+class NoDiscardsRemainingError(IllegalActionError):
+    """Raised when discards are attempted when none are left"""
+
+
+class NotEnoughSpaceError(IllegalActionError):
+    """Raised when an action requires more Joker or Consumable slots than available"""
 
 
 class NoValidJokersError(IllegalActionError):
     """Raised when there are no valid Jokers to be acted upon"""
 
 
-class HandSizeOfOneError(IllegalActionError):
-    """Raised when an action cannot be performed due to a hand size of one"""
+class EternalJokerSoldError(InvalidArgumentsError):
+    """Raised when an eternal Joker is attempted to be sold"""
+
+
+class MissingForcedSelectedCardError(InvalidArgumentsError):
+    """Raised when a hand is played without the Cerulean Bell's forced selected card"""
+
+
+class PinnedJokerMovedError(InvalidArgumentsError):
+    """Raised when a pinned Joker is attempted to be moved"""
 
 
 @dataclass(eq=False)
@@ -670,28 +674,28 @@ class Card:
 
 @dataclass(eq=False)
 class ChallengeSetup:
-    initial_jokers: list[BalatroJoker] = field(default_factory=list)
     initial_consumables: list[Consumable] = field(default_factory=list)
+    initial_jokers: list[BalatroJoker] = field(default_factory=list)
     initial_vouchers: set[Voucher] = field(default_factory=set)
 
-    banned_jokers: set[type] = field(default_factory=set)
-    banned_consumables: set[Consumable] = field(default_factory=set)
-    banned_vouchers: set[Voucher] = field(default_factory=set)
+    banned_blinds: set[Blind] = field(default_factory=set)
+    banned_consumable_cards: set[Tarot | Planet | Spectral] = field(default_factory=set)
+    banned_joker_types: set[type[BalatroJoker]] = field(default_factory=set)
     banned_packs: set[Pack] = field(default_factory=set)
     banned_tags: set[Tag] = field(default_factory=set)
-    banned_blinds: set[Blind] = field(default_factory=set)
+    banned_vouchers: set[Voucher] = field(default_factory=set)
 
     deck_cards: list[Card] = field(
         default_factory=lambda: [Card(rank, suit) for suit in Suit for rank in Rank]
     )
 
-    hands_per_round: int = 4
+    base_reroll_cost: int = 5
+    consumable_slots: int = 2
     discards_per_round: int = 3
     hand_size: int = 8
+    hands_per_round: int = 4
     joker_slots: int = 5
-    consumable_slots: int = 2
     starting_money: int = 4
-    base_reroll_cost: int = 5
 
 
 @dataclass(eq=False)

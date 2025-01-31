@@ -217,99 +217,168 @@ CARD_EDITION_CHANCES_ILLUSION = {
     Edition.HOLOGRAPHIC: 7,
     Edition.FOIL: 10,
 }
-# CHALLENGE_SETUPS = {
-#     Challenge.THE_OMELETTE: ChallengeSetup(
-#         initial_jokers=([Egg()] * 5),
-#         banned_jokers={
-#             TO_THE_MOON,
-#             ROCKET,
-#             GOLDEN_JOKER,
-#             SATELLITE,
-#         },
-#         banned_vouchers={Voucher.SEED_MONEY, Voucher.MONEY_TREE},
-#     ),
-#     Challenge.FIFTEEN_MINUTE_CITY: ChallengeSetup(
-#         initial_jokers=[RideTheBus(is_eternal=True), Shortcut(is_eternal=True)],
-#         deck_cards=[
-#             Card(rank, suit)
-#             for suit in Suit
-#             for rank in [
-#                 Rank.KING,
-#                 Rank.KING,
-#                 Rank.QUEEN,
-#                 Rank.QUEEN,
-#                 Rank.JACK,
-#                 Rank.JACK,
-#                 Rank.TEN,
-#                 Rank.NINE,
-#                 Rank.EIGHT,
-#                 Rank.SEVEN,
-#                 Rank.SIX,
-#                 Rank.FIVE,
-#                 Rank.FOUR,
-#             ]
-#         ],
-#     ),
-#     Challenge.RICH_GET_RICHER: ChallengeSetup(
-#         initial_vouchers={Voucher.SEED_MONEY, Voucher.MONEY_TREE}, starting_money=100
-#     ),
-#     Challenge.ON_A_KNIFES_EDGE: ChallengeSetup(
-#         initial_jokers=[CeremonialDagger(is_eternal=True, is_pinned=True)]
-#     ),
-#     Challenge.X_RAY_VISION: ChallengeSetup(),
-#     Challenge.MAD_WORLD: ChallengeSetup(
-#         initial_jokers=[
-#             Pareidolia(edition=Edition.NEGATIVE, is_eternal=True),
-#             BusinessCard(is_eternal=True),
-#         ],
-#         banned_blinds={Blind.THE_PLANT},
-#         deck_cards=[Card(rank, suit) for suit in Suit for rank in list(Rank)[5:]],
-#     ),
-#     Challenge.LUXURY_TAX: ChallengeSetup(hand_size=10),
-#     Challenge.NON_PERISHABLE: ChallengeSetup(
-#         banned_jokers={
-#             GROS_MICHEL,
-#             ICE_CREAM,
-#             CAVENDISH,
-#             TURTLE_BEAN,
-#             RAMEN,
-#             DIET_COLA,
-#             SELTZER,
-#             POPCORN,
-#             MR_BONES,
-#             INVISIBLE_JOKER,
-#             LUCHADOR,
-#         },
-#         banned_blinds={Blind.VERDANT_LEAF},
-#     ),
-#     Challenge.MEDUSA: ChallengeSetup(
-#         initial_jokers=(MarbleJoker(is_eternal=True)),
-#         deck_cards=[
-#             Card(rank, suit, enhancement=(Enhancement.STONE if rank.is_face else None))
-#             for suit in Suit
-#             for rank in Rank
-#         ],
-#     ),
-#     Challenge.DOUBLE_OR_NOTHING: ChallengeSetup(
-#         deck_cards=[Card(rank, suit, seal=Seal.RED) for suit in Suit for rank in Rank]
-#     ),
-#     Challenge.TYPECAST: ChallengeSetup(banned_blinds={Blind.VERDANT_LEAF}),
-#     Challenge.INFLATION: ChallengeSetup(
-#         initial_jokers=[CreditCard()],
-#         banned_vouchers={Voucher.CLEARANCE_SALE, Voucher.LIQUIDATION},
-#     ),
-#     Challenge.BRAM_POKER: ChallengeSetup(
-#         initial_jokers=[Vampire(is_eternal=True)],
-#         initial_consumables=[
-#             Consumable(Tarot.THE_EMPRESS),
-#             Consumable(Tarot.THE_EMPEROR),
-#         ],
-#         initial_vouchers={Voucher.MAGIC_TRICK, Voucher.ILLUSION},
-#     ),
-#     Challenge.FRAGILE: ChallengeSetup(
-#         initial_jokers=[OopsAllSixes(edition=Edition.NEGATIVE, is_eternal=True)] * 2
-#     ),
-# }
+CHALLENGE_INFO = {
+    Challenge.THE_OMELETTE: ChallengeSetup(
+        initial_jokers=([Egg()] * 5),
+        banned_joker_types={
+            ToTheMoon,
+            Rocket,
+            GoldenJoker,
+            Satellite,
+        },
+        banned_vouchers={Voucher.SEED_MONEY, Voucher.MONEY_TREE},
+    ),
+    Challenge.FIFTEEN_MINUTE_CITY: ChallengeSetup(
+        initial_jokers=[RideTheBus(is_eternal=True), Shortcut(is_eternal=True)],
+        deck_cards=[
+            Card(rank, suit)
+            for suit in Suit
+            for rank in [
+                Rank.KING,
+                Rank.KING,
+                Rank.QUEEN,
+                Rank.QUEEN,
+                Rank.JACK,
+                Rank.JACK,
+                Rank.TEN,
+                Rank.NINE,
+                Rank.EIGHT,
+                Rank.SEVEN,
+                Rank.SIX,
+                Rank.FIVE,
+                Rank.FOUR,
+            ]
+        ],
+    ),
+    Challenge.RICH_GET_RICHER: ChallengeSetup(
+        initial_vouchers={Voucher.SEED_MONEY, Voucher.MONEY_TREE}, starting_money=100
+    ),
+    Challenge.ON_A_KNIFES_EDGE: ChallengeSetup(
+        initial_jokers=[CeremonialDagger(is_eternal=True)]
+    ),
+    Challenge.X_RAY_VISION: ChallengeSetup(),
+    Challenge.MAD_WORLD: ChallengeSetup(
+        initial_jokers=[
+            Pareidolia(edition=Edition.NEGATIVE, is_eternal=True),
+            BusinessCard(is_eternal=True),
+        ],
+        banned_blinds={Blind.THE_PLANT},
+        deck_cards=[Card(rank, suit) for suit in Suit for rank in list(Rank)[5:]],
+    ),
+    Challenge.LUXURY_TAX: ChallengeSetup(hand_size=10),
+    Challenge.NON_PERISHABLE: ChallengeSetup(
+        banned_joker_types={
+            GrosMichel,
+            IceCream,
+            Cavendish,
+            TurtleBean,
+            Ramen,
+            DietCola,
+            Seltzer,
+            Popcorn,
+            MrBones,
+            InvisibleJoker,
+            Luchador,
+        },
+        banned_blinds={Blind.VERDANT_LEAF},
+    ),
+    Challenge.MEDUSA: ChallengeSetup(
+        initial_jokers=(MarbleJoker(is_eternal=True)),
+        deck_cards=[
+            Card(rank, suit, enhancement=(Enhancement.STONE if rank.is_face else None))
+            for suit in Suit
+            for rank in Rank
+        ],
+    ),
+    Challenge.DOUBLE_OR_NOTHING: ChallengeSetup(
+        deck_cards=[Card(rank, suit, seal=Seal.RED) for suit in Suit for rank in Rank]
+    ),
+    Challenge.TYPECAST: ChallengeSetup(banned_blinds={Blind.VERDANT_LEAF}),
+    Challenge.INFLATION: ChallengeSetup(
+        initial_jokers=[CreditCard()],
+        banned_vouchers={Voucher.CLEARANCE_SALE, Voucher.LIQUIDATION},
+    ),
+    Challenge.BRAM_POKER: ChallengeSetup(
+        initial_jokers=[Vampire(is_eternal=True)],
+        initial_consumables=[
+            Consumable(Tarot.THE_EMPRESS),
+            Consumable(Tarot.THE_EMPEROR),
+        ],
+        initial_vouchers={Voucher.MAGIC_TRICK, Voucher.ILLUSION},
+    ),
+    Challenge.FRAGILE: ChallengeSetup(
+        initial_jokers=[OopsAllSixes(edition=Edition.NEGATIVE, is_eternal=True)] * 2,
+        banned_consumable_cards={
+            Tarot.THE_MAGICIAN,
+            Tarot.THE_EMPRESS,
+            Tarot.THE_HEIROPHANT,
+            Tarot.THE_CHARIOT,
+            Tarot.THE_DEVIL,
+            Tarot.THE_TOWER,
+            Tarot.THE_LOVERS,
+            Spectral.INCANTATION,
+            Spectral.GRIM,
+            Spectral.FAMILIAR,
+        },
+        banned_joker_types={MarbleJoker, Vampire, MidasMask, Certificate},
+        banned_packs={Pack.STANDARD, Pack.JUMBO_STANDARD, Pack.MEGA_STANDARD},
+        banned_tags={Tag.STANDARD},
+        banned_vouchers={Voucher.MAGIC_TRICK, Voucher.ILLUSION},
+        deck_cards=[
+            Card(rank, suit, enhancement=Enhancement.GLASS)
+            for suit in Suit
+            for rank in Rank
+        ],
+    ),
+    Challenge.MONOLITH: ChallengeSetup(
+        initial_jokers=[
+            Obelisk(is_eternal=True),
+            MarbleJoker(edition=Edition.NEGATIVE, is_eternal=True),
+        ]
+    ),
+    Challenge.BLAST_OFF: ChallengeSetup(
+        initial_jokers=[Constellation(is_eternal=True), Rocket(is_eternal=True)],
+        initial_vouchers={Voucher.PLANET_MERCHANT, Voucher.PLANET_TYCOON},
+        banned_joker_types={Burglar},
+        banned_vouchers={Voucher.GRABBER, Voucher.NACHO_TONG},
+        discards_per_round=2,
+        hands_per_round=2,
+        joker_slots=4,
+    ),
+    Challenge.FIVE_CARD_DRAW: ChallengeSetup(
+        initial_jokers=[CardSharp(), Joker()],
+        banned_joker_types={Juggler, Troubadour, TurtleBean},
+        discards_per_round=6,
+        hand_size=5,
+        joker_slots=7,
+    ),
+    Challenge.GOLDEN_NEEDLE: ChallengeSetup(
+        initial_jokers=[CreditCard()],
+        banned_joker_types={Burglar},
+        banned_vouchers={Voucher.GRABBER, Voucher.NACHO_TONG},
+        discards_per_round=6,
+        hands_per_round=1,
+        starting_money=10,
+    ),
+    Challenge.CRUELTY: ChallengeSetup(joker_slots=3),
+    Challenge.JOKERLESS: ChallengeSetup(
+        banned_blinds={Blind.CRIMSON_HEART, Blind.VERDANT_LEAF, Blind.AMBER_ACORN},
+        banned_consumable_cards={Tarot.JUDGEMENT, Spectral.WRAITH, Spectral.THE_SOUL},
+        banned_packs={Pack.BUFFOON, Pack.JUMBO_BUFFOON, Pack.MEGA_BUFFOON},
+        banned_tags={
+            Tag.UNCOMMON,
+            Tag.RARE,
+            Tag.NEGATIVE,
+            Tag.FOIL,
+            Tag.HOLOGRAPHIC,
+            Tag.POLYCHROME,
+            Tag.BUFFOON,
+            Tag.TOP_UP,
+        },
+        banned_vouchers={Voucher.ANTIMATTER},
+        joker_slots=0,
+    ),
+}
 EDITION_COSTS = {
     Edition.BASE: 0,
     Edition.FOIL: 2,
