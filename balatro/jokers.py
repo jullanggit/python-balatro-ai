@@ -2005,7 +2005,6 @@ class TradingCard(BalatroJoker):
     If first discard of round has only 1 card, destroy it and earn $3
     """
 
-    # TODO: check this running along with other discard jokers
     def _discard_action(self, discarded_cards: list[Card]) -> None:
         if self._run._first_discard and len(discarded_cards) == 1:
             self._run._money += 3

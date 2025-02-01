@@ -361,12 +361,15 @@ class Run:
         ):
             return False
 
-        num_cards = (
-            3
-            if self._boss_blind_disabled is False
-            and self._blind is Blind.THE_SERPENT
-            and (not self._first_hand or not self._first_discard)
-            else min(len(self._deck_cards_left), max(0, hand_size - len(self._hand)))
+        num_cards = min(
+            len(self._deck_cards_left),
+            (
+                3
+                if self._boss_blind_disabled is False
+                and self._blind is Blind.THE_SERPENT
+                and (not self._first_hand or not self._first_discard)
+                else max(0, hand_size - len(self._hand))
+            ),
         )
 
         deal_indices = sorted(
@@ -554,20 +557,19 @@ class Run:
         self._state = State.CASHING_OUT
 
     def _game_over(self) -> None:
-        self._round_score = None
-        self._round_goal = None
-        self._hands = None
-        self._num_unused_discards += self._discards
-        self._discards = None
-        self._hand = None
-        self._deck_cards_left = None
-        self._chips = None
-        self._mult = None
-        self._first_hand = None
-        self._first_discard = None
-        self._round_poker_hands = None
-        self._boss_blind_disabled = None
-        self._forced_selected_card_index = None
+        # self._round_score = None
+        # self._round_goal = None
+        # self._hands = None
+        # self._discards = None
+        # self._hand = None
+        # self._deck_cards_left = None
+        # self._chips = None
+        # self._mult = None
+        # self._first_hand = None
+        # self._first_discard = None
+        # self._round_poker_hands = None
+        # self._boss_blind_disabled = None
+        # self._forced_selected_card_index = None
 
         self._state = State.GAME_OVER
 
@@ -953,7 +955,7 @@ class Run:
 
                 if self.challenge is Challenge.TYPECAST and self._ante == 4:
                     for joker in self._jokers:
-                        if joker not in NON_ETERNAL_JOKERS:
+                        if type(joker) not in NON_ETERNAL_JOKERS:
                             joker.is_eternal = True
 
                 self._new_ante()
@@ -1072,7 +1074,7 @@ class Run:
             self._tags.remove(Tag.VOUCHER)
             needed_vouchers += 1
 
-        # TODO: run out of vouchers (buch of voucher tags)
+        # TODO: run out of vouchers (bunch of voucher tags)
         if needed_vouchers > 0:
             voucher_list = list(Voucher)
             possible_vouchers = []
@@ -1238,7 +1240,6 @@ class Run:
                     self._shop_cards[i] = (card, buy_cost)
 
     def _random_boss_blind(self) -> None:
-        # TODO: check if rerolls remove from pool
         self._boss_blind: Blind = None
         self._ox_poker_hand: PokerHand | None = None
         if self._is_finisher_ante:
@@ -3202,10 +3203,7 @@ class Run:
         )
 
         if self.challenge is Challenge.LUXURY_TAX:
-            if self._money >= 0:
-                hand_size -= 1 * (self._money // 5)
-            else:  # TODO: check this
-                hand_size += 1 * (abs(self._money) // 5)
+            hand_size -= self._money // 5
 
         if self.deck is Deck.PAINTED:
             hand_size -= 2
@@ -3278,6 +3276,24 @@ class Run:
         """The current money"""
 
         return self._money
+
+    @property
+    def opened_pack(self) -> Pack | None:
+        """The type of pack that is currently open"""
+
+        return self._opened_pack
+
+    @property
+    def pack_choices_left(self) -> int | None:
+        """The number of pack choices left to make"""
+
+        return self._pack_choices_left
+
+    @property
+    def pack_items(self) -> list[BalatroJoker | Consumable | Card] | None:
+        """The items in the current pack"""
+
+        return self._pack_items
 
     @property
     def poker_hand_info(self) -> dict[PokerHand : list[int, int]]:
