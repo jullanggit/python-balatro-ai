@@ -144,6 +144,7 @@ ENHANCER_COORDINATES = {
 }
 JOKER_COORDINATES = {
     Joker: [0, 0],
+    WeeJoker: [0, 0],
     ChaosTheClown: [0, 1],
     JollyJoker: [0, 2],
     ZanyJoker: [0, 3],
@@ -920,10 +921,7 @@ def get_sprite(
                         io.BytesIO(base64.b64decode(file.read()))
                     )
 
-                if type(item) in JOKER_COORDINATES:
-                    i, j = JOKER_COORDINATES[type(item)]
-                else:
-                    raise NotImplementedError
+                i, j = JOKER_COORDINATES[type(item)]
                 x1, y1 = DEFAULT_CARD_WIDTH * j, DEFAULT_CARD_HEIGHT * i
                 x2, y2 = x1 + WIDTH, y1 + HEIGHT
                 sprite = joker_sheet.crop((x1, y1, x2, y2))

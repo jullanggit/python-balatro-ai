@@ -244,6 +244,7 @@ class BalatroJoker(Sellable):
     def _on_card_held_retriggers(self, held_card: Card) -> int:
         if self.is_debuffed:
             return 0
+
         return self._card_held_retriggers(held_card)
 
     def _on_card_scored(

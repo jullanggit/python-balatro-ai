@@ -208,54 +208,6 @@ class Run:
         for other_joker in self._jokers:
             other_joker._on_jokers_moved()
 
-    def _buy_shop_item(
-        self, section_index: int, item_index: int, use: bool = False
-    ) -> tuple[BalatroJoker | Consumable | Card | Pack | Voucher, int]:
-        if self._state is not State.IN_SHOP:
-            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
-
-        if section_index not in [0, 1, 2]:
-            raise InvalidArgumentsError(
-                f"Invalid section index {section_index}, must be 0, 1, or 2"
-            )
-
-        section_items = [self._shop_cards, self._shop_vouchers, self._shop_packs][
-            section_index
-        ]
-
-        if item_index not in range(len(section_items)):
-            raise InvalidArgumentsError(
-                f"Invalid item index {item_index}, must be in range(len(section_items))"
-            )
-
-        item, cost = section_items[item_index]
-
-        if self._available_money < cost:
-            raise InsufficientFundsError(
-                f"Insufficient funds to buy {item!r}, cost: {cost}, available: {self._available_money}"
-            )
-
-        if use:
-            if not isinstance(item, Consumable):
-                raise InvalidArgumentsError(f"Cannot use non-Consumable item {item!r}")
-        else:
-            match item:
-                case BalatroJoker():
-                    if len(self._jokers) >= self.joker_slots + (
-                        item.edition is Edition.NEGATIVE
-                    ):
-                        raise NotEnoughSpaceError(
-                            f"Cannot buy {item!r}, Joker slots full"
-                        )
-                case Consumable():
-                    if len(self._consumables) == self.consumable_slots:
-                        raise NotEnoughSpaceError(
-                            f"Cannot buy {item!r}, Consumable slots full"
-                        )
-
-        self._money -= cost
-        return section_items.pop(item_index)
-
     def _calculate_buy_cost(
         self,
         item: BalatroJoker | Consumable | Card | Voucher | Pack,
@@ -572,6 +524,17 @@ class Run:
         # self._forced_selected_card_index = None
 
         self._state = State.GAME_OVER
+
+    def _get_blind_reward(self, blind: Blind) -> int:
+        return (
+            0
+            if (
+                (self._stake >= Stake.RED and blind is Blind.SMALL_BLIND)
+                or self.challenge is Challenge.THE_OMELETTE
+                or (self.challenge is Challenge.CRUELTY and not self._is_boss_blind)
+            )
+            else BLIND_INFO[blind][2]
+        )
 
     def _get_card_suits(self, card: Card, force_base_suit: bool = False) -> list[Suit]:
         if (card.is_debuffed and not force_base_suit) or card.is_stone_card:
@@ -953,7 +916,7 @@ class Run:
                 for joker in self._jokers:
                     joker._on_boss_defeated()
 
-                if self.challenge is Challenge.TYPECAST and self._ante == 4:
+                if self.challenge is Challenge.TYPECAST and self.ante == 4:
                     for joker in self._jokers:
                         if type(joker) not in NON_ETERNAL_JOKERS:
                             joker.is_eternal = True
@@ -1619,9 +1582,7 @@ class Run:
         stake_base64 = base64.b64encode(self._stake._repr_png_()).decode("utf-8")
 
         round_goal = format_number(self._get_round_goal(Blind.SMALL_BLIND))
-        blind_reward = (
-            0 if (self._stake >= Stake.RED) else BLIND_INFO[Blind.SMALL_BLIND][2]
-        )
+        blind_reward = self._get_blind_reward(Blind.SMALL_BLIND)
 
         html = f"""
             <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._blind is Blind.SMALL_BLIND else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 350px; border-top: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; border-left: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; border-right: 2px solid {BLIND_COLORS[Blind.SMALL_BLIND]}; opacity: {1 if self._blind is Blind.SMALL_BLIND else 0.75}'>
@@ -1652,7 +1613,7 @@ class Run:
         html += "</div>"
 
         round_goal = format_number(self._get_round_goal(Blind.BIG_BLIND))
-        blind_reward = BLIND_INFO[Blind.BIG_BLIND][2]
+        blind_reward = self._get_blind_reward(Blind.BIG_BLIND)
 
         html += f"""
             <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._blind is Blind.BIG_BLIND else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 540px; border-top: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; border-left: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; border-right: 2px solid {BLIND_COLORS[Blind.BIG_BLIND]}; opacity: {1 if self._blind is Blind.BIG_BLIND else 0.75}'>
@@ -1683,7 +1644,7 @@ class Run:
         html += "</div>"
 
         round_goal = format_number(self._get_round_goal(self._boss_blind))
-        blind_reward = BLIND_INFO[self._boss_blind][2]
+        blind_reward = self._get_blind_reward(self._boss_blind)
 
         html += f"""
             <div style='position: absolute; background-color: #333b3d; width: 160px; height: {360 if self._is_boss_blind else 320}px; bottom: 9px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center; left: 730px; border-top: 2px solid {BLIND_COLORS[self._boss_blind]}; border-left: 2px solid {BLIND_COLORS[self._boss_blind]}; border-right: 2px solid {BLIND_COLORS[self._boss_blind]}; opacity: {1 if self._is_boss_blind else 0.75}'>
@@ -1771,9 +1732,8 @@ class Run:
         if held_card == Enhancement.GOLD:
             self._money += 3
 
-        if held_card == Seal.BLUE:
-            if self.consumable_slots > len(self._consumables):
-                self._consumables.append(Consumable(last_poker_hand_played.planet))
+        if held_card == Seal.BLUE and self.consumable_slots > len(self._consumables):
+            self._consumables.append(Consumable(last_poker_hand_played.planet))
 
     def _update_shop_costs(self) -> None:
         for i, (shop_card, cost) in enumerate(self._shop_cards):
@@ -1825,6 +1785,11 @@ class Run:
                                 f"Cannot use The Fool without a valid consumable to create, got {self._fool_next}"
                             )
 
+                        if len(self._consumables) >= self.consumable_slots:
+                            raise NotEnoughSpaceError(
+                                "Cannot use The Fool when consumable slots are full"
+                            )
+
                         self._consumables.append(Consumable(self._fool_next))
                     case Tarot.THE_MAGICIAN:
                         if not (1 <= len(selected_cards) <= 2):
@@ -1835,10 +1800,11 @@ class Run:
                         for card in selected_cards:
                             card.enhancement = Enhancement.LUCKY
                     case Tarot.THE_HIGH_PRIESTESS:
+                        # TODO: check on slots full
                         for _ in range(
                             min(
                                 2,
-                                self.consumable_slots - len(self._consumables) + 1,
+                                max(0, self.consumable_slots - len(self._consumables)),
                             )
                         ):
                             self._consumables.append(
@@ -1856,7 +1822,7 @@ class Run:
                         for _ in range(
                             min(
                                 2,
-                                self.consumable_slots - len(self._consumables) + 1,
+                                max(0, self.consumable_slots - len(self._consumables)),
                             )
                         ):
                             self._consumables.append(self._get_random_consumable(Tarot))
@@ -2144,6 +2110,15 @@ class Run:
                     case Spectral.ANKH:
                         if not self._jokers:
                             raise NoValidJokersError("Ankh requires a Joker to use")
+                        if (
+                            self.joker_slots
+                            - len(self._jokers)
+                            + sum(not joker.is_eternal for joker in self._jokers)
+                            < 1
+                        ):
+                            raise NotEnoughSpaceError(
+                                "Ankh cannot make room for a new Joker"
+                            )
 
                         copied_joker = r.choice(self._jokers)
                         joker_copy = self._create_joker(
@@ -2224,53 +2199,141 @@ class Run:
                         for poker_hand in PokerHand:
                             self._poker_hand_info[poker_hand][0] += 1
 
-    def buy_shop_item(
-        self, section_index: int, item_index: int, use: bool = False
-    ) -> None:
+    def buy_shop_card(self, shop_card_index: int, use: bool = False) -> None:
         """
-        Buy a shop item and add it to consumables
+        Buy a shop card
 
         Args:
-            section_index (int): The index of the shop section (0: cards, 1: vouchers, 2: packs)
-            item_index (int): The index of the shop item (0-indexed)
-            use (bool): Whether to use the item immediately after buying it. Defaults to False.
+            shop_card_index (int): The index of the shop card (0-indexed)
+            use (bool): Whether to use the card immediately after buying it. Defaults to False.
         """
 
-        item, cost = self._buy_shop_item(section_index, item_index, use=use)
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
 
-        if use:
-            try:
-                self._use_consumable(item)
-            except BalatroError:
-                [self._shop_cards, self._shop_vouchers, self._shop_packs][
-                    section_index
-                ].insert(item_index, (item, cost))
-                self._money += cost
+        if shop_card_index not in range(len(self._shop_cards)):
+            raise InvalidArgumentsError(
+                f"Invalid shop card index {shop_card_index}, must be in range({len(self._shop_cards)})"
+            )
 
-                raise
-        else:
-            match item:
-                case BalatroJoker():
-                    self._add_joker(item)
-                case Consumable():
-                    self._consumables.append(item)
-                case Card():
-                    self._add_card(item)
-                case Pack():
-                    self._open_pack(item)
-                case Voucher():
-                    self._vouchers.add(item)
-                    match item:
-                        case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
-                            self._populate_shop_cards()
-                        case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
-                            self._update_shop_costs()
-                        case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
-                            self._reroll_cost = max(0, self._reroll_cost - 2)
+        shop_card, cost = self._shop_cards[shop_card_index]
+
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {shop_card!r}, cost: {cost}, available: {self._available_money}"
+            )
+
+        self._money -= cost
+        self._shop_cards.pop(shop_card_index)
+
+        try:
+            if use:
+                if not isinstance(shop_card, Consumable):
+                    raise InvalidArgumentsError(
+                        f"Cannot use non-Consumable {shop_card!r}"
+                    )
+
+                self._use_consumable(shop_card)
+            else:
+                match shop_card:
+                    case BalatroJoker():
+                        if len(self._jokers) >= self.joker_slots + (
+                            shop_card.edition is Edition.NEGATIVE
+                        ):
+                            raise NotEnoughSpaceError(
+                                f"Cannot buy {shop_card!r}, Joker slots full"
+                            )
+
+                        self._add_joker(shop_card)
+                    case Consumable():
+                        if len(self._consumables) >= self.consumable_slots:
+                            raise NotEnoughSpaceError(
+                                f"Cannot buy {shop_card!r}, Consumable slots full"
+                            )
+
+                        self._consumables.append(shop_card)
+                    case Card():
+                        self._add_card(shop_card)
+        except BalatroError:
+            self._shop_cards.insert(shop_card_index, (shop_card, cost))
+            self._money += cost
+            raise
 
         if self.challenge is Challenge.INFLATION:
             self._inflation_amount += 1
             self._update_shop_costs()
+
+    def buy_shop_pack(self, shop_pack_index: int) -> None:
+        """
+        Buy a shop pack and open it
+
+        Args:
+            shop_pack_index (int): The index of the shop pack (0-indexed)
+        """
+
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
+
+        if shop_pack_index not in range(len(self._shop_packs)):
+            raise InvalidArgumentsError(
+                f"Invalid shop pack index {shop_pack_index}, must be in range({len(self._shop_packs)})"
+            )
+
+        shop_pack, cost = self._shop_packs[shop_pack_index]
+
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {shop_pack!r}, cost: {cost}, available: {self._available_money}"
+            )
+
+        self._money -= cost
+        self._shop_packs.pop(shop_pack_index)
+
+        if self.challenge is Challenge.INFLATION:
+            self._inflation_amount += 1
+            self._update_shop_costs()
+
+        self._open_pack(shop_pack)
+
+    def buy_shop_voucher(self, shop_voucher_index: int) -> None:
+        """
+        Buy a shop voucher
+
+        Args:
+            shop_voucher_index (int): The index of the shop voucher (0-indexed)
+        """
+
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
+
+        if shop_voucher_index not in range(len(self._shop_vouchers)):
+            raise InvalidArgumentsError(
+                f"Invalid shop voucher index {shop_voucher_index}, must be in range({len(self._shop_vouchers)})"
+            )
+
+        shop_voucher, cost = self._shop_vouchers[shop_voucher_index]
+
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {shop_voucher!r}, cost: {cost}, available: {self._available_money}"
+            )
+
+        self._money -= cost
+        self._shop_vouchers.pop(shop_voucher_index)
+
+        if self.challenge is Challenge.INFLATION:
+            self._inflation_amount += 1
+            self._update_shop_costs()
+
+        self._vouchers.add(shop_voucher)
+
+        match shop_voucher:
+            case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
+                self._populate_shop_cards()
+            case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
+                self._update_shop_costs()
+            case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
+                self._reroll_cost = max(0, self._reroll_cost - 2)
 
     def cash_out(self) -> None:
         """
@@ -2650,21 +2713,21 @@ class Run:
 
         self._end_hand(played_cards, scored_card_indices, poker_hands_played)
 
-    def move_joker(self, joker_index: int, new_index: int) -> None:
+    def move_joker(self, old_index: int, new_index: int) -> None:
         """
         Move a Joker to a new position in the Joker slots
 
         Args:
-            joker_index (int): The index of the Joker to move (0-indexed)
+            old_index (int): The index of the Joker to move (0-indexed)
             new_index (int): The index to move the Joker to (0-indexed)
         """
 
         if self._state is State.GAME_OVER:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
-        if joker_index not in range(len(self._jokers)):
+        if old_index not in range(len(self._jokers)):
             raise InvalidArgumentsError(
-                f"Joker index should be in range(len(jokers)), but got {joker_index}"
+                f"Joker index should be in range(len(jokers)), but got {old_index}"
             )
 
         if new_index not in range(len(self._jokers)):
@@ -2672,19 +2735,19 @@ class Run:
                 f"New index should be in range(len(jokers)), but got {new_index}"
             )
 
-        if new_index == joker_index:
+        if new_index == old_index:
             raise InvalidArgumentsError(
-                f"New index should not be the same as the Joker index, but got {joker_index}, {new_index}"
+                f"New index should not be the same as the Joker index, but got {old_index}, {new_index}"
             )
 
         if self.challenge is Challenge.ON_A_KNIFES_EDGE and (
-            joker_index == 0 or new_index == 0
+            old_index == 0 or new_index == 0
         ):
             raise PinnedJokerMovedError(
                 f"Cannot move the pinned {self._jokers[0]} during {Challenge.ON_A_KNIFES_EDGE}"
             )
 
-        self._jokers.insert(new_index, self._jokers.pop(joker_index))
+        self._jokers.insert(new_index, self._jokers.pop(old_index))
 
         for joker in self._jokers:
             joker._on_jokers_moved()
@@ -2831,51 +2894,64 @@ class Run:
         else:
             self._state = State.PLAYING_BLIND
 
-    def sell_item(self, section_index: int, item_index: int) -> None:
+    def sell_consumable(self, consumable_index: int) -> None:
         """
-        Sell an owned item
+        Sell an owned Consumable
 
         Args:
-            section_index (int): The index of the section the item is in (0: jokers, 1: consumables)
-            item_index (int): The index of the item in the section (0-indexed)
+            consumable_index (int): The index of the consumable to sell (0-indexed)
         """
 
         if self._state is State.GAME_OVER:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
-        if section_index not in [0, 1]:
+        if consumable_index not in range(len(self._consumables)):
             raise InvalidArgumentsError(
-                f"Section index should be 0 or 1, but got {section_index}"
+                f"Consumable index should be in range(len({len(self._consumables)})), but got {consumable_index}"
             )
 
-        section_items = [self._jokers, self._consumables][section_index]
+        sold_consumable = self._consumables[consumable_index]
 
-        if item_index not in range(len(section_items)):
-            raise InvalidArgumentsError(
-                f"Item index should be in range(len(section_items)), but got {item_index}"
-            )
-
-        sold_item = section_items[item_index]
-        joker_sold = isinstance(sold_item, BalatroJoker)
-
-        if joker_sold:
-            if sold_item.is_eternal:
-                raise EternalJokerSoldError(f"Cannot sell eternal Joker {sold_item}")
-
-            if self._blind is Blind.VERDANT_LEAF:
-                self._disable_boss_blind()
-
-            sold_item._on_sold()
-
-        section_items.pop(item_index)
+        self._consumables.pop(consumable_index)
 
         for joker in self._jokers:
-            joker._on_item_sold(sold_item)
+            joker._on_item_sold(sold_consumable)
 
-            if joker_sold:
-                joker._on_jokers_moved()
+        self._money += self._calculate_sell_value(sold_consumable)
 
-        self._money += self._calculate_sell_value(sold_item)
+    def sell_joker(self, joker_index: int) -> None:
+        """
+        Sell an owned Joker
+
+        Args:
+            joker_index (int): The index of the Joker to sell (0-indexed)
+        """
+
+        if self._state is State.GAME_OVER:
+            raise IllegalActionError(f"Expected state to not be GAME_OVER")
+
+        if joker_index not in range(len(self._jokers)):
+            raise InvalidArgumentsError(
+                f"Joker index should be in range(len({len(self._jokers)})), but got {joker_index}"
+            )
+
+        sold_joker = self._jokers[joker_index]
+
+        if sold_joker.is_eternal:
+            raise EternalJokerSoldError(f"Cannot sell eternal Joker {sold_joker}")
+
+        if self._blind is Blind.VERDANT_LEAF:
+            self._disable_boss_blind()
+
+        self._jokers.pop(joker_index)
+
+        sold_joker._on_sold()
+
+        for joker in self._jokers:
+            joker._on_item_sold(sold_joker)
+            joker._on_jokers_moved()
+
+        self._money += self._calculate_sell_value(sold_joker)
 
     def skip_blind(self) -> None:
         """
@@ -2961,8 +3037,12 @@ class Run:
             )
 
         consumable = self._consumables[consumable_index]
-        self._use_consumable(consumable, selected_card_indices)
         self._consumables.pop(consumable_index)
+        try:
+            self._use_consumable(consumable, selected_card_indices)
+        except BalatroError:
+            self._consumables.insert(consumable_index, consumable)
+            raise
 
     @property
     def _available_money(self) -> int:
@@ -3078,15 +3158,7 @@ class Run:
     def blind_reward(self) -> int:
         """The money you would recieve for defeating the current blind"""
 
-        return (
-            0
-            if (
-                (self._stake >= Stake.RED and self._blind is Blind.SMALL_BLIND)
-                or self.challenge is Challenge.THE_OMELETTE
-                or (self.challenge is Challenge.CRUELTY and not self._is_boss_blind)
-            )
-            else BLIND_INFO[self._blind][2]
-        )
+        return self._get_blind_reward(self._blind)
 
     @property
     def boss_blind(self) -> Blind:
@@ -3244,7 +3316,7 @@ class Run:
 
         joker_slots = (
             0
-            if (self.challenge is Challenge.TYPECAST and self._ante > 4)
+            if (self.challenge is Challenge.TYPECAST and self.ante > 4)
             else (
                 CHALLENGE_INFO[self._challenge].joker_slots
                 if isinstance(self, ChallengeRun)

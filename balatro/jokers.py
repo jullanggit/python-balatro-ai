@@ -2344,9 +2344,7 @@ class InvisibleJoker(BalatroJoker):
 
     def _sold_action(self) -> None:
         if self.rounds_remaining == 0 and len(self._run._jokers) > 1:
-            duplicated_joker = copy(
-                r.choice([joker for joker in self._run._jokers if joker is not self])
-            )
+            duplicated_joker = copy(r.choice(self._run._jokers))
 
             if duplicated_joker.edition is Edition.NEGATIVE:
                 duplicated_joker.edition = Edition.BASE
