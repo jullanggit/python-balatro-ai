@@ -50,7 +50,7 @@ class Run:
         self._deck: Deck = deck
         self._stake: Stake = stake
         self._money: int = (
-            CHALLENGE_INFO[self._challenge].starting_money
+            CHALLENGE_SETUPS[self._challenge].starting_money
             if isinstance(self, ChallengeRun)
             else (14 if self._deck is Deck.YELLOW else 4)
         )
@@ -61,7 +61,7 @@ class Run:
             poker_hand: [1, 0] for poker_hand in PokerHand
         }
         self._vouchers: set[Voucher] = (
-            copy(CHALLENGE_INFO[self._challenge].initial_vouchers)
+            copy(CHALLENGE_SETUPS[self._challenge].initial_vouchers)
             if isinstance(self, ChallengeRun)
             else set()
         )
@@ -70,7 +70,7 @@ class Run:
         self._deck_cards: list[Card] = (
             [
                 copy(deck_card)
-                for deck_card in CHALLENGE_INFO[self._challenge].deck_cards
+                for deck_card in CHALLENGE_SETUPS[self._challenge].deck_cards
             ]
             if isinstance(self, ChallengeRun)
             else [
@@ -93,7 +93,7 @@ class Run:
                     is_perishable=joker.is_perishable,
                     is_rental=joker.is_rental,
                 )
-                for joker in CHALLENGE_INFO[self._challenge].initial_jokers
+                for joker in CHALLENGE_SETUPS[self._challenge].initial_jokers
             ]
             if isinstance(self, ChallengeRun)
             else []
@@ -101,7 +101,7 @@ class Run:
         self._consumables: list[Consumable] = (
             [
                 copy(consumable)
-                for consumable in CHALLENGE_INFO[self._challenge].initial_consumables
+                for consumable in CHALLENGE_SETUPS[self._challenge].initial_consumables
             ]
             if isinstance(self, ChallengeRun)
             else []
@@ -677,7 +677,7 @@ class Run:
             and (
                 not isinstance(self, ChallengeRun)
                 or Spectral.BLACK_HOLE
-                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+                not in CHALLENGE_SETUPS[self._challenge].banned_consumable_cards
             )
             and r.random() < 0.003
         ):
@@ -687,7 +687,7 @@ class Run:
             and (
                 not isinstance(self, ChallengeRun)
                 or Spectral.THE_SOUL
-                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+                not in CHALLENGE_SETUPS[self._challenge].banned_consumable_cards
             )
             and r.random() < 0.003
         ):
@@ -731,7 +731,7 @@ class Run:
             and (
                 not isinstance(self, ChallengeRun)
                 or consumable_card
-                not in CHALLENGE_INFO[self._challenge].banned_consumable_cards
+                not in CHALLENGE_SETUPS[self._challenge].banned_consumable_cards
             )
         ]
         return Consumable(
@@ -797,7 +797,8 @@ class Run:
             if joker_type not in prohibited_joker_types
             and (
                 not isinstance(self, ChallengeRun)
-                or joker_type not in CHALLENGE_INFO[self._challenge].banned_joker_types
+                or joker_type
+                not in CHALLENGE_SETUPS[self._challenge].banned_joker_types
             )
         ]
         joker_type = r.choice(valid_joker_types) if valid_joker_types else Joker
@@ -887,7 +888,7 @@ class Run:
                     if (self._ante > 1 or tag not in PROHIBITED_ANTE_1_TAGS)
                     and (
                         not isinstance(self, ChallengeRun)
-                        or tag not in CHALLENGE_INFO[self._challenge].banned_tags
+                        or tag not in CHALLENGE_SETUPS[self._challenge].banned_tags
                     )
                 ]
             )
@@ -1014,7 +1015,7 @@ class Run:
         self._reroll_cost = max(
             0,
             (
-                CHALLENGE_INFO[self._challenge].base_reroll_cost
+                CHALLENGE_SETUPS[self._challenge].base_reroll_cost
                 if isinstance(self, ChallengeRun)
                 else 5
             )
@@ -1055,7 +1056,7 @@ class Run:
                     possible_voucher in self._shop_vouchers
                     or isinstance(self, ChallengeRun)
                     and possible_voucher
-                    in CHALLENGE_INFO[self._challenge].banned_vouchers
+                    in CHALLENGE_SETUPS[self._challenge].banned_vouchers
                 ):
                     continue
 
@@ -1072,7 +1073,7 @@ class Run:
                 weight
                 if (
                     not isinstance(self, ChallengeRun)
-                    or pack not in CHALLENGE_INFO[self._challenge].banned_packs
+                    or pack not in CHALLENGE_SETUPS[self._challenge].banned_packs
                 )
                 else 0
             )
@@ -1086,7 +1087,7 @@ class Run:
 
         if self._round == 1 and (
             not isinstance(self, ChallengeRun)
-            or Pack.BUFFOON not in CHALLENGE_INFO[self._challenge].banned_packs
+            or Pack.BUFFOON not in CHALLENGE_SETUPS[self._challenge].banned_packs
         ):
             self._shop_packs[0] = Pack.BUFFOON
 
@@ -1212,7 +1213,7 @@ class Run:
                     for blind in list(Blind)[-5:]
                     if (
                         not isinstance(self, ChallengeRun)
-                        or blind not in CHALLENGE_INFO[self._challenge].banned_blinds
+                        or blind not in CHALLENGE_SETUPS[self._challenge].banned_blinds
                     )
                 ]
             self._boss_blind = r.choice(self._finisher_blind_pool)
@@ -1224,7 +1225,7 @@ class Run:
                     for blind in list(Blind)[2:-5]
                     if (
                         not isinstance(self, ChallengeRun)
-                        or blind not in CHALLENGE_INFO[self._challenge].banned_blinds
+                        or blind not in CHALLENGE_SETUPS[self._challenge].banned_blinds
                     )
                 ]
             self._boss_blind = r.choice(
@@ -1752,27 +1753,27 @@ class Run:
                 self._shop_packs[i] = (pack, updated_cost)
 
     def _use_consumable(
-        self, consumable: Consumable, selected_card_indices: list[int] | None = None
+        self, consumable: Consumable, card_indices: list[int] | None = None
     ) -> None:
-        if selected_card_indices is not None:
+        if card_indices is not None:
             if self._hand is None:
                 raise InvalidArgumentsError(
-                    f"Selected card indices should be None when there is no hand, but got {selected_card_indices}"
+                    f"Selected card indices should be None when there is no hand, but got {card_indices}"
                 )
-            if not (1 <= len(selected_card_indices) <= 5):
+            if not (1 <= len(card_indices) <= 5):
                 raise InvalidArgumentsError(
-                    f"Selected card indices should have length 1-5, but got {len(selected_card_indices)}"
+                    f"Selected card indices should have length 1-5, but got {len(card_indices)}"
                 )
-            if any((i not in range(len(self._hand)) for i in selected_card_indices)):
+            if any((i not in range(len(self._hand)) for i in card_indices)):
                 raise InvalidArgumentsError(
-                    f"Selected cards indices should all be within the range of the hand, but got {selected_card_indices}"
+                    f"Selected cards indices should all be within the range of the hand, but got {card_indices}"
                 )
-            if len(set(selected_card_indices)) < len(selected_card_indices):
+            if len(set(card_indices)) < len(card_indices):
                 raise InvalidArgumentsError(
-                    f"Selected card indices should all be unique, but got {selected_card_indices}"
+                    f"Selected card indices should all be unique, but got {card_indices}"
                 )
 
-            selected_cards = [self._hand[i] for i in selected_card_indices]
+            selected_cards = [self._hand[i] for i in card_indices]
         else:
             selected_cards = []
 
@@ -1905,11 +1906,6 @@ class Run:
                         left.seal = right.seal
                         left.edition = right.edition
                     case Tarot.TEMPERANCE:
-                        if not self._jokers:
-                            raise NoValidJokersError(
-                                "Temperance requires at least one Joker to use"
-                            )
-
                         self._money += min(
                             50,
                             sum(
@@ -2263,78 +2259,6 @@ class Run:
             self._inflation_amount += 1
             self._update_shop_costs()
 
-    def buy_shop_pack(self, shop_pack_index: int) -> None:
-        """
-        Buy a shop pack and open it
-
-        Args:
-            shop_pack_index (int): The index of the shop pack (0-indexed)
-        """
-
-        if self._state is not State.IN_SHOP:
-            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
-
-        if shop_pack_index not in range(len(self._shop_packs)):
-            raise InvalidArgumentsError(
-                f"Invalid shop pack index {shop_pack_index}, must be in range({len(self._shop_packs)})"
-            )
-
-        shop_pack, cost = self._shop_packs[shop_pack_index]
-
-        if self._available_money < cost:
-            raise InsufficientFundsError(
-                f"Insufficient funds to buy {shop_pack!r}, cost: {cost}, available: {self._available_money}"
-            )
-
-        self._money -= cost
-        self._shop_packs.pop(shop_pack_index)
-
-        if self.challenge is Challenge.INFLATION:
-            self._inflation_amount += 1
-            self._update_shop_costs()
-
-        self._open_pack(shop_pack)
-
-    def buy_shop_voucher(self, shop_voucher_index: int) -> None:
-        """
-        Buy a shop voucher
-
-        Args:
-            shop_voucher_index (int): The index of the shop voucher (0-indexed)
-        """
-
-        if self._state is not State.IN_SHOP:
-            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
-
-        if shop_voucher_index not in range(len(self._shop_vouchers)):
-            raise InvalidArgumentsError(
-                f"Invalid shop voucher index {shop_voucher_index}, must be in range({len(self._shop_vouchers)})"
-            )
-
-        shop_voucher, cost = self._shop_vouchers[shop_voucher_index]
-
-        if self._available_money < cost:
-            raise InsufficientFundsError(
-                f"Insufficient funds to buy {shop_voucher!r}, cost: {cost}, available: {self._available_money}"
-            )
-
-        self._money -= cost
-        self._shop_vouchers.pop(shop_voucher_index)
-
-        if self.challenge is Challenge.INFLATION:
-            self._inflation_amount += 1
-            self._update_shop_costs()
-
-        self._vouchers.add(shop_voucher)
-
-        match shop_voucher:
-            case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
-                self._populate_shop_cards()
-            case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
-                self._update_shop_costs()
-            case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
-                self._reroll_cost = max(0, self._reroll_cost - 2)
-
     def cash_out(self) -> None:
         """
         Collect the money earned from the round and proceed to the shop
@@ -2367,14 +2291,14 @@ class Run:
         self._state = State.IN_SHOP
 
     def choose_pack_item(
-        self, item_index: int, selected_card_indices: list[int] | None = None
+        self, item_index: int, card_indices: list[int] | None = None
     ) -> None:
         """
         Choose an item from an opened pack
 
         Args:
             item_index (int): The index of the item in the pack (0-indexed)
-            selected_card_indices (list[int], optional): The indices of the cards in hand to use the item on (0-indexed), or none
+            card_indices (list[int], optional): The indices of the cards in hand to use the item on (0-indexed), or none
         """
 
         if self._state is not State.OPENING_PACK:
@@ -2400,7 +2324,7 @@ class Run:
 
                 self._add_joker(item)
             case Consumable():
-                self._use_consumable(item, selected_card_indices)
+                self._use_consumable(item, card_indices)
             case Card():
                 self._add_card(item)
 
@@ -2722,7 +2646,7 @@ class Run:
             new_index (int): The index to move the Joker to (0-indexed)
         """
 
-        if self._state is State.GAME_OVER:
+        if self.is_game_over:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
         if old_index not in range(len(self._jokers)):
@@ -2751,6 +2675,78 @@ class Run:
 
         for joker in self._jokers:
             joker._on_jokers_moved()
+
+    def open_shop_pack(self, shop_pack_index: int) -> None:
+        """
+        Buy a shop pack and open it
+
+        Args:
+            shop_pack_index (int): The index of the shop pack (0-indexed)
+        """
+
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
+
+        if shop_pack_index not in range(len(self._shop_packs)):
+            raise InvalidArgumentsError(
+                f"Invalid shop pack index {shop_pack_index}, must be in range({len(self._shop_packs)})"
+            )
+
+        shop_pack, cost = self._shop_packs[shop_pack_index]
+
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {shop_pack!r}, cost: {cost}, available: {self._available_money}"
+            )
+
+        self._money -= cost
+        self._shop_packs.pop(shop_pack_index)
+
+        if self.challenge is Challenge.INFLATION:
+            self._inflation_amount += 1
+            self._update_shop_costs()
+
+        self._open_pack(shop_pack)
+
+    def redeem_shop_voucher(self, shop_voucher_index: int) -> None:
+        """
+        Reedems a shop voucher
+
+        Args:
+            shop_voucher_index (int): The index of the shop voucher (0-indexed)
+        """
+
+        if self._state is not State.IN_SHOP:
+            raise IllegalActionError(f"Expected state IN_SHOP, got {self._state}")
+
+        if shop_voucher_index not in range(len(self._shop_vouchers)):
+            raise InvalidArgumentsError(
+                f"Invalid shop voucher index {shop_voucher_index}, must be in range({len(self._shop_vouchers)})"
+            )
+
+        shop_voucher, cost = self._shop_vouchers[shop_voucher_index]
+
+        if self._available_money < cost:
+            raise InsufficientFundsError(
+                f"Insufficient funds to buy {shop_voucher!r}, cost: {cost}, available: {self._available_money}"
+            )
+
+        self._money -= cost
+        self._shop_vouchers.pop(shop_voucher_index)
+
+        if self.challenge is Challenge.INFLATION:
+            self._inflation_amount += 1
+            self._update_shop_costs()
+
+        self._vouchers.add(shop_voucher)
+
+        match shop_voucher:
+            case Voucher.OVERSTOCK | Voucher.OVERSTOCK_PLUS:
+                self._populate_shop_cards()
+            case Voucher.CLEARANCE_SALE | Voucher.LIQUIDATION:
+                self._update_shop_costs()
+            case Voucher.REROLL_SURPLUS | Voucher.REROLL_GLUT:
+                self._reroll_cost = max(0, self._reroll_cost - 2)
 
     def reroll(self) -> None:
         """
@@ -2902,7 +2898,7 @@ class Run:
             consumable_index (int): The index of the consumable to sell (0-indexed)
         """
 
-        if self._state is State.GAME_OVER:
+        if self.is_game_over:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
         if consumable_index not in range(len(self._consumables)):
@@ -2927,7 +2923,7 @@ class Run:
             joker_index (int): The index of the Joker to sell (0-indexed)
         """
 
-        if self._state is State.GAME_OVER:
+        if self.is_game_over:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
         if joker_index not in range(len(self._jokers)):
@@ -3018,17 +3014,17 @@ class Run:
         self._close_pack()
 
     def use_consumable(
-        self, consumable_index: int, selected_card_indices: list[int] | None = None
+        self, consumable_index: int, card_indices: list[int] | None = None
     ) -> None:
         """
         Use a consumable
 
         Args:
             consumable_index (int): The index of the consumable to use (0-indexed)
-            selected_card_indices (list[int], optional): The indices of the cards in hand to use the consumable on (0-indexed), or none
+            card_indices (list[int], optional): The indices of the cards in hand to use the consumable on (0-indexed), or none
         """
 
-        if self._state is State.GAME_OVER:
+        if self.is_game_over:
             raise IllegalActionError(f"Expected state to not be GAME_OVER")
 
         if consumable_index not in range(len(self._consumables)):
@@ -3039,7 +3035,7 @@ class Run:
         consumable = self._consumables[consumable_index]
         self._consumables.pop(consumable_index)
         try:
-            self._use_consumable(consumable, selected_card_indices)
+            self._use_consumable(consumable, card_indices)
         except BalatroError:
             self._consumables.insert(consumable_index, consumable)
             raise
@@ -3051,7 +3047,7 @@ class Run:
     @property
     def _discards_per_round(self) -> int:
         discards_per_round = (
-            CHALLENGE_INFO[self._challenge].discards_per_round
+            CHALLENGE_SETUPS[self._challenge].discards_per_round
             if isinstance(self, ChallengeRun)
             else 3
         )
@@ -3080,7 +3076,7 @@ class Run:
     @property
     def _hands_per_round(self) -> int:
         hands_per_round = (
-            CHALLENGE_INFO[self._challenge].hands_per_round
+            CHALLENGE_SETUPS[self._challenge].hands_per_round
             if isinstance(self, ChallengeRun)
             else 4
         )
@@ -3183,7 +3179,7 @@ class Run:
         """The number of consumable slots available"""
 
         consumable_slots = (
-            CHALLENGE_INFO[self._challenge].consumable_slots
+            CHALLENGE_SETUPS[self._challenge].consumable_slots
             if isinstance(self, ChallengeRun)
             else 2
         )
@@ -3269,7 +3265,7 @@ class Run:
         """The current hand size"""
 
         hand_size = (
-            CHALLENGE_INFO[self._challenge].hand_size
+            CHALLENGE_SETUPS[self._challenge].hand_size
             if isinstance(self, ChallengeRun)
             else 8
         )
@@ -3311,6 +3307,12 @@ class Run:
         return self._hands if self._hands is not None else self._hands_per_round
 
     @property
+    def is_game_over(self) -> bool:
+        """Whether the game is over"""
+
+        return self._state is State.GAME_OVER
+
+    @property
     def joker_slots(self) -> int:
         """The number of Joker slots available"""
 
@@ -3318,7 +3320,7 @@ class Run:
             0
             if (self.challenge is Challenge.TYPECAST and self.ante > 4)
             else (
-                CHALLENGE_INFO[self._challenge].joker_slots
+                CHALLENGE_SETUPS[self._challenge].joker_slots
                 if isinstance(self, ChallengeRun)
                 else 5
             )
@@ -3382,9 +3384,8 @@ class Run:
         return (
             0
             if any(
-                joker
+                joker == ChaosTheClown and joker not in self._chaos_used
                 for joker in self._jokers
-                if joker == ChaosTheClown and joker not in self._chaos_used
             )
             else self._reroll_cost
         )

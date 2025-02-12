@@ -217,7 +217,7 @@ CARD_EDITION_CHANCES_ILLUSION = {
     Edition.HOLOGRAPHIC: 7,
     Edition.FOIL: 10,
 }
-CHALLENGE_INFO = {
+CHALLENGE_SETUPS = {
     Challenge.THE_OMELETTE: ChallengeSetup(
         initial_jokers=([Egg()] * 5),
         banned_joker_types={
