@@ -7,3 +7,4 @@ test.py
 run.pkl
 ml.ipynb
 balatro_ppo_baseline.zip
+build/
