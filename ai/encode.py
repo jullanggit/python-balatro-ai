@@ -95,6 +95,43 @@ def encode_card(card: Card) -> torch.Tensor:
 
     return torch.cat([rank, suit, enhancement, seal, edition, extra_chips, is_debuffed, is_face_down], dim=0)
 
+def all_subclasses(cls: Type) -> List[Type]:
+    """
+    Recursively find every subclass of `cls`.
+    """
+    direct = cls.__subclasses__()  # immediate children
+    out: List[Type] = []
+    for sub in direct:
+        out.append(sub)
+        out.extend(all_subclasses(sub))
+    return out
+
+all_jokers =  all_subclasses(BalatroJoker)
+all_jokers.sort(key=lambda C: C.__name__)
+
+jokers_to_index = enum_to_index(all_jokers)
+
+def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
+    encoded = []
+    for i in range(0, max_jokers):
+        if i < len(jokers):
+            joker = jokers[i]
+            type = one_hot(jokers_to_index[joker], len(all_jokers))
+            edition = one_hot(enum_to_index(Edition)[joker.edition], len(Edition))
+            is_eternal = encode_bool(joker.is_eternal)
+            is_perishable = encode_bool(joker.is_perishable)
+            is_rental = encode_bool(joker.is_rental)
+            is_debuffed = encode_bool(joker.is_debuffed)
+            is_flipped = encode_bool(joker.is_flipped)
+
+            num_perishable_rounds_left = encode_int(joker.num_perishable_rounds_left)
+            encoded.append(torch.cat([type, edition, is_eternal, is_perishable, is_rental, is_debuffed, is_flipped, num_perishable_rounds_left]))
+        else:
+            encoded.append(torch.zeros(len(all_jokers)+len(Edition)+5+1))
+    return torch.stack(encoded)
+
+
+# TODO: handle sellable
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
@@ -114,7 +151,7 @@ def encode(run: Run) -> torch.FloatTensor:
         hands = encode_int(0)
     else:
         hands = encode_int(run.hands)
+    jokers = encode_jokers(run.jokers)
 
-
-    parts = [ante, ante_tags, blind, blind_reward, boss_blind, consumable_slots, consumables, hand_cards, deck_cards_left, discards, hands]
+    parts = [ante, ante_tags, blind, blind_reward, boss_blind, consumable_slots, consumables, hand_cards, deck_cards_left, discards, hands, jokers]
     return torch.cat(parts, dim=0)
