@@ -15,7 +15,7 @@ run.skip_blind()
 run.reroll_boss_blind()
 ```
 
-## Round and Joker/Consumable management
+## Round
 ```python
 # Play a Hand (Order is 4th card, 2nd, 3rd, 8th and 6th in Hand)
 run.play_hand([3, 1, 2, 7, 5])
