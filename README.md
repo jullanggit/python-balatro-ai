@@ -89,7 +89,10 @@ run
 
 ```python
 # Buy the Hallucination joker
-run.buy_shop_item(0, 0)  # ({0: cards, 1: vouchers, 2: packs}, item index)
+run.buy_shop_card(0, 0)  # (item index, use (if consumable))
+
+# Buy the Voucher
+# run.redeem_shop_voucher(0) # (item index)
 
 run
 ```
@@ -98,7 +101,7 @@ run
 
 ```python
 # Open the Buffoon Pack
-run.buy_shop_item(2, 0)
+run.open_shop_pack(0) # (item index)
 
 run
 ```
