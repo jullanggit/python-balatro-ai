@@ -155,6 +155,17 @@ def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
             encoded.append(torch.zeros(1, SIZE_JOKER))
     return torch.cat(encoded)
 
+SIZE_POKERHAND_INFO = [len(PokerHand), 2]
+def encode_poker_hand_info(info: dict[PokerHand, list[int]]) -> torch.FloatTensor:
+    encoded = torch.zeros(SIZE_POKERHAND_INFO[0], SIZE_POKERHAND_INFO[1])
+    for poker_hand in PokerHand:
+        ints = info[poker_hand]
+        index = POKERHAND_TO_INDEX[poker_hand]
+        encoded[index] = torch.tensor(ints).float()
+
+    return encoded
+
+
 def multi_hot(lookup: Dict, elements: set) -> torch.FloatTensor:
     """
     returns a multi-hot Tensor with the length of the lookup Dict
@@ -174,7 +185,7 @@ def encode_tags(tags: list[Tag]) -> torch.FloatTensor:
             encoded.append(torch.zeros(1, len(TAG_TO_INDEX)))
     return torch.cat(encoded)
 
-SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
@@ -190,7 +201,7 @@ def encode(run: Run) -> torch.FloatTensor:
     hands = encode_int(0 if run.hands is None else run.hands)
     jokers = encode_jokers(run.jokers)
     money = encode_int(run.money)
-    # TODO: poker_hand_info
+    poker_hand_info = encode_poker_hand_info(run.poker_hand_info)
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
     round = encode_int(run.round)
     round_score = torch.tensor([run.round_score], dtype=torch.float32)
@@ -202,7 +213,7 @@ def encode(run: Run) -> torch.FloatTensor:
 
     parts = [ante, ante_tags.view(-1), blind, blind_reward, boss_blind,
         consumable_slots, consumables.view(-1), hand_cards.view(-1),
-        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money,
+        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money, poker_hand_info.view(-1),
         reroll_cost, round, round_score, stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
     assert len(encoded) == SIZE_ENCODED
