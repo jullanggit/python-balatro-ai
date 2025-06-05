@@ -68,7 +68,7 @@ def encode_int(int: int) -> torch.FloatTensor:
 def encode_bool(bool: bool) -> torch.FloatTensor:
     return torch.tensor([1.0 if bool else 0.0])
 
-SIZE_CONSUMABLE = len(CARD_TO_INDEX) + 1
+SIZE_CONSUMABLE = len(CARD_TO_INDEX) + 2
 SIZE_CONSUMABLES = [MAX_CONSUMABLES, SIZE_CONSUMABLE]
 def encode_consumables(consumables: list[Consumable]) -> torch.FloatTensor:
     encoded = []
@@ -78,8 +78,9 @@ def encode_consumables(consumables: list[Consumable]) -> torch.FloatTensor:
 
             card = one_hot(CARD_TO_INDEX, consumable.card)
             is_negative = encode_bool(consumable.is_negative)
+            extra_sell_value = encode_int(consumable._extra_sell_value)
 
-            features = torch.cat([card, is_negative])
+            features = torch.cat([card, is_negative, extra_sell_value])
             encoded.append(features.unsqueeze(0))
         else:
             encoded.append(torch.zeros(1, SIZE_CONSUMABLE))
@@ -121,7 +122,7 @@ def encode_cards(cards: list[Card], max) -> torch.Tensor:
 
     return torch.cat(encoded)
 
-SIZE_JOKER = len(JOKERS_TO_INDEX) + len(EDITION_TO_INDEX) + 6
+SIZE_JOKER = len(JOKERS_TO_INDEX) + len(EDITION_TO_INDEX) + 7
 SIZE_JOKERS = [MAX_JOKERS, SIZE_JOKER]
 def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
     encoded = []
@@ -136,15 +137,15 @@ def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
             is_debuffed = encode_bool(joker.is_debuffed)
             is_flipped = encode_bool(joker.is_flipped)
             num_perishable_rounds_left = encode_int(joker.num_perishable_rounds_left)
+            extra_sell_value = encode_int(joker._extra_sell_value)
 
-            features = torch.cat([type, edition, is_eternal, is_perishable, is_rental, is_debuffed, is_flipped, num_perishable_rounds_left])
+            features = torch.cat([type, edition, is_eternal, is_perishable, is_rental, is_debuffed, is_flipped, num_perishable_rounds_left, extra_sell_value])
             encoded.append(features.unsqueeze(0))
         else:
             encoded.append(torch.zeros(1, SIZE_JOKER))
     return torch.cat(encoded)
 
 
-# TODO: handle sellable
 SIZE_ENCODED = 5 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1]
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
