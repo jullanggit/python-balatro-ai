@@ -1,6 +1,6 @@
 from typing import Dict
 import torch
-from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run
+from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State
 
 MAX_CONSUMABLES = 20
 MAX_DECK_CARDS = 100
@@ -37,6 +37,8 @@ SUIT_TO_INDEX: Dict[Suit, int] = _enum_to_index(Suit)
 ENHANCEMENT_TO_INDEX: Dict[Enhancement, int] = _enum_to_index(Enhancement)
 SEAL_TO_INDEX: Dict[Seal, int] = _enum_to_index(Seal)
 EDITION_TO_INDEX: Dict[Edition, int] = _enum_to_index(Edition)
+STAKE_TO_INDEX: Dict[Stake, int] = _enum_to_index(Stake)
+STATE_TO_INDEX: Dict[State, int] = _enum_to_index(State)
 CARD_TO_INDEX = {**_enum_to_index(Tarot), **_enum_to_index(Planet), **_enum_to_index(Spectral)}
 
 def one_hot(dict: Dict, element) -> torch.FloatTensor:
@@ -146,7 +148,7 @@ def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
     return torch.cat(encoded)
 
 
-SIZE_ENCODED = 5 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1]
+SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
@@ -156,21 +158,24 @@ def encode(run: Run) -> torch.FloatTensor:
     boss_blind = one_hot(BLIND_TO_INDEX, run.boss_blind)
     consumable_slots = encode_int(run.consumable_slots)
     consumables = encode_consumables(run.consumables)
-    if run.hand is None:
-        hand_cards = torch.zeros(SIZE_HAND_CARDS[0], SIZE_HAND_CARDS[1])
-    else:
-        hand_cards = encode_cards(run.hand, MAX_HAND_CARDS)
+    hand_cards = torch.zeros(SIZE_HAND_CARDS[0], SIZE_HAND_CARDS[1]) if run.hand is None else encode_cards(run.hand, MAX_HAND_CARDS)
     deck_cards_left = encode_cards(run.deck_cards_left, MAX_DECK_CARDS)
     discards = encode_int(run.discards)
-    if run.hands is None:
-        hands = encode_int(0)
-    else:
-        hands = encode_int(run.hands)
+    hands = encode_int(0 if run.hands is None else run.hands)
     jokers = encode_jokers(run.jokers)
+    money = encode_int(run.money)
+    # TODO: poker_hand_info
+    reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
+    round = encode_int(run.round)
+    round_score = torch.tensor([run.round_score], dtype=torch.float32)
+    # TODO: shop_{cards, packs, vouchers}
+    stake = one_hot(STAKE_TO_INDEX, run.stake)
+    state = one_hot(STATE_TO_INDEX, run.state)
 
     parts = [ante, ante_tags.view(-1), blind, blind_reward, boss_blind,
         consumable_slots, consumables.view(-1), hand_cards.view(-1),
-        deck_cards_left.view(-1), discards, hands, jokers.view(-1)]
+        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money,
+        reroll_cost, round, round_score, stake, state]
     encoded = torch.cat(parts, dim=0)
     assert len(encoded) == SIZE_ENCODED
     return encoded
