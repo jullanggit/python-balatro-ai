@@ -1,12 +1,12 @@
 from typing import Dict
 import torch
-from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State
+from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State, Voucher
 
 MAX_CONSUMABLES = 20
 MAX_DECK_CARDS = 100
 MAX_JOKERS = 15
 MAX_HAND_CARDS = 20
-
+MAX_TAGS = 20
 
 def _enum_to_index(enum_class) -> Dict:
     """
@@ -39,6 +39,7 @@ SEAL_TO_INDEX: Dict[Seal, int] = _enum_to_index(Seal)
 EDITION_TO_INDEX: Dict[Edition, int] = _enum_to_index(Edition)
 STAKE_TO_INDEX: Dict[Stake, int] = _enum_to_index(Stake)
 STATE_TO_INDEX: Dict[State, int] = _enum_to_index(State)
+VOUCHER_TO_INDEX: Dict[Voucher, int] = _enum_to_index(Voucher)
 CARD_TO_INDEX = {**_enum_to_index(Tarot), **_enum_to_index(Planet), **_enum_to_index(Spectral)}
 
 def one_hot(dict: Dict, element) -> torch.FloatTensor:
@@ -46,7 +47,14 @@ def one_hot(dict: Dict, element) -> torch.FloatTensor:
     returns a one-hot f32 tensor with the length of the dict,
     where only the element returned by dict[element] is 1
     """
-    return torch.nn.functional.one_hot(torch.tensor(dict[element]), num_classes=len(dict)).float()
+    return one_hot_inner(dict, element).float()
+
+def one_hot_inner(dict: Dict, element) -> torch.FloatTensor:
+    """
+    returns a one-hot tensor with the length of the dict,
+    where only the element returned by dict[element] is 1
+    """
+    return torch.nn.functional.one_hot(torch.tensor(dict[element]), num_classes=len(dict))
 
 SIZE_ANTE_TAGS = [2, len(TAG_TO_INDEX) + len(POKERHAND_TO_INDEX)]
 def encode_ante_tags(ante_tags: list[tuple[Tag, PokerHand | None]]) -> torch.FloatTensor:
@@ -147,8 +155,26 @@ def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
             encoded.append(torch.zeros(1, SIZE_JOKER))
     return torch.cat(encoded)
 
+def multi_hot(lookup: Dict, elements: set) -> torch.FloatTensor:
+    """
+    returns a multi-hot Tensor with the length of the lookup Dict
+    """
+    vec = torch.zeros(len(lookup))
+    for elem in elements:
+        vec[lookup[elem]] = 1.0
+    return vec
 
-SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX)
+SIZE_TAGS = [MAX_TAGS, len(TAG_TO_INDEX)]
+def encode_tags(tags: list[Tag]) -> torch.FloatTensor:
+    encoded = []
+    for i in range(0, MAX_TAGS):
+        if i < len(tags):
+            encoded.append(one_hot(TAG_TO_INDEX, tags[i]).unsqueeze(0))
+        else:
+            encoded.append(torch.zeros(1, len(TAG_TO_INDEX)))
+    return torch.cat(encoded)
+
+SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
@@ -171,11 +197,13 @@ def encode(run: Run) -> torch.FloatTensor:
     # TODO: shop_{cards, packs, vouchers}
     stake = one_hot(STAKE_TO_INDEX, run.stake)
     state = one_hot(STATE_TO_INDEX, run.state)
+    tags = encode_tags(run.tags)
+    vouchers = multi_hot(VOUCHER_TO_INDEX, run.vouchers)
 
     parts = [ante, ante_tags.view(-1), blind, blind_reward, boss_blind,
         consumable_slots, consumables.view(-1), hand_cards.view(-1),
         deck_cards_left.view(-1), discards, hands, jokers.view(-1), money,
-        reroll_cost, round, round_score, stake, state]
+        reroll_cost, round, round_score, stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
     assert len(encoded) == SIZE_ENCODED
     return encoded
