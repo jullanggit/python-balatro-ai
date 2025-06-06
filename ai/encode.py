@@ -118,11 +118,11 @@ def encode_card(card: Card) -> torch.Tensor:
         seal = one_hot(SEAL_TO_INDEX, card.seal)
 
     edition = one_hot(EDITION_TO_INDEX, card.edition)
-    extra_chips = encode_int(card.extra_chips)
+    chips = encode_int(card.chips)
     is_debuffed = encode_bool(card.is_debuffed)
     is_face_down = encode_bool(card.is_face_down)
 
-    return torch.cat([rank, suit, enhancement, seal, edition, extra_chips, is_debuffed, is_face_down])
+    return torch.cat([rank, suit, enhancement, seal, edition, chips, is_debuffed, is_face_down])
 
 SIZE_HAND_CARDS = [MAX_HAND_CARDS, SIZE_CARD]
 SIZE_DECK_CARDS = [MAX_DECK_CARDS, SIZE_CARD]
