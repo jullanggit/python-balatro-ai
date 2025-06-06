@@ -240,38 +240,51 @@ def encode_shop_items(items: list[tuple[Any, int]] | None, fn, element_size: int
         return torch.cat(out)
 
 
-SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+SIZE_ENCODED = 16 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
+    available_money = encode_int(run._available_money)
+    discards_per_round = encode_int(run._discards_per_round)
+    hands_per_round = encode_int(run._hands_per_round)
+    most_played_hand = one_hot(POKERHAND_TO_INDEX, run._most_played_hand)
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
 
     blind = one_hot(BLIND_TO_INDEX, run.blind)
     blind_reward = encode_int(run.blind_reward)
     boss_blind = one_hot(BLIND_TO_INDEX, run.boss_blind)
+    cash_out_total = torch.tensor([0 if run.cash_out_total is None else run.cash_out_total])
     consumable_slots = encode_int(run.consumable_slots)
     consumables = encode_consumables(run.consumables)
     hand_cards = torch.zeros(SIZE_HAND_CARDS[0], SIZE_HAND_CARDS[1]) if run.hand is None else encode_cards(run.hand, MAX_HAND_CARDS)
     deck_cards_left = encode_cards(run.deck_cards_left, MAX_DECK_CARDS)
     discards = encode_int(run.discards)
+    forced_selected_card_index = torch.zeros(MAX_HAND_CARDS) if run.forced_selected_card_index is None else torch.nn.functional.one_hot(torch.tensor(run.forced_selected_card_index), MAX_HAND_CARDS)
+    hand_size = encode_int(run.hand_size)
     hands = encode_int(0 if run.hands is None else run.hands)
+    joker_slots = encode_int(run.joker_slots)
     jokers = encode_jokers(run.jokers)
     money = encode_int(run.money)
+    # opened_pack
+    pack_choices_left = encode_int(0 if run.hands is None else run.pack_choices_left)
+    # pack_items
     poker_hand_info = encode_poker_hand_info(run.poker_hand_info)
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
     round = encode_int(run.round)
+    round_goal = torch.tensor([0 if run.round_goal is None else run.round_goal])
     round_score = torch.tensor([run.round_score], dtype=torch.float32)
     shop_cards = encode_shop_items(run.shop_cards, encode_shop_card, SIZE_SHOP_CARD, MAX_SHOP_CARDS)
-    shop_vouchers = encode_shop_items(run.shop_vouchers, encode_enum_shop_item, SIZE_SHOP_VOUCHER, MAX_SHOP_VOUCHERS, VOUCHER_TO_INDEX)
     shop_packs = encode_shop_items(run.shop_packs, encode_enum_shop_item, SIZE_SHOP_PACK, MAX_SHOP_PACKS, PACK_TO_INDEX)
+    shop_vouchers = encode_shop_items(run.shop_vouchers, encode_enum_shop_item, SIZE_SHOP_VOUCHER, MAX_SHOP_VOUCHERS, VOUCHER_TO_INDEX)
     stake = one_hot(STAKE_TO_INDEX, run.stake)
     state = one_hot(STATE_TO_INDEX, run.state)
     tags = encode_tags(run.tags)
     vouchers = multi_hot(VOUCHER_TO_INDEX, run.vouchers)
 
-    parts = [ante, ante_tags.view(-1), blind, blind_reward, boss_blind,
-        consumable_slots, consumables.view(-1), hand_cards.view(-1),
-        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money,
-        poker_hand_info.view(-1), reroll_cost, round, round_score, shop_cards.view(-1),
+    parts = [available_money, discards_per_round, hands_per_round, most_played_hand,
+        ante, ante_tags.view(-1), blind, blind_reward, boss_blind, cash_out_total, consumable_slots,
+        consumables.view(-1), hand_cards.view(-1), deck_cards_left.view(-1),
+        discards, forced_selected_card_index, hand_size, hands, joker_slots, jokers.view(-1), money,
+        pack_choices_left, poker_hand_info.view(-1), reroll_cost, round, round_goal, round_score, shop_cards.view(-1),
         shop_vouchers.view(-1), shop_packs.view(-1), stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
     assert len(encoded) == SIZE_ENCODED
