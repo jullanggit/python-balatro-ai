@@ -1,12 +1,15 @@
-from typing import Dict
+from typing import Dict, Any
 import torch
-from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State, Voucher
+from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State, Voucher, Pack
 
 MAX_CONSUMABLES = 20
 MAX_DECK_CARDS = 100
 MAX_JOKERS = 15
 MAX_HAND_CARDS = 20
 MAX_TAGS = 20
+MAX_SHOP_CARDS = 4
+MAX_SHOP_VOUCHERS = 5
+MAX_SHOP_PACKS = 5
 
 def _enum_to_index(enum_class) -> Dict:
     """
@@ -40,7 +43,8 @@ EDITION_TO_INDEX: Dict[Edition, int] = _enum_to_index(Edition)
 STAKE_TO_INDEX: Dict[Stake, int] = _enum_to_index(Stake)
 STATE_TO_INDEX: Dict[State, int] = _enum_to_index(State)
 VOUCHER_TO_INDEX: Dict[Voucher, int] = _enum_to_index(Voucher)
-CARD_TO_INDEX = {**_enum_to_index(Tarot), **_enum_to_index(Planet), **_enum_to_index(Spectral)}
+PACK_TO_INDEX: Dict[Pack, int] = _enum_to_index(Pack)
+CONSUMABLE_TO_INDEX = {**_enum_to_index(Tarot), **_enum_to_index(Planet), **_enum_to_index(Spectral)}
 
 def one_hot(dict: Dict, element) -> torch.FloatTensor:
     """
@@ -78,19 +82,21 @@ def encode_int(int: int) -> torch.FloatTensor:
 def encode_bool(bool: bool) -> torch.FloatTensor:
     return torch.tensor([1.0 if bool else 0.0])
 
-SIZE_CONSUMABLE = len(CARD_TO_INDEX) + 2
+SIZE_CONSUMABLE = len(CONSUMABLE_TO_INDEX) + 2
+def encode_consumable(consumable: Consumable) -> torch.FloatTensor:
+    card = one_hot(CONSUMABLE_TO_INDEX, consumable.card)
+    is_negative = encode_bool(consumable.is_negative)
+    extra_sell_value = encode_int(consumable._extra_sell_value)
+
+    return torch.cat([card, is_negative, extra_sell_value])
+
 SIZE_CONSUMABLES = [MAX_CONSUMABLES, SIZE_CONSUMABLE]
 def encode_consumables(consumables: list[Consumable]) -> torch.FloatTensor:
     encoded = []
     for i in range(0, MAX_CONSUMABLES):
         if i < len(consumables):
             consumable = consumables[i]
-
-            card = one_hot(CARD_TO_INDEX, consumable.card)
-            is_negative = encode_bool(consumable.is_negative)
-            extra_sell_value = encode_int(consumable._extra_sell_value)
-
-            features = torch.cat([card, is_negative, extra_sell_value])
+            features = encode_consumable(consumable)
             encoded.append(features.unsqueeze(0))
         else:
             encoded.append(torch.zeros(1, SIZE_CONSUMABLE))
@@ -116,8 +122,7 @@ def encode_card(card: Card) -> torch.Tensor:
     is_debuffed = encode_bool(card.is_debuffed)
     is_face_down = encode_bool(card.is_face_down)
 
-    features = torch.cat([rank, suit, enhancement, seal, edition, extra_chips, is_debuffed, is_face_down])
-    return features.unsqueeze(0)
+    return torch.cat([rank, suit, enhancement, seal, edition, extra_chips, is_debuffed, is_face_down])
 
 SIZE_HAND_CARDS = [MAX_HAND_CARDS, SIZE_CARD]
 SIZE_DECK_CARDS = [MAX_DECK_CARDS, SIZE_CARD]
@@ -126,30 +131,33 @@ def encode_cards(cards: list[Card], max) -> torch.Tensor:
     for i in range(max):
         if i < len(cards):
             card = cards[i]
-            encoded.append(encode_card(card))
+            encoded.append(encode_card(card).unsqueeze(0))
         else:
             encoded.append(torch.zeros(1, SIZE_CARD))
 
     return torch.cat(encoded)
 
 SIZE_JOKER = len(JOKERS_TO_INDEX) + len(EDITION_TO_INDEX) + 7
+def encode_joker(joker: BalatroJoker) -> torch.FloatTensor:
+    type = one_hot(JOKERS_TO_INDEX, joker.__class__)
+    edition = one_hot(EDITION_TO_INDEX, joker.edition)
+    is_eternal = encode_bool(joker.is_eternal)
+    is_perishable = encode_bool(joker.is_perishable)
+    is_rental = encode_bool(joker.is_rental)
+    is_debuffed = encode_bool(joker.is_debuffed)
+    is_flipped = encode_bool(joker.is_flipped)
+    num_perishable_rounds_left = encode_int(joker.num_perishable_rounds_left)
+    extra_sell_value = encode_int(joker._extra_sell_value)
+
+    return torch.cat([type, edition, is_eternal, is_perishable, is_rental, is_debuffed, is_flipped, num_perishable_rounds_left, extra_sell_value])
+
 SIZE_JOKERS = [MAX_JOKERS, SIZE_JOKER]
 def encode_jokers(jokers: list[BalatroJoker]) -> torch.FloatTensor:
     encoded = []
     for i in range(0, MAX_JOKERS):
         if i < len(jokers):
             joker = jokers[i]
-            type = one_hot(JOKERS_TO_INDEX, joker.__class__)
-            edition = one_hot(EDITION_TO_INDEX, joker.edition)
-            is_eternal = encode_bool(joker.is_eternal)
-            is_perishable = encode_bool(joker.is_perishable)
-            is_rental = encode_bool(joker.is_rental)
-            is_debuffed = encode_bool(joker.is_debuffed)
-            is_flipped = encode_bool(joker.is_flipped)
-            num_perishable_rounds_left = encode_int(joker.num_perishable_rounds_left)
-            extra_sell_value = encode_int(joker._extra_sell_value)
-
-            features = torch.cat([type, edition, is_eternal, is_perishable, is_rental, is_debuffed, is_flipped, num_perishable_rounds_left, extra_sell_value])
+            features = encode_joker(joker)
             encoded.append(features.unsqueeze(0))
         else:
             encoded.append(torch.zeros(1, SIZE_JOKER))
@@ -185,7 +193,54 @@ def encode_tags(tags: list[Tag]) -> torch.FloatTensor:
             encoded.append(torch.zeros(1, len(TAG_TO_INDEX)))
     return torch.cat(encoded)
 
-SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+SIZE_SHOP_PACK = len(PACK_TO_INDEX)
+SIZE_SHOP_VOUCHER = len(VOUCHER_TO_INDEX)
+def encode_enum_shop_item(enum:Any, dict: Dict[Any, int]) -> torch.FloatTensor:
+    return one_hot(dict, enum)
+
+SIZE_SHOP_CARD = 3 + max(SIZE_JOKER, SIZE_CONSUMABLE, SIZE_CARD)
+def encode_shop_card(card: BalatroJoker | Consumable | Card) -> torch.FloatTensor:
+    encoded = torch.zeros(SIZE_SHOP_CARD)
+    # one_hot encode type and append encoded type with padding
+    match card:
+        case BalatroJoker():
+            encoded[0] = 1.0
+            encoded_joker = encode_joker(card)
+            encoded[3:3+SIZE_JOKER] = encoded_joker
+        case Consumable():
+            encoded[1] = 1.0
+            encoded_consumable = encode_consumable(card)
+            encoded[3:3+SIZE_CONSUMABLE] = encoded_consumable
+        case Card():
+            encoded[2] = 1.0
+            encoded_card = encode_card(card)
+            encoded[3:3+SIZE_CARD] = encoded_card
+        case _:
+            raise Exception("wrong type")
+
+    return encoded
+
+SIZE_SHOP_PACKS = [MAX_SHOP_PACKS, SIZE_SHOP_PACK + 1]
+SIZE_SHOP_VOUCHERS = [MAX_SHOP_VOUCHERS, SIZE_SHOP_VOUCHER + 1]
+SIZE_SHOP_CARDS = [MAX_SHOP_CARDS, SIZE_SHOP_CARD + 1]
+def encode_shop_items(items: list[tuple[Any, int]] | None, fn, element_size: int, max: int, dict: Dict[Any, int] | None = None) -> torch.FloatTensor:
+    if items is None:
+        return torch.zeros(max, element_size + 1)
+    else:
+        out = []
+        for i in range(max):
+            if i < len(items):
+                item = items[i]
+                inner_encoded = fn(item[0]) if dict is None else fn(item[0], dict)
+                int_encoded = encode_int(item[1])
+                encoded = torch.cat([inner_encoded, int_encoded]).unsqueeze(0)
+                out.append(encoded)
+            else:
+                out.append(torch.zeros(1, element_size + 1))
+        return torch.cat(out)
+
+
+SIZE_ENCODED = 9 + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     ante = encode_int(run.ante)
     ante_tags = encode_ante_tags(run.ante_tags)
@@ -205,7 +260,9 @@ def encode(run: Run) -> torch.FloatTensor:
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
     round = encode_int(run.round)
     round_score = torch.tensor([run.round_score], dtype=torch.float32)
-    # TODO: shop_{cards, packs, vouchers}
+    shop_cards = encode_shop_items(run.shop_cards, encode_shop_card, SIZE_SHOP_CARD, MAX_SHOP_CARDS)
+    shop_vouchers = encode_shop_items(run.shop_vouchers, encode_enum_shop_item, SIZE_SHOP_VOUCHER, MAX_SHOP_VOUCHERS, VOUCHER_TO_INDEX)
+    shop_packs = encode_shop_items(run.shop_packs, encode_enum_shop_item, SIZE_SHOP_PACK, MAX_SHOP_PACKS, PACK_TO_INDEX)
     stake = one_hot(STAKE_TO_INDEX, run.stake)
     state = one_hot(STATE_TO_INDEX, run.state)
     tags = encode_tags(run.tags)
@@ -213,8 +270,9 @@ def encode(run: Run) -> torch.FloatTensor:
 
     parts = [ante, ante_tags.view(-1), blind, blind_reward, boss_blind,
         consumable_slots, consumables.view(-1), hand_cards.view(-1),
-        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money, poker_hand_info.view(-1),
-        reroll_cost, round, round_score, stake, state, tags.view(-1), vouchers]
+        deck_cards_left.view(-1), discards, hands, jokers.view(-1), money,
+        poker_hand_info.view(-1), reroll_cost, round, round_score, shop_cards.view(-1),
+        shop_vouchers.view(-1), shop_packs.view(-1), stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
     assert len(encoded) == SIZE_ENCODED
     return encoded
