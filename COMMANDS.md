@@ -20,7 +20,7 @@ run.reroll_boss_blind()
 # Play a Hand (Order is 4th card, 2nd, 3rd, 8th and 6th in Hand)
 run.play_hand([3, 1, 2, 7, 5])
 # Discard a Hand (First four cards here)
-run.discard([0, 1, 2, 3]) 
+run.discard([0, 1, 2, 3])
 # Once the required score is reached, cash out and enter shop
 run.cash_out()
 ```
@@ -32,7 +32,7 @@ run.move_joker(0, 1)
 # Sell Joker (1st gets sold)
 run.sell_joker(0)
 # Use consumable (This also works outside of a round for most, in this example
-# the consumable in the first slot gets used and does something to the 6th and 1st card. 
+# the consumable in the first slot gets used and does something to the 6th and 1st card.
 # For most consumables you do not have to specify the cards)
 run.use_consumable(0, [5, 0])
 # Sell consumable (1st gets sold)

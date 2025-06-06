@@ -248,17 +248,24 @@ def encode(run: Run) -> torch.FloatTensor:
     blind = one_hot(BLIND_TO_INDEX, run.blind)
     blind_reward = encode_int(run.blind_reward)
     boss_blind = one_hot(BLIND_TO_INDEX, run.boss_blind)
+    # cash_out_total
     consumable_slots = encode_int(run.consumable_slots)
     consumables = encode_consumables(run.consumables)
     hand_cards = torch.zeros(SIZE_HAND_CARDS[0], SIZE_HAND_CARDS[1]) if run.hand is None else encode_cards(run.hand, MAX_HAND_CARDS)
     deck_cards_left = encode_cards(run.deck_cards_left, MAX_DECK_CARDS)
     discards = encode_int(run.discards)
+    # forced_selected_card_index
+    # hand_size
     hands = encode_int(0 if run.hands is None else run.hands)
     jokers = encode_jokers(run.jokers)
     money = encode_int(run.money)
+    # opened_pack
+    # pack_choices_left
+    # pack_items
     poker_hand_info = encode_poker_hand_info(run.poker_hand_info)
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
     round = encode_int(run.round)
+    round_goal = torch.tensor([0 if run.round_goal is None else run.round_goal])
     round_score = torch.tensor([run.round_score], dtype=torch.float32)
     shop_cards = encode_shop_items(run.shop_cards, encode_shop_card, SIZE_SHOP_CARD, MAX_SHOP_CARDS)
     shop_vouchers = encode_shop_items(run.shop_vouchers, encode_enum_shop_item, SIZE_SHOP_VOUCHER, MAX_SHOP_VOUCHERS, VOUCHER_TO_INDEX)
