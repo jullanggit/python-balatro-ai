@@ -9,7 +9,7 @@ MAX_HAND_CARDS = 20
 MAX_TAGS = 20
 MAX_SHOP_CARDS = 4
 MAX_SHOP_VOUCHERS = 5
-MAX_SHOP_PACKS = 5
+MAX_SHOP_PACKS = 2
 
 def _enum_to_index(enum_class) -> Dict:
     """
