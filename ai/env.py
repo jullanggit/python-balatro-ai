@@ -39,8 +39,7 @@ class BalatroEnv(EnvBase):
 
     def __init__(self, td_params=None, seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
-        self._seed = seed or torch.randint(0, 10000, (1,)).item()
-        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self._seed)
+        self.run = Run(Deck.RED, stake=Stake.WHITE) if seed is None else Run(Deck.RED, stake=Stake.WHITE, seed=seed)
         self.observation_spec = Composite(
             observation=torch.empty(9645, dtype=torch.float32)
         )
