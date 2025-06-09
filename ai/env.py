@@ -90,10 +90,10 @@ class BalatroEnv(EnvBase):
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         action = tensordict["action"]
-        action_type = action[0].item()
-        param1_mask = action[1].squeeze().to(torch.bool)
+        action_type = action["action_type"].item()
+        param1_mask = action["param1"].squeeze().to(torch.bool)
         param1 = torch.arange(PARAM1_LENGTH)[param1_mask].tolist()
-        param2_mask = action[2].squeeze().to(torch.bool)
+        param2_mask = action["param2"].squeeze().to(torch.bool)
         param2 = torch.arange(PARAM2_LENGTH)[param2_mask].tolist()
 
         try:
