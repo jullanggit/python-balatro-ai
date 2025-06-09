@@ -96,6 +96,7 @@ class BalatroEnv(EnvBase):
         param2_mask = action["param2"].squeeze().to(torch.bool)
         param2 = torch.arange(PARAM2_LENGTH)[param2_mask].tolist()
 
+        # TODO: handle incorrect actions/params (with negative reward)
         try:
             if action_type == ActionType.SELECT_BLIND.value:
                 self.run.select_blind()
@@ -137,6 +138,7 @@ class BalatroEnv(EnvBase):
             print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
 
         obs = encode(self.run)
+        # TODO: actually do this
         reward = torch.tensor([0.0])
         done = torch.zeros(1, dtype=torch.bool)
 
