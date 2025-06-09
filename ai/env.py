@@ -43,7 +43,8 @@ class BalatroEnv(EnvBase):
 
     def __init__(self, td_params=None, seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
-        self.run = Run(Deck.RED, stake=Stake.WHITE) if seed is None else Run(Deck.RED, stake=Stake.WHITE, seed=seed)
+        self.seed = seed
+        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=seed)
         self.observation_spec = Composite(
             observation=torch.empty(SIZE_ENCODED, dtype=torch.float32)
         )
@@ -75,7 +76,7 @@ class BalatroEnv(EnvBase):
         )
 
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
-        self.run = Run(Deck.RED, stake=Stake.WHITE)
+        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
         obs = encode(self.run)
         return TensorDict(
             {
