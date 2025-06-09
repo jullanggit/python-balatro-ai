@@ -9,7 +9,7 @@ from tensordict.nn import TensorDictModule
 from torch import nn
 from enum import Enum
 from encode import *
-from torchrl.data import Composite, Categorical
+from torchrl.data import Composite, Categorical, Binary
 from torchrl.envs import (
     EnvBase,
 )
@@ -34,6 +34,10 @@ class ActionType(Enum):
     CHOOSE_PACK_ITEM = 15
     SKIP_PACK = 16
 
+# see __init__ for an explanation
+PARAM1_LENGTH = max(MAX_HAND_CARDS, MAX_JOKERS, MAX_CONSUMABLES, MAX_SHOP_CARDS, MAX_SHOP_VOUCHERS, MAX_SHOP_PACKS) # TODO: add MAX_PACK_ITEMS to max()
+PARAM2_LENGTH = max(MAX_JOKERS, 2, 1)
+
 class BalatroEnv(EnvBase):
     batch_locked = False
 
@@ -41,13 +45,25 @@ class BalatroEnv(EnvBase):
         super().__init__(device=device, batch_size=[])
         self.run = Run(Deck.RED, stake=Stake.WHITE) if seed is None else Run(Deck.RED, stake=Stake.WHITE, seed=seed)
         self.observation_spec = Composite(
-            observation=torch.empty(9645, dtype=torch.float32)
+            observation=torch.empty(SIZE_ENCODED, dtype=torch.float32)
         )
         self.action_spec = Composite(
             {
-                "action_type": Categorical(17, shape=(1,), dtype=torch.int64),
-                "param1": Categorical(20, shape=(1,), dtype=torch.int64),
-                "param2": Categorical(20, shape=(1,), dtype=torch.int64),
+                "action_type": Categorical(len(ActionType)),
+                # used as index/indices for:
+                #   hand cards (play_hand/discard)
+                #   jokers (move_joker/sell_joker)
+                #   consumables (use_consumable/sell_consumable)
+                #   shop slots (buy_shop_card)
+                #   shop vouchers (redeem_shop_voucher)
+                #   shop packs (open_shop_pack)
+                #   pack choices (choose_pack_item)
+                "param1": Binary(PARAM1_LENGTH),
+                # used as index/indices for:
+                #   jokers (move_joker)
+                #   consumable arguments (use_consumable)
+                #   whether a bought shop item should be used
+                "param2": Binary(PARAM2_LENGTH), # longest is useconsumable, which's second param has a max length of 2
             }
         )
         self.reward_spec = Composite(
@@ -74,8 +90,10 @@ class BalatroEnv(EnvBase):
     def _step(self, tensordict: TensorDict) -> TensorDict:
         action = tensordict["action"]
         action_type = action[0].item()
-        param1 = action[1].item()
-        param2 = action[2].item()
+        param1_mask = action[1].squeeze().to(torch.bool)
+        param1 = torch.arange(PARAM1_LENGTH)[param1_mask].tolist()
+        param2_mask = action[2].squeeze().to(torch.bool)
+        param2 = torch.arange(PARAM2_LENGTH)[param2_mask].tolist()
 
         try:
             if action_type == ActionType.SELECT_BLIND.value:
@@ -85,31 +103,31 @@ class BalatroEnv(EnvBase):
             elif action_type == ActionType.REROLL_BOSS_BLIND.value:
                 self.run.reroll_boss_blind()
             elif action_type == ActionType.PLAY_HAND.value:
-                self.run.play_hand([param1, param2])
+                self.run.play_hand(param1)
             elif action_type == ActionType.DISCARD_HAND.value:
-                self.run.discard([param1, param2])
+                self.run.discard(param1)
             elif action_type == ActionType.CASH_OUT.value:
                 self.run.cash_out()
             elif action_type == ActionType.MOVE_JOKER.value:
-                self.run.move_joker(param1, param2)
+                self.run.move_joker(param1[0], param2[0])
             elif action_type == ActionType.SELL_JOKER.value:
-                self.run.sell_joker(param1)
+                self.run.sell_joker(param1[0])
             elif action_type == ActionType.USE_CONSUMABLE.value:
-                self.run.use_consumable(param1, [param2])
+                self.run.use_consumable(param1[0], param2)
             elif action_type == ActionType.SELL_CONSUMABLE.value:
-                self.run.sell_consumable(param1)
+                self.run.sell_consumable(param1[0])
             elif action_type == ActionType.BUY_SHOP_CARD.value:
-                self.run.buy_shop_card(param1, bool(param2))
+                self.run.buy_shop_card(param1[0], bool(param2))
             elif action_type == ActionType.REDEEM_SHOP_VOUCHER.value:
-                self.run.redeem_shop_voucher(param1)
+                self.run.redeem_shop_voucher(param1[0])
             elif action_type == ActionType.OPEN_SHOP_PACK.value:
-                self.run.open_shop_pack(param1)
+                self.run.open_shop_pack(param1[0])
             elif action_type == ActionType.REROLL.value:
                 self.run.reroll()
             elif action_type == ActionType.NEXT_ROUND.value:
                 self.run.next_round()
             elif action_type == ActionType.CHOOSE_PACK_ITEM.value:
-                self.run.choose_pack_item(param1)
+                self.run.choose_pack_item(param1[0])
             elif action_type == ActionType.SKIP_PACK.value:
                 self.run.skip_pack()
             else:
