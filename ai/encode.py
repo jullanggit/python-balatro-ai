@@ -240,7 +240,7 @@ def encode_shop_items(items: list[tuple[Any, int]] | None, fn, element_size: int
         return torch.cat(out)
 
 
-SIZE_ENCODED = 16 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+SIZE_ENCODED = 17 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     available_money = encode_int(run._available_money)
     discards_per_round = encode_int(run._discards_per_round)
@@ -265,7 +265,7 @@ def encode(run: Run) -> torch.FloatTensor:
     jokers = encode_jokers(run.jokers)
     money = encode_int(run.money)
     # opened_pack
-    pack_choices_left = encode_int(0 if run.hands is None else run.pack_choices_left)
+    pack_choices_left = encode_int(0 if run.pack_choices_left is None else run.pack_choices_left)
     # pack_items
     poker_hand_info = encode_poker_hand_info(run.poker_hand_info)
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
@@ -287,5 +287,7 @@ def encode(run: Run) -> torch.FloatTensor:
         pack_choices_left, poker_hand_info.view(-1), reroll_cost, round, round_goal, round_score, shop_cards.view(-1),
         shop_vouchers.view(-1), shop_packs.view(-1), stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
+    # print(len(encoded))
+    # print(SIZE_ENCODED)
     assert len(encoded) == SIZE_ENCODED
     return encoded
