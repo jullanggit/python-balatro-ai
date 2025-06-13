@@ -10,6 +10,7 @@ MAX_TAGS = 20
 MAX_SHOP_CARDS = 4
 MAX_SHOP_VOUCHERS = 5
 MAX_SHOP_PACKS = 2
+MAX_PACK_ITEMS = 5
 
 def _enum_to_index(enum_class) -> Dict:
     """
@@ -173,7 +174,6 @@ def encode_poker_hand_info(info: dict[PokerHand, list[int]]) -> torch.FloatTenso
 
     return encoded
 
-
 def multi_hot(lookup: Dict, elements: set) -> torch.FloatTensor:
     """
     returns a multi-hot Tensor with the length of the lookup Dict
@@ -239,8 +239,20 @@ def encode_shop_items(items: list[tuple[Any, int]] | None, fn, element_size: int
                 out.append(torch.zeros(1, element_size + 1))
         return torch.cat(out)
 
+SIZE_PACK_ITEMS = (MAX_PACK_ITEMS, SIZE_SHOP_CARD)
+def encode_pack_items(pack_items: list[BalatroJoker | Consumable | Card]) -> torch.FloatTensor:
+    encoded = []
+    for i in range(MAX_PACK_ITEMS):
+        if i < len(pack_items):
+            item = pack_items[i]
+            encoded.append(encode_shop_card(item).unsqueeze(0))
+        else:
+            encoded.append(torch.zeros(1, SIZE_SHOP_CARD))
+    return torch.cat(encoded)
 
-SIZE_ENCODED = 17 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+
+
+SIZE_ENCODED = 17 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(PACK_TO_INDEX) + SIZE_PACK_ITEMS[0]*SIZE_PACK_ITEMS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
     available_money = encode_int(run._available_money)
     discards_per_round = encode_int(run._discards_per_round)
@@ -264,9 +276,9 @@ def encode(run: Run) -> torch.FloatTensor:
     joker_slots = encode_int(run.joker_slots)
     jokers = encode_jokers(run.jokers)
     money = encode_int(run.money)
-    # opened_pack
+    opened_pack = torch.zeros(len(PACK_TO_INDEX)) if run.opened_pack is None else one_hot(PACK_TO_INDEX, run.opened_pack)
     pack_choices_left = encode_int(0 if run.pack_choices_left is None else run.pack_choices_left)
-    # pack_items
+    pack_items = torch.zeros(SIZE_PACK_ITEMS) if run.pack_items is None else encode_pack_items(run.pack_items)
     poker_hand_info = encode_poker_hand_info(run.poker_hand_info)
     reroll_cost = encode_int(0 if run.reroll_cost is None else run.reroll_cost)
     round = encode_int(run.round)
@@ -283,8 +295,9 @@ def encode(run: Run) -> torch.FloatTensor:
     parts = [available_money, discards_per_round, hands_per_round, most_played_hand,
         ante, ante_tags.view(-1), blind, blind_reward, boss_blind, cash_out_total, consumable_slots,
         consumables.view(-1), hand_cards.view(-1), deck_cards_left.view(-1),
-        discards, forced_selected_card_index, hand_size, hands, joker_slots, jokers.view(-1), money,
-        pack_choices_left, poker_hand_info.view(-1), reroll_cost, round, round_goal, round_score, shop_cards.view(-1),
+        discards, forced_selected_card_index, hand_size, hands, joker_slots,
+        jokers.view(-1), money, opened_pack, pack_choices_left, pack_items.view(-1),
+        poker_hand_info.view(-1), reroll_cost, round, round_goal, round_score, shop_cards.view(-1),
         shop_vouchers.view(-1), shop_packs.view(-1), stake, state, tags.view(-1), vouchers]
     encoded = torch.cat(parts, dim=0)
     # print(len(encoded))
