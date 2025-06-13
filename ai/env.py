@@ -8,6 +8,7 @@ from torchrl.envs import (
     EnvBase,
 )
 from balatro import Deck, Stake, Run
+import math
 
 class ActionType(Enum):
     SELECT_BLIND = 0
@@ -101,7 +102,22 @@ class BalatroEnv(EnvBase):
             elif action_type == ActionType.REROLL_BOSS_BLIND.value:
                 self.run.reroll_boss_blind()
             elif action_type == ActionType.PLAY_HAND.value:
+                blind = self.run.blind
                 self.run.play_hand(param1)
+                if self.run.state != State.PLAYING_BLIND:
+                    # calculate score-based reward
+                    score_reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
+                    # if round won
+                    if self.run.state == State.CASHING_OUT:
+                        # add blind reward
+                        if blind == Blind.SMALL_BLIND:
+                            score_reward += 10
+                        elif blind == Blind.BIG_BLIND:
+                            score_reward += 15
+                        # boss blind
+                        else
+                            score_reward += 20
+                    reward = torch.tensor([score_reward])
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)
             elif action_type == ActionType.CASH_OUT.value:
