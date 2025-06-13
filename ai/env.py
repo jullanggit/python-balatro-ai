@@ -69,6 +69,7 @@ class BalatroEnv(EnvBase):
             done=torch.empty(1, dtype=torch.bool),
             terminated=torch.empty(1, dtype=torch.bool),
         )
+        self.total_reward = 0.0
 
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
         self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
@@ -91,7 +92,7 @@ class BalatroEnv(EnvBase):
         param2_mask = action["param2"].squeeze().to(torch.bool)
         param2 = torch.arange(PARAM2_LENGTH)[param2_mask].tolist()
 
-        reward = torch.tensor([0.0])
+        reward: float = 0.0
 
         # TODO: handle incorrect actions/params (with negative reward)
         try:
@@ -106,18 +107,17 @@ class BalatroEnv(EnvBase):
                 self.run.play_hand(param1)
                 if self.run.state != State.PLAYING_BLIND:
                     # calculate score-based reward
-                    score_reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
+                    reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
                     # if round won
                     if self.run.state == State.CASHING_OUT:
                         # add blind reward
                         if blind == Blind.SMALL_BLIND:
-                            score_reward += 10
+                            reward += 10.0
                         elif blind == Blind.BIG_BLIND:
-                            score_reward += 15
+                            reward += 15.0
                         # boss blind
                         else
-                            score_reward += 20
-                    reward = torch.tensor([score_reward])
+                            reward += 20.0
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)
             elif action_type == ActionType.CASH_OUT.value:
@@ -147,20 +147,25 @@ class BalatroEnv(EnvBase):
             else:
                 print(f"[WARNING] Unknown action_type: {action_type}")
                 # negative reward for illegal choice
-                reward = torch.tensor([-5])
+                reward = -5.0
         except Exception as e:
             # negative reward for illegal choice
             print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
-            reward = torch.tensor([-5])
+            reward = -5.0
 
         obs = encode(self.run)
         # TODO: actually do this
         done = torch.zeros(1, dtype=torch.bool)
 
+        self.total_reward += reward
+        # double total_reward on win
+        if self.run.ante == 9:
+           reward += self.total_reward
+
         return TensorDict(
             {
                 "observation": obs,
-                "reward": reward,
+                "reward": torch.tensor([reward]),
                 "done": done,
                 "terminated": done,
             },
