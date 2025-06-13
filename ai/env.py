@@ -154,20 +154,20 @@ class BalatroEnv(EnvBase):
             reward = -5.0
 
         obs = encode(self.run)
-        # TODO: actually do this
-        done = torch.zeros(1, dtype=torch.bool)
+        done = False
 
         self.total_reward += reward
         # double total_reward on win
         if self.run.ante == 9:
            reward += self.total_reward
+           done = True
 
         return TensorDict(
             {
                 "observation": obs,
                 "reward": torch.tensor([reward]),
-                "done": done,
-                "terminated": done,
+                "done": torch.tensor([done], dtype=torch.bool),
+                "terminated": torch.tensor([done], dtype=torch.bool),
             },
             batch_size=[],
         )
