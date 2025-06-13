@@ -2,12 +2,15 @@ import torch
 from tensordict import TensorDict, TensorDictBase
 from torch import nn
 from enum import Enum
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from encode import *
 from torchrl.data import Composite, Categorical, Binary
 from torchrl.envs import (
     EnvBase,
 )
-from balatro import Deck, Stake, Run
+from balatro import Deck, Stake, Run, Blind, State
 import math
 
 class ActionType(Enum):
@@ -116,7 +119,7 @@ class BalatroEnv(EnvBase):
                         elif blind == Blind.BIG_BLIND:
                             reward += 15.0
                         # boss blind
-                        else
+                        else:
                             reward += 20.0
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)

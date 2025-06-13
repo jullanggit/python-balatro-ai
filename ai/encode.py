@@ -1,5 +1,8 @@
 from typing import Dict, Any
 import torch
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State, Voucher, Pack
 
 MAX_CONSUMABLES = 20

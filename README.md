@@ -1,12 +1,42 @@
 # python-balatro
 
-## AI
-- This project has been [forked](https://github.com/pjpuzzler/python-balatro) and is currently being extended with an AI
+## AI Training with PPO
+
+This project has been [forked](https://github.com/pjpuzzler/python-balatro) and extended with a complete **PPO (Proximal Policy Optimization)** training system for AI agents.
 
 ![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
+![AI](https://img.shields.io/badge/AI-PPO%20Ready-green)
 
-A Python implementation of the hit roguelike deckbuilder [**Balatro**](https://www.playbalatro.com) by LocalThunk. This project aims to capture the core gameplay mechanics of Balatro in an easy-to-use package so that developers can experiment with tasks such as machine learning.
+A Python implementation of the hit roguelike deckbuilder [**Balatro**](https://www.playbalatro.com) by LocalThunk. This project captures the core gameplay mechanics of Balatro and provides a complete reinforcement learning environment for training AI agents.
+
+### 🤖 AI Features
+
+- **Complete PPO Implementation**: Based on CleanRL with full training pipeline
+- **Complex Action Space**: Handles 17 action types with multi-parameter selection
+- **Rich State Representation**: ~10,500 dimensional game state encoding
+- **Parallel Training**: Multi-environment support for efficient learning
+- **Advanced Rewards**: Sophisticated reward engineering for strategic play
+- **Model Evaluation**: Comprehensive testing and analysis tools
+
+### 🚀 Quick Start - AI Training
+
+```bash
+# Install dependencies
+pip install torch tensordict torchrl numpy tensorboard
+
+# Test setup
+cd ai && python test_basic_setup.py
+
+# Start training
+python ppo_balatro.py --total-timesteps 500000 --num-envs 4
+
+# Evaluate trained model  
+python evaluate_ppo.py models/ppo_balatro_1000.pth --episodes 10
+```
+
+📖 **Complete Setup Guide**: See [`SETUP_PPO.md`](SETUP_PPO.md) for detailed instructions
+📚 **AI Documentation**: See [`ai/README.md`](ai/README.md) for technical details
 
 **Note:** This is a work in progress. While the majority of core features are functional, there are likely bugs and things left to be tested.
 
