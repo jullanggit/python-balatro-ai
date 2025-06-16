@@ -7,6 +7,7 @@ from torchrl.data import Composite, Categorical, Binary
 from torchrl.envs import (
     EnvBase,
 )
+from torchrl.data.tensor_specs import UnboundedContinuous
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -44,33 +45,39 @@ class BalatroEnv(EnvBase):
         self.seed = seed
         self.run = Run(Deck.RED, stake=Stake.WHITE, seed=seed)
         self.observation_spec = Composite(
-            observation=torch.empty(SIZE_ENCODED, dtype=torch.float32)
+             observation=UnboundedContinuous(
+                 shape=(SIZE_ENCODED,),
+                 device=device,
+                 dtype=torch.float32,
+             )
         )
         self.action_spec = Composite(
-            {
-                "action_type": Categorical(len(ActionType)),
-                # used as index/indices for:
-                #   hand cards (play_hand/discard)
-                #   jokers (move_joker/sell_joker)
-                #   consumables (use_consumable/sell_consumable)
-                #   shop slots (buy_shop_card)
-                #   shop vouchers (redeem_shop_voucher)
-                #   shop packs (open_shop_pack)
-                #   pack choices (choose_pack_item)
-                "param1": Binary(PARAM1_LENGTH),
-                # used as index/indices for:
-                #   jokers (move_joker)
-                #   consumable arguments (use_consumable)
-                #   whether a bought shop item should be used
-                "param2": Binary(PARAM2_LENGTH), # longest is useconsumable, which's second param has a max length of 2
-            }
+            action_type = Categorical(len(ActionType)),
+            # used as index/indices for:
+            #   hand cards (play_hand/discard)
+            #   jokers (move_joker/sell_joker)
+            #   consumables (use_consumable/sell_consumable)
+            #   shop slots (buy_shop_card)
+            #   shop vouchers (redeem_shop_voucher)
+            #   shop packs (open_shop_pack)
+            #   pack choices (choose_pack_item)
+            param1 = Binary(PARAM1_LENGTH),
+            # used as index/indices for:
+            #   jokers (move_joker)
+            #   consumable arguments (use_consumable)
+            #   whether a bought shop item should be used
+            param2 = Binary(PARAM2_LENGTH), # longest is useconsumable, which's second param has a max length of 2
         )
         self.reward_spec = Composite(
-            reward=torch.empty(1)
+            reward=UnboundedContinuous(
+                shape=(1,),
+                device=device,
+                dtype=torch.float32,
+            )
         )
         self.done_spec = Composite(
-            done=torch.empty(1, dtype=torch.bool),
-            terminated=torch.empty(1, dtype=torch.bool),
+            done=Binary(1),
+            terminated=Binary(1)
         )
         self.total_reward = 0.0
 
@@ -119,7 +126,7 @@ class BalatroEnv(EnvBase):
                         elif blind == Blind.BIG_BLIND:
                             reward += 15.0
                         # boss blind
-                        else
+                        else:
                             reward += 20.0
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)

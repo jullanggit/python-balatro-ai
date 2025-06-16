@@ -1,4 +1,4 @@
-# This file is a modified version of the ppo file from CleanRL (https://github.com/vwxyzjn/cleanrl) and is licensed under the MIT License
+# This file is a modified version of the ppo implementation from CleanRL (https://github.com/vwxyzjn/cleanrl) and is licensed under the MIT License
 #
 # MIT License
 #
@@ -27,17 +27,18 @@ import random
 import time
 from dataclasses import dataclass
 
-import gymnasium as gym
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from env import BalatroEnv
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchrl.envs import ParallelEnv
 import tyro
 from torch.distributions.categorical import Categorical
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
 
 @dataclass
@@ -54,14 +55,12 @@ class Args:
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "cleanRL"
     """the wandb's project name"""
-    wandb_entity: str = None
+    wandb_entity: str | None = None
     """the entity (team) of wandb's project"""
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
     # Algorithm specific arguments
-    env_id: str = "CartPole-v1"
-    """the id of the environment"""
     total_timesteps: int = 500000
     """total timesteps of the experiments"""
     learning_rate: float = 2.5e-4
@@ -92,7 +91,7 @@ class Args:
     """coefficient of the value function"""
     max_grad_norm: float = 0.5
     """the maximum norm for the gradient clipping"""
-    target_kl: float = None
+    target_kl: float | None = None
     """the target KL divergence threshold"""
 
     # to be filled in runtime
@@ -102,19 +101,6 @@ class Args:
     """the mini-batch size (computed in runtime)"""
     num_iterations: int = 0
     """the number of iterations (computed in runtime)"""
-
-
-def make_env(env_id, idx, capture_video, run_name):
-    def thunk():
-        if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        else:
-            env = gym.make(env_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        return env
-
-    return thunk
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -157,24 +143,25 @@ if __name__ == "__main__":
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
-        import wandb
-
-        wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            monitor_gym=True,
-            save_code=True,
-        )
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    )
+    # TODO: maybe add back
+    # run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    # if args.track:
+    #     import wandb
+    #
+    #     wandb.init(
+    #         project=args.wandb_project_name,
+    #         entity=args.wandb_entity,
+    #         sync_tensorboard=True,
+    #         config=vars(args),
+    #         name=run_name,
+    #         monitor_gym=True,
+    #         save_code=True,
+    #     )
+    # writer = SummaryWriter(f"runs/{run_name}")
+    # writer.add_text(
+    #     "hyperparameters",
+    #     "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+    # )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -185,10 +172,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, i, args.capture_video, run_name) for i in range(args.num_envs)],
-    )
-    assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
+    env_fns = [
+        # each fn returns a fresh BalatroEnv
+        lambda seed=args.seed + i, device=device: BalatroEnv(seed=seed, device=device)
+        for i in range(args.num_envs)
+    ]
+    envs = ParallelEnv(args.num_envs, env_fns)
 
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
@@ -237,8 +226,8 @@ if __name__ == "__main__":
                 for info in infos["final_info"]:
                     if info and "episode" in info:
                         print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                        writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                        writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                        # writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+                        # writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
 
         # bootstrap value if not done
         with torch.no_grad():
@@ -323,16 +312,16 @@ if __name__ == "__main__":
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
-        writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-        writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-        writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
-        writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
-        writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
-        writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-        writer.add_scalar("losses/explained_variance", explained_var, global_step)
+        # writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
+        # writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
+        # writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
+        # writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
+        # writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
+        # writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
+        # writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
+        # writer.add_scalar("losses/explained_variance", explained_var, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
-        writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+        # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     envs.close()
-    writer.close()
+    # writer.close()
