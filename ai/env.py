@@ -7,6 +7,9 @@ from torchrl.data import Composite, Categorical, Binary
 from torchrl.envs import (
     EnvBase,
 )
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from balatro import Deck, Stake, Run
 import math
 
