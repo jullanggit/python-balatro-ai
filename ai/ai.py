@@ -36,8 +36,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchrl.envs import ParallelEnv
+from torchrl.data import Composite, Categorical, Binary
 import tyro
-from torch.distributions.categorical import Categorical
+from tensordict import TensorDict, TensorDictBase
 # from torch.utils.tensorboard import SummaryWriter
 
 
@@ -111,31 +112,61 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 class Agent(nn.Module):
     def __init__(self, envs):
+        HIDDEN_SIZE = 512
         super().__init__()
-        self.critic = nn.Sequential(
-            layer_init(nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
+        self.shared = nn.Sequential(
+            layer_init(nn.Linear(np.array(envs.observation_spec["observation"].shape).prod(), HIDDEN_SIZE)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
+            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
             nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
         )
-        self.actor = nn.Sequential(
-            layer_init(nn.Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
-        )
+        self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
+
+        # actor heads
+        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["action_type"].n), std=0.01)
+        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["param1"].n), std=0.01)
+        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["param2"].n), std=0.01)
 
     def get_value(self, x):
-        return self.critic(x)
+        hidden = self.shared(x)
+        return self.critic(hidden)
 
-    def get_action_and_value(self, x, action=None):
-        logits = self.actor(x)
-        probs = Categorical(logits=logits)
+    def get_action_and_value(self, x, action: TensorDict | None = None):
+        shared = self.shared(x)
+
+        action_type_distribution = Categorical(logits=self.action_type_head(shared)) # TODO: maybe filter for valid actions here?
+        param1_distribution = Binary(logits=self.param1_head(shared))
+        param2_distribution = Binary(logits=self.param2_head(shared))
+
+        # sample if necessary
         if action is None:
-            action = probs.sample()
-        return action, probs.log_prob(action), probs.entropy(), self.critic(x)
+            action_type = action_type_distribution.sample()
+            param1 = param1_distribution.sample()
+            param2 = param2_distribution.sample()
+        else:
+            action_type = action["action_type"]
+            param1 = action["param1"]
+            param2 = action["param2"]
+
+        # calculate log probabilities
+        action_type_logprob = action_type_distribution.log_prob(action_type)
+        param1_logprob = param1_distribution.log_prob(param1).sum(dim=-1)
+        param2_logprob = param2_distribution.log_prob(param2).sum(dim=-1)
+        total_logprob = action_type_logprob + param1_logprob + param2_logprob
+
+        # calculate entropies
+        action_type_entropy = action_type_distribution.entropy()
+        param1_entropy = param1_distribution.entropy().sum(dim=-1)
+        param2_entropy = param2_distribution.entropy().sum(dim=-1)
+        total_entropy = action_type_entropy + param1_entropy + param2_entropy
+
+        sampled_action = {
+            "action_type": action_type,
+            "param1": param1,
+            "param2": param2,
+        }
+
+        return sampled_action, total_logprob, total_entropy, self.critic(shared)
 
 
 if __name__ == "__main__":
@@ -178,13 +209,14 @@ if __name__ == "__main__":
         for i in range(args.num_envs)
     ]
     envs = ParallelEnv(args.num_envs, env_fns)
+    next_td = envs.reset(seed=args.seed) # reset early to initialize envs
 
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
+    obs = torch.zeros((args.num_steps, args.num_envs) + envs.observation_spec["observation"].shape).to(device)
+    actions = torch.zeros((args.num_steps, args.num_envs) + envs.action_spec["action_type"].shape).to(device) # see if only action_type is required
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -193,8 +225,7 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
-    next_obs, _ = envs.reset(seed=args.seed)
-    next_obs = torch.Tensor(next_obs).to(device)
+    next_obs = torch.Tensor(next_td["observation"]).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
 
     for iteration in range(1, args.num_iterations + 1):
@@ -217,10 +248,10 @@ if __name__ == "__main__":
             logprobs[step] = logprob
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
+            next_td, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
             rewards[step] = torch.tensor(reward).to(device).view(-1)
-            next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
+            next_obs, next_done = torch.Tensor(next_td["observation"]).to(device), torch.Tensor(next_done).to(device)
 
             if "final_info" in infos:
                 for info in infos["final_info"]:
