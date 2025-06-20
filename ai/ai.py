@@ -40,6 +40,7 @@ from torchrl.data import Composite, Categorical, Binary
 import tyro
 from tensordict import TensorDict, TensorDictBase
 # from torch.utils.tensorboard import SummaryWriter
+from env import ActionType
 
 
 @dataclass
@@ -123,9 +124,12 @@ class Agent(nn.Module):
         self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
 
         # actor heads
-        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["action_type"].n), std=0.01)
-        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["param1"].n), std=0.01)
-        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE, envs.action_spec["param2"].n), std=0.01)
+        action_type_size = envs.action_spec["action_type"].n
+        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, action_type_size), std=0.01)
+        # param1 additionally takes the chosen action as input
+        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) , envs.action_spec["param1"].n), std=0.01)
+        # param2 additionally takes the chosen param1 as input
+        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) + envs.action_spec["param1"].n, envs.action_spec["param2"].n), std=0.01)
 
     def get_value(self, x):
         hidden = self.shared(x)
@@ -134,19 +138,21 @@ class Agent(nn.Module):
     def get_action_and_value(self, x, action: TensorDict | None = None):
         shared = self.shared(x)
 
+        # get and sample action type distribution, based on shared
         action_type_distribution = Categorical(logits=self.action_type_head(shared)) # TODO: maybe filter for valid actions here?
-        param1_distribution = Binary(logits=self.param1_head(shared))
-        param2_distribution = Binary(logits=self.param2_head(shared))
+        action_type = action_type_distribution.sample() if action is None else action["action_type"]
 
-        # sample if necessary
-        if action is None:
-            action_type = action_type_distribution.sample()
-            param1 = param1_distribution.sample()
-            param2 = param2_distribution.sample()
-        else:
-            action_type = action["action_type"]
-            param1 = action["param1"]
-            param2 = action["param2"]
+        # concatenate the chosen action type with the shared state
+        action_type_one_hot = torch.nn.functional.one_hot(action_type, num_classes=len(ActionType)).float()
+        action_shared = torch.cat([shared, action_type_one_hot])
+
+        # get and sample param1 distribution, based on shared + action type
+        param1_distribution = Binary(logits=self.param1_head(action_shared))
+        param1 = param1_distribution.sample() if action is None else action["param1"]
+
+        # get and sample param2 distribution, based on shared + action type + param1
+        param2_distribution = Binary(logits=self.param2_head(torch.cat([action_shared, param1])))
+        param2 = param2_distribution.sample() if action is None else action["param2"]
 
         # calculate log probabilities
         action_type_logprob = action_type_distribution.log_prob(action_type)
