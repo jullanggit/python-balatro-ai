@@ -35,12 +35,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical, Bernoulli
 from torchrl.envs import ParallelEnv
-from torchrl.data import Composite, Categorical, Binary
 import tyro
 from tensordict import TensorDict, TensorDictBase
 # from torch.utils.tensorboard import SummaryWriter
-from env import ActionType
+from env import ActionType, PARAM1_LENGTH, PARAM2_LENGTH
 
 
 @dataclass
@@ -116,7 +116,7 @@ class Agent(nn.Module):
         HIDDEN_SIZE = 512
         super().__init__()
         self.shared = nn.Sequential(
-            layer_init(nn.Linear(np.array(envs.observation_spec["observation"].shape).prod(), HIDDEN_SIZE)),
+            layer_init(nn.Linear(int(envs.observation_spec["observation"].shape[-1]), HIDDEN_SIZE)),
             nn.Tanh(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
             nn.Tanh(),
@@ -127,16 +127,16 @@ class Agent(nn.Module):
         action_type_size = envs.action_spec["action_type"].n
         self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, action_type_size), std=0.01)
         # param1 additionally takes the chosen action as input
-        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) , envs.action_spec["param1"].n), std=0.01)
+        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) , PARAM1_LENGTH), std=0.01)
         # param2 additionally takes the chosen param1 as input
-        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) + envs.action_spec["param1"].n, envs.action_spec["param2"].n), std=0.01)
+        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) + PARAM1_LENGTH, PARAM2_LENGTH), std=0.01)
 
     def get_value(self, x):
         hidden = self.shared(x)
         return self.critic(hidden)
 
-    def get_action_and_value(self, x, action: TensorDict | None = None):
-        shared = self.shared(x)
+    def get_action_and_value(self, observation, action: TensorDict | None = None):
+        shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
         action_type_distribution = Categorical(logits=self.action_type_head(shared)) # TODO: maybe filter for valid actions here?
@@ -144,14 +144,14 @@ class Agent(nn.Module):
 
         # concatenate the chosen action type with the shared state
         action_type_one_hot = torch.nn.functional.one_hot(action_type, num_classes=len(ActionType)).float()
-        action_shared = torch.cat([shared, action_type_one_hot])
+        action_shared = torch.cat([shared, action_type_one_hot], dim=1)
 
         # get and sample param1 distribution, based on shared + action type
-        param1_distribution = Binary(logits=self.param1_head(action_shared))
+        param1_distribution = Bernoulli(logits=self.param1_head(action_shared))
         param1 = param1_distribution.sample() if action is None else action["param1"]
 
         # get and sample param2 distribution, based on shared + action type + param1
-        param2_distribution = Binary(logits=self.param2_head(torch.cat([action_shared, param1])))
+        param2_distribution = Bernoulli(logits=self.param2_head(torch.cat([action_shared, param1], dim=1)))
         param2 = param2_distribution.sample() if action is None else action["param2"]
 
         # calculate log probabilities
@@ -221,8 +221,12 @@ if __name__ == "__main__":
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.observation_spec["observation"].shape).to(device)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.action_spec["action_type"].shape).to(device) # see if only action_type is required
+    obs = torch.zeros(args.num_steps, args.num_envs, envs.observation_spec["observation"].shape[-1]).to(device)
+    actions = {
+        "action_type": torch.zeros(args.num_steps, args.num_envs, dtype=torch.long, device=device),
+        "param1": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param1"].shape, dtype=torch.float32, device=device),
+        "param2": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param2"].shape, dtype=torch.float32, device=device),
+    }
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -248,13 +252,15 @@ if __name__ == "__main__":
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action, logprob, _, value = agent.get_action_and_value(next_obs)
+                action_td, logprob, _, value = agent.get_action_and_value(next_obs)
                 values[step] = value.flatten()
-            actions[step] = action
+            actions["action_type"][step] = action_td["action_type"]
+            actions["param1"][step] = action_td["param1"]
+            actions["param2"][step] = action_td["param2"]
             logprobs[step] = logprob
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_td, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
+            next_td, reward, terminations, truncations, infos = envs.step(action_td.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_td["observation"]).to(device), torch.Tensor(next_done).to(device)
