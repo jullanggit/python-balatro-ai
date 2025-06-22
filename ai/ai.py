@@ -120,6 +120,10 @@ class Agent(nn.Module):
             nn.SiLU(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
             nn.SiLU(),
+            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            nn.SiLU(),
+            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            nn.SiLU(),
         )
         self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
 
