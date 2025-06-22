@@ -289,12 +289,12 @@ if __name__ == "__main__":
             returns = advantages + values
 
         # flatten the batch
-        b_obs = obs.reshape((-1,) + envs.observation_spec["observation"].shape[-1])
+        b_obs = obs.reshape(-1, envs.observation_spec["observation"].shape[-1])
         b_logprobs = logprobs.reshape(-1)
         b_actions = {
             "action_type": actions["action_type"].reshape(-1),
-            "param1": actions["param1"].reshape(-1, *envs.action_spec["param1"].shape),
-            "param2": actions["param2"].reshape(-1, *envs.action_spec["param2"].shape),
+            "param1": actions["param1"].reshape(-1, envs.action_spec["param1"].shape[-1]),
+            "param2": actions["param2"].reshape(-1, envs.action_spec["param2"].shape[-1]),
         }
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
