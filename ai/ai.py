@@ -113,13 +113,13 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 class Agent(nn.Module):
     def __init__(self, envs):
-        HIDDEN_SIZE = 512
+        HIDDEN_SIZE = 1024
         super().__init__()
         self.shared = nn.Sequential(
             layer_init(nn.Linear(int(envs.observation_spec["observation"].shape[-1]), HIDDEN_SIZE)),
-            nn.Tanh(),
+            nn.SiLU(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
-            nn.Tanh(),
+            nn.SiLU(),
         )
         self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
 
@@ -238,6 +238,8 @@ if __name__ == "__main__":
     next_done = torch.zeros(args.num_envs).to(device)
 
     for iteration in range(1, args.num_iterations + 1):
+        update_start_time = time.time()
+
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
             frac = 1.0 - (iteration - 1.0) / args.num_iterations
@@ -380,6 +382,8 @@ if __name__ == "__main__":
         print("clipfrac:", np.mean(clipfracs), global_step)
         print("explained_variance:", explained_var, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
+        print("reward_per_step:", np.mean(rewards.cpu().numpy()) / args.num_steps, global_step)
+        print("update_time_sec:", time.time() - update_start_time, global_step)
         # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     envs.close()
