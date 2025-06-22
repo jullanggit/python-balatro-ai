@@ -35,8 +35,6 @@ class ActionType(Enum):
     CHOOSE_PACK_ITEM = 15
     SKIP_PACK = 16
 
-ACTION_TYPE_TO_INDEX = _enum_to_index(ActionType)
-
 # see __init__ for an explanation
 PARAM1_LENGTH = max(MAX_HAND_CARDS, MAX_JOKERS, MAX_CONSUMABLES, MAX_SHOP_CARDS, MAX_SHOP_VOUCHERS, MAX_SHOP_PACKS, MAX_PACK_ITEMS)
 PARAM2_LENGTH = max(MAX_JOKERS, 2, 1)
@@ -189,11 +187,11 @@ class BalatroEnv(EnvBase):
         self._seed = seed
         return seed
 
-    def get_legal_action_type(self) -> TensorDict:
+    def get_legal_action_type(self):
         """
         returns a mask for legal actions (1 = legal, 0 = illegal)
         """
-        move_and_sell = torch.zeros(len(ActionType), dtype=bool)
+        move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool)
         if len(self.run.jokers) > 0:
             add_action_type(move_and_sell, ActionType.SELL_JOKER)
         if len(self.run.jokers) > 1:
@@ -203,7 +201,7 @@ class BalatroEnv(EnvBase):
             add_action_type(move_and_sell, ActionType.USE_CONSUMABLE)
 
         if self.run.state == State.CASHING_OUT:
-            return torch.nn.functional.one_hot(ActionType.CASH_OUT, len(ActionType))
+            return torch.nn.functional.one_hot(ActionType.CASH_OUT, len(ActionType), dtype=torch.bool)
         elif self.run.state == State.IN_SHOP:
             in_shop = move_and_sell.detach().clone()
             if self.run.shop_cards is not None and len(self.run.shop_cards) > 0:
@@ -239,6 +237,39 @@ class BalatroEnv(EnvBase):
                 add_action_type(selecting_blind, ActionType.REROLL_BOSS_BLIND)
 
             return selecting_blind
+    def get_legal_param1(self, action: ActionType):
+        # used as index/indices for:
+        #   hand cards (play_hand/discard)
+        #   jokers (move_joker/sell_joker)
+        #   consumables (use_consumable/sell_consumable)
+        #   shop slots (buy_shop_card)
+        #   shop vouchers (redeem_shop_voucher)
+        #   shop packs (open_shop_pack)
+        #   pack choices (choose_pack_item)
+        if action == ActionType.PLAY_HAND or action == ActionType.DISCARD_HAND:
+            # TODO: handle force-selected card
+            len_hand_cards = len(self.run.hand)
+            return set_until(len_hand_cards, PARAM1_LENGTH)
+        elif action == ActionType.MOVE_JOKER or action == ActionType.SELL_JOKER:
+            # TODO: handle eternal jokers for selling
+            return set_until(len(self.run.jokers), PARAM1_LENGTH)
+        elif action == ActionType.USE_CONSUMABLE or action == ActionType.SELL_CONSUMABLE:
+            return set_until(len(self.run.consumables), PARAM1_LENGTH)
+        elif action == ActionType.BUY_SHOP_CARD:
+            mask = torch.zeros(PARAM1_LENGTH, dtype=torch.bool)
+            if self.run.shop_cards is not None:
+                for i, card in enumerate(self.run.shop_cards):
+                    _, cost = card
+                    if cost <= self.run._available_money:
+                        mask[i] = True
+            return mask
+
+
+def set_until(set_until, total_len):
+    mask = torch.zeros(total_len, dtype=torch.bool)
+    mask[:set_until] = True
+    return mask
+
 
 def add_action_type(mask, action_type: ActionType):
     mask[action_type.value] = True
