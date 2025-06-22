@@ -272,8 +272,10 @@ if __name__ == "__main__":
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 # get legal action types for all workers
-                legal_action_type_mask = torch.stack([e.get_legal_action_type() for e in envs.workers]).to(device)
+                legal_masks_list = envs.get_legal_action_type()
+                legal_action_type_mask = torch.stack(legal_masks_list, dim=0).to(device)
                 legal_action_type_masks[step] = legal_action_type_mask
+
                 action_td, logprob, _, value = agent.get_action_and_value(next_obs, legal_action_type_mask)
                 values[step] = value.flatten()
             actions["action_type"][step] = action_td["action_type"]

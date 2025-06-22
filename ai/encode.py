@@ -255,8 +255,9 @@ def encode_pack_items(pack_items: list[BalatroJoker | Consumable | Card]) -> tor
 
 
 
-SIZE_ENCODED = 17 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(PACK_TO_INDEX) + SIZE_PACK_ITEMS[0]*SIZE_PACK_ITEMS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
+SIZE_ENCODED = 18 + len(POKERHAND_TO_INDEX) + SIZE_ANTE_TAGS[0]*SIZE_ANTE_TAGS[1] + 2 * len(BLIND_TO_INDEX) + SIZE_CONSUMABLES[0]*SIZE_CONSUMABLES[1] + SIZE_HAND_CARDS[0]*SIZE_HAND_CARDS[1] + SIZE_DECK_CARDS[0]*SIZE_DECK_CARDS[1] + MAX_HAND_CARDS + SIZE_JOKERS[0]*SIZE_JOKERS[1] + len(PACK_TO_INDEX) + SIZE_PACK_ITEMS[0]*SIZE_PACK_ITEMS[1] + len(STAKE_TO_INDEX) + len(STATE_TO_INDEX) + SIZE_POKERHAND_INFO[0]*SIZE_POKERHAND_INFO[1] + SIZE_SHOP_CARDS[0]*SIZE_SHOP_CARDS[1] + SIZE_SHOP_PACKS[0]*SIZE_SHOP_PACKS[1] + SIZE_SHOP_VOUCHERS[0]*SIZE_SHOP_VOUCHERS[1] + SIZE_TAGS[0]*SIZE_TAGS[1] + len(VOUCHER_TO_INDEX)
 def encode(run: Run) -> torch.FloatTensor:
+    rerolled_boss_blind = encode_bool(run._rerolled_boss_blind)
     available_money = encode_int(run._available_money)
     discards_per_round = encode_int(run._discards_per_round)
     hands_per_round = encode_int(run._hands_per_round)
@@ -295,7 +296,7 @@ def encode(run: Run) -> torch.FloatTensor:
     tags = encode_tags(run.tags)
     vouchers = multi_hot(VOUCHER_TO_INDEX, run.vouchers)
 
-    parts = [available_money, discards_per_round, hands_per_round, most_played_hand,
+    parts = [rerolled_boss_blind, available_money, discards_per_round, hands_per_round, most_played_hand,
         ante, ante_tags.view(-1), blind, blind_reward, boss_blind, cash_out_total, consumable_slots,
         consumables.view(-1), hand_cards.view(-1), deck_cards_left.view(-1),
         discards, forced_selected_card_index, hand_size, hands, joker_slots,

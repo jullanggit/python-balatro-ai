@@ -235,14 +235,14 @@ class BalatroEnv(EnvBase):
             if self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND:
                 add_action_type(selecting_blind, ActionType.SKIP_BLIND)
 
-            if (Voucher.DIRECTORS_CUT in self._vouchers or (Voucher.RETCON in self._vouchers and not self._rerolled_boss_blind)) and self._available_money >= 10:
+            if (Voucher.DIRECTORS_CUT in self.run.vouchers or (Voucher.RETCON in self.run.vouchers and not self._rerolled_boss_blind)) and self._available_money >= 10:
                 add_action_type(selecting_blind, ActionType.REROLL_BOSS_BLIND)
 
             return selecting_blind
 
 def add_action_type(mask, action_type: ActionType):
-    mask[action_type].value = True
+    mask[action_type.value] = True
 
 def add_action_types(mask, action_type: set):
     for elem in action_type:
-        mask[elem].value = True
+        mask[elem.value] = True
