@@ -1,30 +1,38 @@
 #!/bin/bash
 
-INPUT=${1:-out}  # default to 'out' if no argument given
-
-# Get all metric names (lines starting with a word and a colon)
+INPUT=${1:-out}
 metrics=$(grep -oP '^\w+(?=:)' "$INPUT" | sort -u)
 
 for metric in $metrics; do
-    # Create a temp data file for gnuplot: "<step> <value>"
-    grep "^$metric" "$INPUT" | awk '{print $3, $2}' > "$metric.dat"
+    echo "Processing $metric..."
 
-    # Skip if data is empty
-    if [ ! -s "$metric.dat" ]; then
-        echo "No data for $metric, skipping..."
-        continue
-    fi
+    if [ "$metric" == "SPS" ]; then
+        # Count occurrences to use as x-axis (assuming 1:1 per line)
+        gnuplot -persist <<EOF
+set terminal pngcairo size 800,400
+set output "${metric}.png"
+set title "${metric} over Steps"
+set xlabel "Update"
+set ylabel "${metric}"
+plot "< grep '^SPS:' '$INPUT' | awk '{print NR, \$2}'" with linespoints title "${metric}"
+EOF
+    else
+        # Skip empty data
+        data=$(grep "^$metric" "$INPUT" | awk '{if (NF >= 3) print $3, $2}')
+        if [ -z "$data" ]; then
+            echo "Skipping $metric (no data)"
+            continue
+        fi
 
-    # Generate PNG plot using gnuplot
-    gnuplot <<EOF
+        # Normal case with <step> <value>
+        gnuplot -persist <<EOF
 set terminal pngcairo size 800,400
 set output "${metric}.png"
 set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
-set datafile separator whitespace
-plot "${metric}.dat" with linespoints title "${metric}"
+plot "< grep '^$metric' '$INPUT' | awk '{print \$3, \$2}'" with linespoints title "${metric}"
 EOF
-
-    echo "Saved plot: ${metric}.png"
+    fi
 done
+
