@@ -149,11 +149,13 @@ class Agent(nn.Module):
         hidden = self.shared(x)
         return self.value_head(hidden)
 
-    def get_action_and_value(self, observation, action: TensorDict | None = None):
+    def get_action_and_value(self, observation, legal_action_type_mask, action: TensorDict | None = None):
         shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
-        action_type_distribution = Categorical(logits=self.action_type_head(shared)) # TODO: maybe filter for valid actions here?
+        action_type_logits = self.action_type_head(shared)
+        masked_logits = action_type_logits.masked_fill(~legal_action_type_mask, float('-inf'))
+        action_type_distribution = Categorical(logits=masked_logits)
         action_type = action_type_distribution.sample() if action is None else action["action_type"]
 
         # concatenate the chosen action type with the shared state
@@ -241,6 +243,7 @@ if __name__ == "__main__":
         "param1": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param1"].shape, dtype=torch.float32, device=device),
         "param2": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param2"].shape, dtype=torch.float32, device=device),
     }
+    legal_action_type_masks = torch.zeros((args.num_steps, args.num_envs, len(ActionType)), dtype=torch.bool, device=device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -268,7 +271,10 @@ if __name__ == "__main__":
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                action_td, logprob, _, value = agent.get_action_and_value(next_obs)
+                # get legal action types for all workers
+                legal_action_type_mask = torch.stack([e.get_legal_action_type() for e in envs.workers]).to(device)
+                legal_action_type_masks[step] = legal_action_type_mask
+                action_td, logprob, _, value = agent.get_action_and_value(next_obs, legal_action_type_mask)
                 values[step] = value.flatten()
             actions["action_type"][step] = action_td["action_type"]
             actions["param1"][step] = action_td["param1"]
@@ -313,6 +319,7 @@ if __name__ == "__main__":
             "param1": actions["param1"].reshape(-1, envs.action_spec["param1"].shape[-1]),
             "param2": actions["param2"].reshape(-1, envs.action_spec["param2"].shape[-1]),
         }
+        b_legal_action_type_masks = legal_action_type_masks.reshape(-1, len(ActionType))
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
@@ -328,8 +335,8 @@ if __name__ == "__main__":
 
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(
                     b_obs[mb_inds],
-
-                    TensorDict(
+                    b_legal_action_type_masks[mb_inds],
+                    action = TensorDict(
                         {
                             "action_type": b_actions["action_type"][mb_inds],
                             "param1":      b_actions["param1"][mb_inds],

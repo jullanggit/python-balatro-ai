@@ -1,3 +1,4 @@
+from encode import _enum_to_index
 import torch
 from tensordict import TensorDict, TensorDictBase
 from torch import nn
@@ -12,6 +13,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from balatro import Deck, Stake, Run
+from encode import one_hot
 import math
 
 class ActionType(Enum):
@@ -32,6 +34,8 @@ class ActionType(Enum):
     NEXT_ROUND = 14
     CHOOSE_PACK_ITEM = 15
     SKIP_PACK = 16
+
+ACTION_TYPE_TO_INDEX = _enum_to_index(ActionType)
 
 # see __init__ for an explanation
 PARAM1_LENGTH = max(MAX_HAND_CARDS, MAX_JOKERS, MAX_CONSUMABLES, MAX_SHOP_CARDS, MAX_SHOP_VOUCHERS, MAX_SHOP_PACKS, MAX_PACK_ITEMS)
@@ -159,7 +163,7 @@ class BalatroEnv(EnvBase):
                 reward = -5.0
         except Exception as e:
             # negative reward for illegal choice
-            # print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
+            print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
             reward = -5.0
 
         obs = encode(self.run)
@@ -184,3 +188,61 @@ class BalatroEnv(EnvBase):
     def _set_seed(self, seed: int):
         self._seed = seed
         return seed
+
+    def get_legal_action_type(self) -> TensorDict:
+        """
+        returns a mask for legal actions (1 = legal, 0 = illegal)
+        """
+        move_and_sell = torch.zeros(len(ActionType), dtype=bool)
+        if len(self.run.jokers) > 0:
+            add_action_type(move_and_sell, ActionType.SELL_JOKER)
+        if len(self.run.jokers) > 1:
+            add_action_type(move_and_sell, ActionType.MOVE_JOKER)
+        if len(self.run.consumables) > 0:
+            add_action_type(move_and_sell, ActionType.SELL_CONSUMABLE)
+            add_action_type(move_and_sell, ActionType.USE_CONSUMABLE)
+
+        if self.run.state == State.CASHING_OUT:
+            return torch.nn.functional.one_hot(ActionType.CASH_OUT, len(ActionType))
+        elif self.run.state == State.IN_SHOP:
+            in_shop = move_and_sell.detach().clone()
+            if self.run.shop_cards is not None and len(self.run.shop_cards) > 0:
+                add_action_type(in_shop, ActionType.BUY_SHOP_CARD)
+            if self.run.shop_vouchers is not None and len(self.run.shop_vouchers) > 0:
+                add_action_type(in_shop, ActionType.REDEEM_SHOP_VOUCHER)
+            if self.run.shop_packs is not None and len(self.run.shop_packs) > 0:
+                add_action_type(in_shop, ActionType.OPEN_SHOP_PACK)
+            if self.reroll_cost is not None and self.run._available_money > self.run.reroll_cost:
+                add_action_type(in_shop, ActionType.REROLL)
+
+            return in_shop
+        elif self.run.state == State.OPENING_PACK:
+            opening_pack = move_and_sell.detach().clone()
+            add_action_types(opening_pack, {
+                ActionType.CHOOSE_PACK_ITEM, ActionType.SKIP_PACK
+            })
+            return opening_pack
+        elif self.run.state == State.PLAYING_BLIND:
+            playing_blind = move_and_sell.detach().clone()
+            add_action_type(playing_blind, ActionType.PLAY_HAND) # if we haven't lost, we can always play a hand during a blind
+            if self.run.discards > 0:
+                add_action_type(playing_blind, ActionType.DISCARD_HAND)
+
+            return playing_blind
+        elif self.run.state == State.SELECTING_BLIND:
+            selecting_blind = move_and_sell.detach().clone()
+            add_action_type(selecting_blind, ActionType.SELECT_BLIND)
+            if self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND:
+                add_action_type(selecting_blind, ActionType.SKIP_BLIND)
+
+            if (Voucher.DIRECTORS_CUT in self._vouchers or (Voucher.RETCON in self._vouchers and not self._rerolled_boss_blind)) and self._available_money >= 10:
+                add_action_type(selecting_blind, ActionType.REROLL_BOSS_BLIND)
+
+            return selecting_blind
+
+def add_action_type(mask, action_type: ActionType):
+    mask[action_type].value = True
+
+def add_action_types(mask, action_type: set):
+    for elem in action_type:
+        mask[elem].value = True
