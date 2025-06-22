@@ -169,7 +169,7 @@ class Agent(nn.Module):
             "action_type": action_type,
             "param1": param1,
             "param2": param2,
-        }, batch_size=[args.num_envs])
+        }, batch_size=[observation.shape[0]])
 
         return sampled_action, total_logprob, total_entropy, self.critic(shared)
 
@@ -309,11 +309,6 @@ if __name__ == "__main__":
                 end = start + args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                print("b_obs.shape[0] =", b_obs.shape[0])
-                print("mb_inds min/max:", mb_inds.min(), mb_inds.max())
-                assert mb_inds.min() >= 0 and mb_inds.max() < b_obs.shape[0], (
-                    f"Invalid mb_inds: must be in [0, {b_obs.shape[0]-1}]"
-                )
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(
                     b_obs[mb_inds],
 
