@@ -1,37 +1,57 @@
 #!/bin/bash
 
 INPUT=${1:-out}
-metrics=$(grep -oP '^\w+(?=:)' "$INPUT" | sort -u)
+TRAINING_DIR="training_runs"
+
+# Collect list of input files
+if [ "$INPUT" == "all" ]; then
+    echo "Plotting all files in $TRAINING_DIR..."
+    files=$(find "$TRAINING_DIR" -type f -regex '.*/[0-9]+' | sort -n)
+else
+    files="$INPUT"
+fi
+
+# Get all unique metrics across all files
+metrics=$(cat $files | grep -oP '^\w+(?=:)' | sort -u)
 
 for metric in $metrics; do
     echo "Processing $metric..."
 
     if [ "$metric" == "SPS" ]; then
-        # Count occurrences to use as x-axis (assuming 1:1 per line)
         gnuplot -persist <<EOF
 set terminal pngcairo size 3840,2160 enhanced font 'Verdana,24'
 set output "${metric}.png"
-set title "${metric} over Steps"
+set title "${metric} over Updates"
 set xlabel "Update"
 set ylabel "${metric}"
-plot "< grep '^SPS:' '$INPUT' | awk '{print NR, \$2}'" with linespoints title "${metric}"
+plot $(for f in $files; do
+    echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with linespoints title \"$f\", "
+done | sed 's/, $//')
 EOF
     else
-        # Skip empty data
-        data=$(grep "^$metric" "$INPUT" | awk '{if (NF >= 3) print $3, $2}')
-        if [ -z "$data" ]; then
+        # Check if any file has data for this metric
+        has_data=false
+        for f in $files; do
+            if grep -q "^$metric" "$f"; then
+                has_data=true
+                break
+            fi
+        done
+
+        if [ "$has_data" = false ]; then
             echo "Skipping $metric (no data)"
             continue
         fi
 
-        # Normal case with <step> <value>
         gnuplot -persist <<EOF
 set terminal pngcairo size 3840,2160 enhanced font 'Verdana,24'
 set output "${metric}.png"
 set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
-plot "< grep '^$metric' '$INPUT' | awk '{print \$3, \$2}'" with linespoints title "${metric}"
+plot $(for f in $files; do
+    echo -n "\"< grep ^$metric $f | awk '{print \$3, \$2}'\" with linespoints title \"$f\", "
+done | sed 's/, $//')
 EOF
     fi
 done
