@@ -19,10 +19,10 @@ for metric in $metrics; do
 
     if [ "$metric" == "SPS" ]; then
         gnuplot -persist <<EOF
-set terminal pngcairo size 3840,2160 enhanced font 'Verdana,24'
-set output "${metric}.png"
-set title "${metric} over Updates"
-set xlabel "Update"
+set terminal svg size 3840,2160 font 'Verdana,24' background rgb "white"
+set output "${metric}.svg"
+set title "${metric} over Steps"
+set xlabel "Step"
 set ylabel "${metric}"
 plot $(for f in $files; do
     echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with linespoints title \"$f\", "
@@ -44,8 +44,8 @@ EOF
         fi
 
         gnuplot -persist <<EOF
-set terminal pngcairo size 3840,2160 enhanced font 'Verdana,24'
-set output "${metric}.png"
+set terminal svg size 3840,2160 font 'Verdana,24' background rgb "white"
+set output "${metric}.svg"
 set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
