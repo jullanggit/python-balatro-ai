@@ -124,8 +124,7 @@ class Agent(nn.Module):
         self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
 
         # actor heads
-        action_type_size = envs.action_spec["action_type"].n
-        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, action_type_size), std=0.01)
+        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, len(ActionType)), std=0.01)
         # param1 additionally takes the chosen action as input
         self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) , PARAM1_LENGTH), std=0.01)
         # param2 additionally takes the chosen param1 as input
@@ -166,11 +165,11 @@ class Agent(nn.Module):
         param2_entropy = param2_distribution.entropy().sum(dim=-1)
         total_entropy = action_type_entropy + param1_entropy + param2_entropy
 
-        sampled_action = {
+        sampled_action = TensorDict({
             "action_type": action_type,
             "param1": param1,
             "param2": param2,
-        }
+        }, batch_size=[args.num_envs])
 
         return sampled_action, total_logprob, total_entropy, self.critic(shared)
 
@@ -260,13 +259,14 @@ if __name__ == "__main__":
             logprobs[step] = logprob
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_td, reward, terminations, truncations, infos = envs.step(action_td.cpu().numpy())
-            next_done = np.logical_or(terminations, truncations)
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
-            next_obs, next_done = torch.Tensor(next_td["observation"]).to(device), torch.Tensor(next_done).to(device)
+            td = envs.step(action_td)
+            next = td["next"]
+            rewards[step] = torch.tensor(next["reward"]).to(device).view(-1)
+            next_obs, next_done = torch.Tensor(next["observation"]).to(device), torch.Tensor(next_done).to(device)
 
-            if "final_info" in infos:
-                for info in infos["final_info"]:
+            infos = next.get("final_info", None)
+            if infos is not None:
+                for info in infos:
                     if info and "episode" in info:
                         print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
                         # writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
@@ -289,9 +289,13 @@ if __name__ == "__main__":
             returns = advantages + values
 
         # flatten the batch
-        b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
+        b_obs = obs.reshape((-1,) + envs.observation_spec["observation"].shape[-1])
         b_logprobs = logprobs.reshape(-1)
-        b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
+        b_actions = {
+            "action_type": actions["action_type"].reshape(-1),
+            "param1": actions["param1"].reshape(-1, *envs.action_spec["param1"].shape),
+            "param2": actions["param2"].reshape(-1, *envs.action_spec["param2"].shape),
+        }
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
@@ -305,7 +309,24 @@ if __name__ == "__main__":
                 end = start + args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                _, newlogprob, entropy, newvalue = agent.get_action_and_value(b_obs[mb_inds], b_actions.long()[mb_inds])
+                print("b_obs.shape[0] =", b_obs.shape[0])
+                print("mb_inds min/max:", mb_inds.min(), mb_inds.max())
+                assert mb_inds.min() >= 0 and mb_inds.max() < b_obs.shape[0], (
+                    f"Invalid mb_inds: must be in [0, {b_obs.shape[0]-1}]"
+                )
+                _, newlogprob, entropy, newvalue = agent.get_action_and_value(
+                    b_obs[mb_inds],
+
+                    TensorDict(
+                        {
+                            "action_type": b_actions["action_type"][mb_inds],
+                            "param1":      b_actions["param1"][mb_inds],
+                            "param2":      b_actions["param2"][mb_inds],
+                        },
+                        batch_size=[len(mb_inds)],
+                    )
+                )
+
                 logratio = newlogprob - b_logprobs[mb_inds]
                 ratio = logratio.exp()
 
