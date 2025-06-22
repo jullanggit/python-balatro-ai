@@ -159,7 +159,7 @@ class BalatroEnv(EnvBase):
                 reward = -5.0
         except Exception as e:
             # negative reward for illegal choice
-            print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
+            # print(f"[STEP ERROR] {ActionType(action_type).name}({param1}, {param2}) → {e}")
             reward = -5.0
 
         obs = encode(self.run)
