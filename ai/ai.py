@@ -129,7 +129,13 @@ class Agent(nn.Module):
             #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
         )
-        self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
+
+        # critic
+        self.value_head = nn.Sequential(
+            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE//2)),
+            nn.SiLU(),
+            layer_init(nn.Linear(HIDDEN_SIZE//2, 1), std=0.1)
+        )
 
         # actor heads
         self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, len(ActionType)), std=0.01)
@@ -140,7 +146,7 @@ class Agent(nn.Module):
 
     def get_value(self, x):
         hidden = self.shared(x)
-        return self.critic(hidden)
+        return self.value_head(hidden)
 
     def get_action_and_value(self, observation, action: TensorDict | None = None):
         shared = self.shared(observation)
@@ -179,7 +185,7 @@ class Agent(nn.Module):
             "param2": param2,
         }, batch_size=[observation.shape[0]])
 
-        return sampled_action, total_logprob, total_entropy, self.critic(shared)
+        return sampled_action, total_logprob, total_entropy, self.value_head(shared)
 
 
 if __name__ == "__main__":
