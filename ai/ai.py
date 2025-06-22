@@ -117,12 +117,16 @@ class Agent(nn.Module):
         super().__init__()
         self.shared = nn.Sequential(
             layer_init(nn.Linear(int(envs.observation_spec["observation"].shape[-1]), HIDDEN_SIZE)),
+            #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
         )
         self.critic = layer_init(nn.Linear(HIDDEN_SIZE, 1), std=1.0)
