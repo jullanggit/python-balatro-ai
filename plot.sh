@@ -6,7 +6,7 @@ TRAINING_DIR="training_runs"
 # Collect list of input files
 if [ "$INPUT" == "all" ]; then
     echo "Plotting all files in $TRAINING_DIR..."
-    files=$(find "$TRAINING_DIR" -type f -regex '.*/[0-9]+' | sort -n)
+    files=$(find "$TRAINING_DIR" -type f -regex '.*/[0-9][^/]*$' | sort -n)
 else
     files="$INPUT"
 fi
@@ -25,7 +25,7 @@ set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
 plot $(for f in $files; do
-    echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with lines title \"$f\", "
+    echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with lines linewidth 3 title \"$f\", "
 done | sed 's/, $//')
 EOF
     else
@@ -50,7 +50,7 @@ set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
 plot $(for f in $files; do
-    echo -n "\"< grep ^$metric $f | awk '{print \$3, \$2}'\" with lines title \"$f\", "
+    echo -n "\"< grep ^$metric $f | awk '{print \$3, \$2}'\" with lines linewidth 3 title \"$f\", "
 done | sed 's/, $//')
 EOF
     fi
