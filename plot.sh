@@ -25,7 +25,7 @@ set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
 plot $(for f in $files; do
-    echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with linespoints title \"$f\", "
+    echo -n "\"< grep ^SPS: $f | awk '{print NR, \$2}'\" with lines title \"$f\", "
 done | sed 's/, $//')
 EOF
     else
@@ -50,7 +50,7 @@ set title "${metric} over Steps"
 set xlabel "Step"
 set ylabel "${metric}"
 plot $(for f in $files; do
-    echo -n "\"< grep ^$metric $f | awk '{print \$3, \$2}'\" with linespoints title \"$f\", "
+    echo -n "\"< grep ^$metric $f | awk '{print \$3, \$2}'\" with lines title \"$f\", "
 done | sed 's/, $//')
 EOF
     fi

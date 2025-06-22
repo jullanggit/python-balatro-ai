@@ -110,6 +110,12 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
 
+def network_head(in_size: int, out_size: int, std):
+    return nn.Sequential(
+        layer_init(nn.Linear(in_size, in_size//2)),
+        nn.SiLU(),
+        layer_init(nn.Linear(in_size//2, out_size), std=std)
+    )
 
 class Agent(nn.Module):
     def __init__(self, envs):
@@ -125,24 +131,19 @@ class Agent(nn.Module):
             layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
             #nn.LayerNorm(HIDDEN_SIZE),
             nn.SiLU(),
-            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
-            #nn.LayerNorm(HIDDEN_SIZE),
-            nn.SiLU(),
+            # layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)),
+            # #nn.LayerNorm(HIDDEN_SIZE),
+            # nn.SiLU(),
         )
 
         # critic
-        self.value_head = nn.Sequential(
-            layer_init(nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE//2)),
-            nn.SiLU(),
-            layer_init(nn.Linear(HIDDEN_SIZE//2, 1), std=0.1)
-        )
-
+        self.value_head = network_head(HIDDEN_SIZE, 1, 0.1)
         # actor heads
-        self.action_type_head = layer_init(nn.Linear(HIDDEN_SIZE, len(ActionType)), std=0.01)
+        self.action_type_head = network_head(HIDDEN_SIZE , len(ActionType), 0.01)
         # param1 additionally takes the chosen action as input
-        self.param1_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) , PARAM1_LENGTH), std=0.01)
+        self.param1_head = network_head(HIDDEN_SIZE + len(ActionType) , PARAM1_LENGTH, std=0.01)
         # param2 additionally takes the chosen param1 as input
-        self.param2_head = layer_init(nn.Linear(HIDDEN_SIZE + len(ActionType) + PARAM1_LENGTH, PARAM2_LENGTH), std=0.01)
+        self.param2_head = network_head(HIDDEN_SIZE + len(ActionType) + PARAM1_LENGTH, PARAM2_LENGTH, std=0.01)
 
     def get_value(self, x):
         hidden = self.shared(x)
