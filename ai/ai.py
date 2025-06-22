@@ -371,14 +371,14 @@ if __name__ == "__main__":
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        # writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
-        # writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-        # writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-        # writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
-        # writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
-        # writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
-        # writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-        # writer.add_scalar("losses/explained_variance", explained_var, global_step)
+        print("learning_rate:", optimizer.param_groups[0]["lr"], global_step)
+        print("value_loss:", v_loss.item(), global_step)
+        print("policy_loss:", pg_loss.item(), global_step)
+        print("entropy:", entropy_loss.item(), global_step)
+        print("old_approx_kl:", old_approx_kl.item(), global_step)
+        print("approx_kl:", approx_kl.item(), global_step)
+        print("clipfrac:", np.mean(clipfracs), global_step)
+        print("explained_variance:", explained_var, global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
         # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
