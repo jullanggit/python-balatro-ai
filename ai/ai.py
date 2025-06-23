@@ -149,21 +149,28 @@ class Agent(nn.Module):
         hidden = self.shared(x)
         return self.value_head(hidden)
 
-    def get_action_and_value(self, observation, legal_action_type_mask, action: TensorDict | None = None):
+    def get_action_and_value(self, observation, legal_action_type_mask, envs, action: TensorDict | None = None):
         shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
         action_type_logits = self.action_type_head(shared)
-        masked_logits = action_type_logits.masked_fill(~legal_action_type_mask, float('-inf'))
-        action_type_distribution = Categorical(logits=masked_logits)
+        masked_action_type_logits = action_type_logits.masked_fill(~legal_action_type_mask, float('-inf'))
+        action_type_distribution = Categorical(logits=masked_action_type_logits)
         action_type = action_type_distribution.sample() if action is None else action["action_type"]
 
         # concatenate the chosen action type with the shared state
         action_type_one_hot = torch.nn.functional.one_hot(action_type, num_classes=len(ActionType)).float()
         action_shared = torch.cat([shared, action_type_one_hot], dim=1)
 
+        # get legal param1's
+        legal_param1s = envs.get_legal_param1(action_type)
+        legal_param1_mask_list, mins, maxes = zip(*legal_param1s)
+        legal_param1_mask = torch.stack(legal_param1_mask_list, dim=0)
+
         # get and sample param1 distribution, based on shared + action type
-        param1_distribution = Bernoulli(logits=self.param1_head(action_shared))
+        param1_logits = self.param1_head(action_shared)
+        masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, float('-inf'))
+        param1_distribution = Bernoulli(logits=masked_param1_logits)
         param1 = param1_distribution.sample() if action is None else action["param1"]
 
         # get and sample param2 distribution, based on shared + action type + param1
@@ -276,7 +283,7 @@ if __name__ == "__main__":
                 legal_action_type_mask = torch.stack(legal_masks_list, dim=0).to(device)
                 legal_action_type_masks[step] = legal_action_type_mask
 
-                action_td, logprob, _, value = agent.get_action_and_value(next_obs, legal_action_type_mask)
+                action_td, logprob, _, value = agent.get_action_and_value(next_obs, legal_action_type_mask, envs)
                 values[step] = value.flatten()
             actions["action_type"][step] = action_td["action_type"]
             actions["param1"][step] = action_td["param1"]

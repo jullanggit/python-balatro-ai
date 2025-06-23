@@ -1,7 +1,7 @@
 from encode import _enum_to_index
 import torch
 from tensordict import TensorDict, TensorDictBase
-from torch import nn
+from torch import nn, Tensor
 from enum import Enum
 from encode import *
 from torchrl.data import Composite, Categorical, Binary
@@ -237,32 +237,48 @@ class BalatroEnv(EnvBase):
                 add_action_type(selecting_blind, ActionType.REROLL_BOSS_BLIND)
 
             return selecting_blind
-    def get_legal_param1(self, action: ActionType):
-        # used as index/indices for:
-        #   hand cards (play_hand/discard)
-        #   jokers (move_joker/sell_joker)
-        #   consumables (use_consumable/sell_consumable)
-        #   shop slots (buy_shop_card)
-        #   shop vouchers (redeem_shop_voucher)
-        #   shop packs (open_shop_pack)
-        #   pack choices (choose_pack_item)
+    def get_legal_param1(self, action) -> tuple[Tensor, int, int]:
+        print(action)
+        """
+        returns (mask, min_samples, max_samples)
+        """
         if action == ActionType.PLAY_HAND or action == ActionType.DISCARD_HAND:
-            # TODO: handle force-selected card
+            max_samples = 5
+
             len_hand_cards = len(self.run.hand)
-            return set_until(len_hand_cards, PARAM1_LENGTH)
+            mask = set_until(len_hand_cards, PARAM1_LENGTH),
+
+            if self.run.forced_selected_card_index is not None:
+                max_samples = 4
+                mask[self.run.forced_selected_card_index] = False
+            return (mask, 1, max_samples)
+
         elif action == ActionType.MOVE_JOKER or action == ActionType.SELL_JOKER:
             # TODO: handle eternal jokers for selling
-            return set_until(len(self.run.jokers), PARAM1_LENGTH)
+            return (set_until(len(self.run.jokers), PARAM1_LENGTH), 1, 1)
         elif action == ActionType.USE_CONSUMABLE or action == ActionType.SELL_CONSUMABLE:
-            return set_until(len(self.run.consumables), PARAM1_LENGTH)
+            # TODO: handle non-usable consumables (judgement, ankh etc., see below)
+            return (set_until(len(self.run.consumables), PARAM1_LENGTH), 1, 1)
         elif action == ActionType.BUY_SHOP_CARD:
-            mask = torch.zeros(PARAM1_LENGTH, dtype=torch.bool)
-            if self.run.shop_cards is not None:
-                for i, card in enumerate(self.run.shop_cards):
-                    _, cost = card
-                    if cost <= self.run._available_money:
-                        mask[i] = True
-            return mask
+            return (self.shop_item_mask(self.run.shop_cards), 1, 1)
+        elif action == ActionType.REDEEM_SHOP_VOUCHER:
+            return (self.shop_item_mask(self.run.shop_vouchers), 1, 1)
+        elif action == ActionType.OPEN_SHOP_PACK:
+            return (self.shop_item_mask(self.run.shop_packs), 1, 1)
+        elif action == ActionType.CHOOSE_PACK_ITEM:
+            # TODO: handle non-usable cards (jokers/judgement when joker slots full, ankh when empty, etc.)
+            return (set_until(len(self.run.pack_items), PARAM1_LENGTH), 1, 1)
+        else:
+            return (torch.zeros(PARAM1_LENGTH, dtype=torch.bool), 0, 0)
+
+    def shop_item_mask(self, items) -> Tensor:
+        mask = torch.zeros(PARAM1_LENGTH, dtype=torch.bool)
+        if items is not None:
+            for i, card in enumerate(items):
+                _, cost = card
+                if cost <= self.run._available_money:
+                    mask[i] = True
+        return mask
 
 
 def set_until(set_until, total_len):
