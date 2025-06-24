@@ -236,9 +236,6 @@ def get_legal_action_type(snapshots):
     """
     masks = []
     for snapshot in snapshots:
-        # only allow no-op
-        if snapshot["state"] == State.GAME_OVER:
-            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool))
 
         move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool)
         if snapshot["len_jokers"] > 0:
@@ -249,7 +246,10 @@ def get_legal_action_type(snapshots):
             add_action_type(move_and_sell, ActionType.SELL_CONSUMABLE)
             add_action_type(move_and_sell, ActionType.USE_CONSUMABLE)
 
-        if snapshot["state"] == State.CASHING_OUT:
+        # only allow no-op
+        if snapshot["state"] == State.GAME_OVER:
+            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool))
+        elif snapshot["state"] == State.CASHING_OUT:
             masks.append(torch.nn.functional.one_hot(ActionType.CASH_OUT, len(ActionType), dtype=torch.bool))
         elif snapshot["state"] == State.IN_SHOP:
             in_shop = move_and_sell.detach().clone()
@@ -337,7 +337,7 @@ def get_legal_param1(snapshots):
         else:
             append(torch.zeros(PARAM1_LENGTH, dtype=torch.bool), 0, 0)
 
-    return (torch.stack(masks, dim=0), torch.stack(min_samples), torch.stack(max_samples))
+    return (torch.stack(masks, dim=0), torch.Tensor(min_samples), torch.Tensor(max_samples))
 
 def set_until(set_until, total_len):
     mask = torch.zeros(total_len, dtype=torch.bool)

@@ -31,7 +31,7 @@ import sys
 import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from env import BalatroEnv
+from env import BalatroEnv, get_legal_action_type, get_legal_param1
 import numpy as np
 import torch
 import torch.nn as nn
@@ -150,27 +150,32 @@ class Agent(nn.Module):
         hidden = self.shared(x)
         return self.value_head(hidden)
 
-    def get_action_and_value(self, observation, legal_action_type_mask, envs, action: TensorDict | None = None):
+    def get_action_and_value(self, observation, snapshot_list, action: TensorDict | None = None):
         shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
         action_type_logits = self.action_type_head(shared)
+        legal_action_type_mask = get_legal_action_type(snapshot_list).to(action_type_logits.device)
         masked_action_type_logits = action_type_logits.masked_fill(~legal_action_type_mask, float('-inf'))
         action_type_distribution = Categorical(logits=masked_action_type_logits)
         action_type = action_type_distribution.sample() if action is None else action["action_type"]
+
+        # append sampled action type to snapshots_list
+        for i, snapshot in enumerate(snapshot_list):
+            snapshot["action"] = ActionType(action_type[i].item())
 
         # concatenate the chosen action type with the shared state
         action_type_one_hot = torch.nn.functional.one_hot(action_type, num_classes=len(ActionType)).float()
         action_shared = torch.cat([shared, action_type_one_hot], dim=1)
 
         # get legal param1's
-        legal_param1s = envs.get_legal_param1(action_type)
-        legal_param1_mask_list, mins, maxes = zip(*legal_param1s)
-        legal_param1_mask = torch.stack(legal_param1_mask_list, dim=0)
-
+        legal_param1_mask, param1_min_samples, param1_max_samples = get_legal_param1(snapshot_list)
 
         # get and sample param1 distribution, based on shared + action type
         param1_logits = self.param1_head(action_shared)
+
+        legal_param1_mask = legal_param1_mask.to(param1_logits.device)
+
         masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, float('-inf'))
         param1_distribution = Bernoulli(logits=masked_param1_logits)
         param1 = param1_distribution.sample() if action is None else action["param1"]
@@ -178,18 +183,18 @@ class Agent(nn.Module):
         # enforce min and max samples
         num_selected = param1.sum(dim=1)
         for i in range(param1.shape[0]):
-            if num_selected[i] < mins[i]:
+            if num_selected[i] < param1_min_samples[i]:
                 # Sample from legal positions not already selected
                 available = legal_param1_mask[i] & (param1[i] == 0)
-                needed = int(mins[i] - num_selected[i])
+                needed = int(param1_min_samples[i] - num_selected[i])
                 if available.sum() >= needed:
                     idx = available.nonzero(as_tuple=False).squeeze()
                     chosen = idx[torch.randperm(idx.shape[0])[:needed]]
                     param1[i, chosen] = 1.0
-            elif num_selected[i] > maxes[i]:
+            elif num_selected[i] > param1_max_samples[i]:
                 # Remove random ones to satisfy max constraint
                 selected = (param1[i] == 1)
-                extra = int(num_selected[i] - maxes[i])
+                extra = int(num_selected[i] - param1_max_samples[i])
                 idx = selected.nonzero(as_tuple=False).squeeze()
                 chosen = idx[torch.randperm(idx.shape[0])[:extra]]
                 param1[i, chosen] = 0.0
@@ -269,11 +274,11 @@ if __name__ == "__main__":
         "param1": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param1"].shape, dtype=torch.float32, device=device),
         "param2": torch.zeros(args.num_steps, args.num_envs, *envs.action_spec["param2"].shape, dtype=torch.float32, device=device),
     }
-    legal_action_type_masks = torch.zeros((args.num_steps, args.num_envs, len(ActionType)), dtype=torch.bool, device=device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    snapshots = []
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -297,12 +302,10 @@ if __name__ == "__main__":
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
-                # get legal action types for all workers
-                legal_masks_list = envs.get_legal_action_type()
-                legal_action_type_mask = torch.stack(legal_masks_list, dim=0).to(device)
-                legal_action_type_masks[step] = legal_action_type_mask
+                env_snapshots = envs.snapshot()
+                snapshots.append(env_snapshots)
 
-                action_td, logprob, _, value = agent.get_action_and_value(next_obs, legal_action_type_mask, envs)
+                action_td, logprob, _, value = agent.get_action_and_value(next_obs, env_snapshots)
                 values[step] = value.flatten()
             actions["action_type"][step] = action_td["action_type"]
             actions["param1"][step] = action_td["param1"]
@@ -352,10 +355,11 @@ if __name__ == "__main__":
             "param1": actions["param1"].reshape(-1, envs.action_spec["param1"].shape[-1]),
             "param2": actions["param2"].reshape(-1, envs.action_spec["param2"].shape[-1]),
         }
-        b_legal_action_type_masks = legal_action_type_masks.reshape(-1, len(ActionType))
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
+        b_snapshots = [snapshot for step_snapshots in snapshots for snapshot in step_snapshots]
+
 
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
@@ -365,11 +369,11 @@ if __name__ == "__main__":
             for start in range(0, args.batch_size, args.minibatch_size):
                 end = start + args.minibatch_size
                 mb_inds = b_inds[start:end]
+                mb_snaps = [b_snapshots[i] for i in mb_inds]
 
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(
                     b_obs[mb_inds],
-                    b_legal_action_type_masks[mb_inds],
-                    envs,
+                    mb_snaps,
                     action = TensorDict(
                         {
                             "action_type": b_actions["action_type"][mb_inds],
