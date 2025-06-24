@@ -201,7 +201,7 @@ class BalatroEnv(EnvBase):
             "has_shop_cards": self.run.shop_cards is not None and len(self.run.shop_cards) > 0,
             "has_shop_packs": self.run.shop_packs is not None and len(self.run.shop_packs) > 0,
             "has_shop_vouchers": self.run.shop_vouchers is not None and len(self.run.shop_vouchers) > 0,
-            "can_reroll": self.reroll_cost is not None and self.run._available_money > self.run.reroll_cost,
+            "can_reroll": self.run.reroll_cost is not None and self.run._available_money > self.run.reroll_cost,
             "can_discard": self.run.discards > 0,
             "can_skip_blind": self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND,
             "can_reroll_boss_blind": (Voucher.DIRECTORS_CUT in self.run.vouchers or (Voucher.RETCON in self.run.vouchers and not self._rerolled_boss_blind)) and self._available_money >= 10,
@@ -231,7 +231,7 @@ def add_action_types(mask, action_type: set):
 
 def get_legal_action_type(snapshots):
     """
-    takes a tensor of snapshot dicts
+    takes an iterable of snapshot dicts
     returns a tensor of masks for legal actions (1 = legal, 0 = illegal)
     """
     masks = []
@@ -289,14 +289,14 @@ def get_legal_action_type(snapshots):
         else:
             raise Exception("shouldnt happen")
 
-    return torch.stack(masks, dim=0, dtype=torch.bool)
+    return torch.stack(masks, dim=0)
 
 def get_legal_param1(snapshots):
     """
-    takes a tensor of snapshots
+    takes an iterable of snapshots
     returns a tensor of (mask, min_samples, max_samples)
     """
-    masks, min_samples, max_samples = []
+    masks, min_samples, max_samples = [], [], []
     def append(mask, min, max):
         masks.append(mask)
         min_samples.append(min)
@@ -337,7 +337,7 @@ def get_legal_param1(snapshots):
         else:
             append(torch.zeros(PARAM1_LENGTH, dtype=torch.bool), 0, 0)
 
-    return (torch.stack(masks, dim=0, dtype=torch.bool), torch.stack(min_samples), torch.stack(max_samples))
+    return (torch.stack(masks, dim=0), torch.stack(min_samples), torch.stack(max_samples))
 
 def set_until(set_until, total_len):
     mask = torch.zeros(total_len, dtype=torch.bool)
