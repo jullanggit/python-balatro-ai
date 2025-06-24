@@ -34,6 +34,7 @@ class ActionType(Enum):
     NEXT_ROUND = 14
     CHOOSE_PACK_ITEM = 15
     SKIP_PACK = 16
+    NO_OP = 17
 
 # see __init__ for an explanation
 PARAM1_LENGTH = max(MAX_HAND_CARDS, MAX_JOKERS, MAX_CONSUMABLES, MAX_SHOP_CARDS, MAX_SHOP_VOUCHERS, MAX_SHOP_PACKS, MAX_PACK_ITEMS)
@@ -42,8 +43,9 @@ PARAM2_LENGTH = max(MAX_JOKERS, 2, 1)
 class BalatroEnv(EnvBase):
     batch_locked = False
 
-    def __init__(self, td_params=None, seed=None, device="cpu"):
+    def __init__(self, worker_id: int, td_params=None, seed=None, device="cpu"):
         super().__init__(device=device, batch_size=[])
+        self.worker_id = worker_id
         self.seed = seed
         self.run = Run(Deck.RED, stake=Stake.WHITE, seed=seed)
         self.observation_spec = Composite(
@@ -84,6 +86,7 @@ class BalatroEnv(EnvBase):
         self.total_reward = 0.0
 
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
+        self.total_reward = 0.0
         self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
         obs = encode(self.run)
         return TensorDict(
@@ -155,6 +158,8 @@ class BalatroEnv(EnvBase):
                 self.run.choose_pack_item(param1[0])
             elif action_type == ActionType.SKIP_PACK.value:
                 self.run.skip_pack()
+            elif action_type == ActionType.NO_OP.value:
+                pass
             else:
                 print(f"[WARNING] Unknown action_type: {action_type}")
                 # negative reward for illegal choice
@@ -165,7 +170,7 @@ class BalatroEnv(EnvBase):
             reward = -5.0
 
         obs = encode(self.run)
-        done = False
+        done = self.run.state == State.GAME_OVER
 
         self.total_reward += reward
         # double total_reward on win
@@ -191,6 +196,10 @@ class BalatroEnv(EnvBase):
         """
         returns a mask for legal actions (1 = legal, 0 = illegal)
         """
+        # only allow no-op
+        if self.run.state == State.GAME_OVER:
+            return torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool)
+
         move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool)
         if len(self.run.jokers) > 0:
             add_action_type(move_and_sell, ActionType.SELL_JOKER)
@@ -237,16 +246,28 @@ class BalatroEnv(EnvBase):
                 add_action_type(selecting_blind, ActionType.REROLL_BOSS_BLIND)
 
             return selecting_blind
-    def get_legal_param1(self, action) -> tuple[Tensor, int, int]:
-        print(action)
+        else:
+            print(self.run.state)
+            raise Exception("shouldnt happen")
+
+    def get_legal_param1(self, action_tensor) -> tuple[Tensor, int, int]:
+        action = ActionType(action_tensor[self.worker_id].item())
         """
         returns (mask, min_samples, max_samples)
         """
-        if action == ActionType.PLAY_HAND or action == ActionType.DISCARD_HAND:
+        if action == ActionType.NO_OP:
+            # allow everything
+            return (torch.ones(PARAM1_LENGTH, dtype=torch.bool), 0, PARAM1_LENGTH)
+        elif action == ActionType.PLAY_HAND or action == ActionType.DISCARD_HAND:
             max_samples = 5
 
+            if self.run.hand is None:
+                print(action)
+                print(self.run.state)
+                raise Exception("Hand shouldnt be None")
+
             len_hand_cards = len(self.run.hand)
-            mask = set_until(len_hand_cards, PARAM1_LENGTH),
+            mask = set_until(len_hand_cards, PARAM1_LENGTH)
 
             if self.run.forced_selected_card_index is not None:
                 max_samples = 4

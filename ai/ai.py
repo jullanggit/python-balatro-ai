@@ -29,6 +29,7 @@ from dataclasses import dataclass
 
 import sys
 import os
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from env import BalatroEnv
 import numpy as np
@@ -167,11 +168,31 @@ class Agent(nn.Module):
         legal_param1_mask_list, mins, maxes = zip(*legal_param1s)
         legal_param1_mask = torch.stack(legal_param1_mask_list, dim=0)
 
+
         # get and sample param1 distribution, based on shared + action type
         param1_logits = self.param1_head(action_shared)
         masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, float('-inf'))
         param1_distribution = Bernoulli(logits=masked_param1_logits)
         param1 = param1_distribution.sample() if action is None else action["param1"]
+
+        # enforce min and max samples
+        num_selected = param1.sum(dim=1)
+        for i in range(param1.shape[0]):
+            if num_selected[i] < mins[i]:
+                # Sample from legal positions not already selected
+                available = legal_param1_mask[i] & (param1[i] == 0)
+                needed = int(mins[i] - num_selected[i])
+                if available.sum() >= needed:
+                    idx = available.nonzero(as_tuple=False).squeeze()
+                    chosen = idx[torch.randperm(idx.shape[0])[:needed]]
+                    param1[i, chosen] = 1.0
+            elif num_selected[i] > maxes[i]:
+                # Remove random ones to satisfy max constraint
+                selected = (param1[i] == 1)
+                extra = int(num_selected[i] - maxes[i])
+                idx = selected.nonzero(as_tuple=False).squeeze()
+                chosen = idx[torch.randperm(idx.shape[0])[:extra]]
+                param1[i, chosen] = 0.0
 
         # get and sample param2 distribution, based on shared + action type + param1
         param2_distribution = Bernoulli(logits=self.param2_head(torch.cat([action_shared, param1], dim=1)))
@@ -231,14 +252,12 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
+    def make_env(i):
+        return lambda seed=args.seed + i, device=device: BalatroEnv(i, seed=seed, device=device)
     # env setup
-    env_fns = [
-        # each fn returns a fresh BalatroEnv
-        lambda seed=args.seed + i, device=device: BalatroEnv(seed=seed, device=device)
-        for i in range(args.num_envs)
-    ]
+    env_fns = [ make_env(i) for i in range(args.num_envs) ]
     envs = ParallelEnv(args.num_envs, env_fns)
-    next_td = envs.reset(seed=args.seed) # reset early to initialize envs
+    next = envs.reset(seed=args.seed) # reset early to initialize envs
 
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
@@ -259,7 +278,7 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
-    next_obs = torch.Tensor(next_td["observation"]).to(device)
+    next_obs = torch.Tensor(next["observation"]).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
 
     for iteration in range(1, args.num_iterations + 1):
@@ -293,8 +312,13 @@ if __name__ == "__main__":
             # TRY NOT TO MODIFY: execute the game and log data.
             td = envs.step(action_td)
             next = td["next"]
+
             rewards[step] = torch.tensor(next["reward"]).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next["observation"]).to(device), torch.Tensor(next_done).to(device)
+
+            done_mask = next["done"].view(-1).to(torch.bool)
+            if done_mask.all():
+                next = envs.reset()
 
             infos = next.get("final_info", None)
             if infos is not None:
@@ -345,6 +369,7 @@ if __name__ == "__main__":
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(
                     b_obs[mb_inds],
                     b_legal_action_type_masks[mb_inds],
+                    envs,
                     action = TensorDict(
                         {
                             "action_type": b_actions["action_type"][mb_inds],
