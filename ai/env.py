@@ -235,7 +235,7 @@ def get_legal_action_type(snapshots):
     returns a tensor of masks for legal actions (1 = legal, 0 = illegal)
     """
     masks = []
-    for snapshot in snapshots:
+    for i, snapshot in enumerate(snapshots):
 
         move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool)
         if snapshot["len_jokers"] > 0:
@@ -288,6 +288,10 @@ def get_legal_action_type(snapshots):
             masks.append(selecting_blind)
         else:
             raise Exception("shouldnt happen")
+
+        if masks[i].sum() == 0:
+            print(snapshot)
+            raise Exception("there should always be a legal action")
 
     return torch.stack(masks, dim=0)
 

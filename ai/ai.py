@@ -151,6 +151,10 @@ class Agent(nn.Module):
         return self.value_head(hidden)
 
     def get_action_and_value(self, observation, snapshot_list, action: TensorDict | None = None):
+        print("input stats to shared[0]:", observation.min(), observation.max(), observation.mean())
+        print("shared[0] weight NaNs:", torch.isnan(self.shared[0].weight).any())
+        print("shared[0] bias NaNs:", torch.isnan(self.shared[0].bias).any())
+        print("shared[0] weight abs max:", self.shared[0].weight.abs().max())
         shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
