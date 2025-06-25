@@ -15,6 +15,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from balatro import Deck, Stake, Run
 from encode import one_hot
 import math
+import json
+import uuid
 
 class ActionType(Enum):
     SELECT_BLIND = 0
@@ -47,7 +49,7 @@ class BalatroEnv(EnvBase):
         super().__init__(device=device, batch_size=[])
         self.worker_id = worker_id
         self.seed = seed
-        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=seed)
+        self._init_run()
         self.observation_spec = Composite(
              observation=UnboundedContinuous(
                  shape=(SIZE_ENCODED,),
@@ -83,11 +85,23 @@ class BalatroEnv(EnvBase):
             done=Binary(1),
             terminated=Binary(1)
         )
+
+    def _init_run(self):
+        """
+        initializes run and logging
+        """
+        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
+        os.makedirs("runs", exist_ok=True)
+        # unique filename
+        self.replay_file = os.path.join(
+            "runs", f"replay_{uuid.uuid4().hex}.jsonl"
+        )
+        open(self.replay_file, 'w').close()
         self.total_reward = 0.0
 
+
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
-        self.total_reward = 0.0
-        self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
+        self._init_run()
         obs = encode(self.run)
         return TensorDict(
             {
@@ -106,6 +120,11 @@ class BalatroEnv(EnvBase):
         param2_mask = tensordict["param2"].squeeze().to(torch.bool)
         param2 = torch.arange(PARAM2_LENGTH, device=param2_mask.device)[param2_mask].tolist()
 
+        # log actions
+        record = {"action_type": action_type, "param1": tensordict["param1"].tolist(), "param2": tensordict["param2"].tolist()}
+        with open(self.replay_file, 'a') as f:
+            f.write(json.dumps(record) + "\n")
+
         reward: float = 0.0
 
         # TODO: handle incorrect actions/params (with negative reward)
@@ -123,7 +142,9 @@ class BalatroEnv(EnvBase):
                 if self.run.state != State.PLAYING_BLIND:
                     if self.run.round_score > 0 and self.run.round_goal > 0:
                         # calculate score-based reward
-                        reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
+                        # TODO: maybe add back /round_goal, as it does serve as a good cross-ante normalization,
+                        #  but this returns negative rewards when not beating the round, which we dont want during early training
+                        reward = 14.43 * math.log(self.run.round_score)
                         # if round won
                         if self.run.state == State.CASHING_OUT:
                             # add blind reward
@@ -375,7 +396,7 @@ def get_legal_param2(snapshots):
     for i, snapshot in enumerate(snapshots):
         action = snapshot["action"]
         device = snapshot["device"]
-        param1 = snapshot["param1"]
+        #param1 = snapshot["param1"]
 
         # used as index/indices for:
         #   whether a bought shop item should be used
