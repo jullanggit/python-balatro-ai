@@ -10,6 +10,8 @@ if ui:
     from IPython.display import display
 
 run = Run(Deck.RED, stake=Stake.WHITE)
+run.select_blind()
+print(run.round)
 print(encode.encode(run))
 
 if ui:

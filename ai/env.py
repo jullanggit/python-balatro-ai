@@ -107,8 +107,8 @@ class BalatroEnv(EnvBase):
 
 
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
-        # probably didnt win the first round
-        if self.generate_replay and self.total_reward < 90:
+        # remove if it didnt beat the first round
+        if self.generate_replay and self.run.round < 2:
             os.remove(self.replay_file)
 
         self._init_run()
@@ -148,24 +148,20 @@ class BalatroEnv(EnvBase):
                 self.run.reroll_boss_blind()
             elif action_type == ActionType.PLAY_HAND.value:
                 blind = self.run.blind
+                before = self.run.round_score
                 self.run.play_hand(param1)
-                # TODO: fix math domain error
-                if self.run.state != State.PLAYING_BLIND:
-                    if self.run.round_score > 0 and self.run.round_goal > 0:
-                        # calculate score-based reward
-                        # TODO: maybe add back /round_goal, as it does serve as a good cross-ante normalization,
-                        #  but this returns negative rewards when not beating the round, which we dont want during early training
-                        reward = 14.43 * math.log(self.run.round_score)
-                        # if round won
-                        if self.run.state == State.CASHING_OUT:
-                            # add blind reward
-                            if blind == Blind.SMALL_BLIND:
-                                reward += 10.0
-                            elif blind == Blind.BIG_BLIND:
-                                reward += 15.0
-                            # boss blind
-                            else:
-                                reward += 20.0
+                after = self.run.round_score
+                reward = (after - before) / 10
+                # if round won
+                if self.run.state == State.CASHING_OUT:
+                    # add blind reward
+                    if blind == Blind.SMALL_BLIND:
+                        reward += 10.0
+                    elif blind == Blind.BIG_BLIND:
+                        reward += 15.0
+                    # boss blind
+                    else:
+                        reward += 20.0
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)
             elif action_type == ActionType.CASH_OUT.value:
