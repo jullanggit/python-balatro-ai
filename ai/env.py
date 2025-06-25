@@ -107,6 +107,10 @@ class BalatroEnv(EnvBase):
 
 
     def _reset(self, tensordict: TensorDict | None = None, **kwargs) -> TensorDict:
+        # probably didnt win the first round
+        if self.generate_replay and self.total_reward < 90:
+            os.remove(self.replay_file)
+
         self._init_run()
         obs = encode(self.run)
         return TensorDict(
@@ -185,7 +189,7 @@ class BalatroEnv(EnvBase):
             elif action_type == ActionType.NEXT_ROUND.value:
                 self.run.next_round()
             elif action_type == ActionType.CHOOSE_PACK_ITEM.value:
-                self.run.choose_pack_item(param1[0])
+                self.run.choose_pack_item(param1[0], param2)
             elif action_type == ActionType.SKIP_PACK.value:
                 self.run.skip_pack()
             elif action_type == ActionType.NO_OP.value:
@@ -232,7 +236,7 @@ class BalatroEnv(EnvBase):
             "can_reroll": self.run.reroll_cost is not None and self.run._available_money > self.run.reroll_cost,
             "can_discard": self.run.discards > 0,
             "can_skip_blind": self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND,
-            "can_reroll_boss_blind": (Voucher.DIRECTORS_CUT in self.run.vouchers or (Voucher.RETCON in self.run.vouchers and not self._rerolled_boss_blind)) and self._available_money >= 10,
+            "can_reroll_boss_blind": (Voucher.DIRECTORS_CUT in self.run.vouchers or (Voucher.RETCON in self.run.vouchers and not self.run._rerolled_boss_blind)) and self.run._available_money >= 10,
             # param1
             "len_hand_cards": None if self.run.hand is None else len(self.run.hand),
             "forced_selected_card_index": self.run.forced_selected_card_index,
@@ -415,6 +419,9 @@ def get_legal_param2(snapshots):
             # TODO: maybe exclude param1 joker
             append(set_until(snapshot["len_jokers"], PARAM2_LENGTH, device), 1, 1)
         elif action == ActionType.USE_CONSUMABLE:
+            # TODO: actually set min and max_samples and respect the used consumable
+            append(set_until(snapshot["len_hand_cards"], PARAM2_LENGTH, device), 1, 3)
+        elif action == ActionType.CHOOSE_PACK_ITEM:
             # TODO: actually set min and max_samples and respect the used consumable
             append(set_until(snapshot["len_hand_cards"], PARAM2_LENGTH, device), 1, 3)
         elif action == ActionType.BUY_SHOP_CARD:
