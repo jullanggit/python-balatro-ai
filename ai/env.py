@@ -121,18 +121,19 @@ class BalatroEnv(EnvBase):
                 self.run.play_hand(param1)
                 # TODO: fix math domain error
                 if self.run.state != State.PLAYING_BLIND:
-                    # calculate score-based reward
-                    reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
-                    # if round won
-                    if self.run.state == State.CASHING_OUT:
-                        # add blind reward
-                        if blind == Blind.SMALL_BLIND:
-                            reward += 10.0
-                        elif blind == Blind.BIG_BLIND:
-                            reward += 15.0
-                        # boss blind
-                        else:
-                            reward += 20.0
+                    if self.run.round_score > 0 and self.run.round_goal > 0:
+                        # calculate score-based reward
+                        reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
+                        # if round won
+                        if self.run.state == State.CASHING_OUT:
+                            # add blind reward
+                            if blind == Blind.SMALL_BLIND:
+                                reward += 10.0
+                            elif blind == Blind.BIG_BLIND:
+                                reward += 15.0
+                            # boss blind
+                            else:
+                                reward += 20.0
             elif action_type == ActionType.DISCARD_HAND.value:
                 self.run.discard(param1)
             elif action_type == ActionType.CASH_OUT.value:
@@ -374,7 +375,7 @@ def get_legal_param2(snapshots):
     for i, snapshot in enumerate(snapshots):
         action = snapshot["action"]
         device = snapshot["device"]
-        # param1 = snapshot["param1"]
+        param1 = snapshot["param1"]
 
         # used as index/indices for:
         #   whether a bought shop item should be used
