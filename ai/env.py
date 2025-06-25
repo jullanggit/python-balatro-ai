@@ -198,9 +198,6 @@ class BalatroEnv(EnvBase):
             "state": self.run.state,
             "len_jokers": len(self.run.jokers),
             "len_consumables": len(self.run.consumables),
-            "has_shop_cards": self.run.shop_cards is not None and len(self.run.shop_cards) > 0,
-            "has_shop_packs": self.run.shop_packs is not None and len(self.run.shop_packs) > 0,
-            "has_shop_vouchers": self.run.shop_vouchers is not None and len(self.run.shop_vouchers) > 0,
             "can_reroll": self.run.reroll_cost is not None and self.run._available_money > self.run.reroll_cost,
             "can_discard": self.run.discards > 0,
             "can_skip_blind": self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND,
@@ -209,9 +206,19 @@ class BalatroEnv(EnvBase):
             "len_hand_cards": None if self.run.hand is None else len(self.run.hand),
             "forced_selected_card_index": self.run.forced_selected_card_index,
             "len_pack_items": None if self.run.pack_items is None else len(self.run.pack_items),
-            "buyable_shop_packs_mask": self.shop_item_mask(self.run.shop_packs),
-            "buyable_shop_vouchers_mask": self.shop_item_mask(self.run.shop_vouchers),
-            "buyable_shop_cards_mask": self.shop_item_mask(self.run.shop_cards),
+            # dont use tensors so we can send snapshots across threads
+            "buyable_shop_cards_mask": [
+                (cost <= self.run._available_money)
+                for _, cost in (self.run.shop_cards or [])
+            ],
+            "buyable_shop_vouchers_mask": [
+                (cost <= self.run._available_money)
+                for _, cost in (self.run.shop_vouchers or [])
+            ],
+            "buyable_shop_packs_mask": [
+                (cost <= self.run._available_money)
+                for _, cost in (self.run.shop_packs or [])
+            ],
         }
 
 
@@ -250,14 +257,17 @@ def get_legal_action_type(snapshots):
         if snapshot["state"] == State.GAME_OVER:
             masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool))
         elif snapshot["state"] == State.CASHING_OUT:
-            masks.append(torch.nn.functional.one_hot(ActionType.CASH_OUT, len(ActionType), dtype=torch.bool))
+            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.CASH_OUT.value), len(ActionType)).to(torch.bool))
         elif snapshot["state"] == State.IN_SHOP:
             in_shop = move_and_sell.detach().clone()
-            if snapshot["has_shop_cards"]:
+            add_action_type(in_shop, ActionType.NEXT_ROUND)
+
+            if snapshot["buyable_shop_cards_mask"].any():
+                print(snapshot["buyable_shop_cards_mask"])
                 add_action_type(in_shop, ActionType.BUY_SHOP_CARD)
-            if snapshot["has_shop_vouchers"]:
+            if snapshot["buyable_shop_vouchers_mask"].any():
                 add_action_type(in_shop, ActionType.REDEEM_SHOP_VOUCHER)
-            if snapshot["has_shop_packs"]:
+            if snapshot["buyable_shop_packs_mask"].any():
                 add_action_type(in_shop, ActionType.OPEN_SHOP_PACK)
             if snapshot["can_reroll"]:
                 add_action_type(in_shop, ActionType.REROLL)
@@ -306,7 +316,7 @@ def get_legal_param1(snapshots):
         min_samples.append(min)
         max_samples.append(max)
 
-    for snapshot in snapshots:
+    for i, snapshot in enumerate(snapshots):
         action = snapshot["action"]
 
         if action == ActionType.NO_OP:
@@ -332,14 +342,18 @@ def get_legal_param1(snapshots):
         elif action == ActionType.BUY_SHOP_CARD:
             append(snapshot["buyable_shop_cards_mask"], 1, 1)
         elif action == ActionType.REDEEM_SHOP_VOUCHER:
-            append(snapshot["buyable_shop_voucher_mask"], 1, 1)
+            append(snapshot["buyable_shop_vouchers_mask"], 1, 1)
         elif action == ActionType.OPEN_SHOP_PACK:
-            append(snapshot["buyable_shop_pack_mask"], 1, 1)
+            append(snapshot["buyable_shop_packs_mask"], 1, 1)
         elif action == ActionType.CHOOSE_PACK_ITEM:
             # TODO: handle non-usable cards (jokers/judgement when joker slots full, ankh when empty, etc.)
             append(set_until(snapshot["len_pack_items"], PARAM1_LENGTH), 1, 1)
         else:
-            append(torch.zeros(PARAM1_LENGTH, dtype=torch.bool), 0, 0)
+            append(torch.ones(PARAM1_LENGTH, dtype=torch.bool), 0, PARAM1_LENGTH)
+
+        if masks[i].sum() == 0:
+            print(snapshot)
+            raise Exception("there should always be a legal param1 configuration")
 
     return (torch.stack(masks, dim=0), torch.Tensor(min_samples), torch.Tensor(max_samples))
 

@@ -151,16 +151,15 @@ class Agent(nn.Module):
         return self.value_head(hidden)
 
     def get_action_and_value(self, observation, snapshot_list, action: TensorDict | None = None):
-        print("input stats to shared[0]:", observation.min(), observation.max(), observation.mean())
-        print("shared[0] weight NaNs:", torch.isnan(self.shared[0].weight).any())
-        print("shared[0] bias NaNs:", torch.isnan(self.shared[0].bias).any())
-        print("shared[0] weight abs max:", self.shared[0].weight.abs().max())
+        NEG_INF = -1e9
+
         shared = self.shared(observation)
 
         # get and sample action type distribution, based on shared
         action_type_logits = self.action_type_head(shared)
         legal_action_type_mask = get_legal_action_type(snapshot_list).to(action_type_logits.device)
-        masked_action_type_logits = action_type_logits.masked_fill(~legal_action_type_mask, float('-inf'))
+
+        masked_action_type_logits = action_type_logits.masked_fill(~legal_action_type_mask, NEG_INF)
         action_type_distribution = Categorical(logits=masked_action_type_logits)
         action_type = action_type_distribution.sample() if action is None else action["action_type"]
 
@@ -180,7 +179,7 @@ class Agent(nn.Module):
 
         legal_param1_mask = legal_param1_mask.to(param1_logits.device)
 
-        masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, float('-inf'))
+        masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, NEG_INF)
         param1_distribution = Bernoulli(logits=masked_param1_logits)
         param1 = param1_distribution.sample() if action is None else action["param1"]
 
@@ -282,7 +281,6 @@ if __name__ == "__main__":
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    snapshots = []
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -291,6 +289,8 @@ if __name__ == "__main__":
     next_done = torch.zeros(args.num_envs).to(device)
 
     for iteration in range(1, args.num_iterations + 1):
+        snapshots = []
+
         update_start_time = time.time()
 
         # Annealing the rate if instructed to do so.
@@ -307,6 +307,17 @@ if __name__ == "__main__":
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 env_snapshots = envs.snapshot()
+
+                # convert lists to tensors
+                for snapshot in env_snapshots:
+                    for key in ("buyable_shop_packs_mask", "buyable_shop_vouchers_mask", "buyable_shop_cards_mask"):
+                        orig = snapshot[key]
+                        LEN = len(orig)
+                        new = torch.zeros(PARAM1_LENGTH, dtype=torch.bool, device=device)
+                        if LEN > 0:
+                            new[:LEN] = torch.tensor(orig, dtype=torch.bool, device=device)
+                        snapshot[key] = new
+
                 snapshots.append(env_snapshots)
 
                 action_td, logprob, _, value = agent.get_action_and_value(next_obs, env_snapshots)
@@ -320,7 +331,7 @@ if __name__ == "__main__":
             td = envs.step(action_td)
             next = td["next"]
 
-            rewards[step] = torch.tensor(next["reward"]).to(device).view(-1)
+            rewards[step] = next["reward"].detach().clone().view(-1)
             next_obs, next_done = torch.Tensor(next["observation"]).to(device), torch.Tensor(next_done).to(device)
 
             done_mask = next["done"].view(-1).to(torch.bool)
