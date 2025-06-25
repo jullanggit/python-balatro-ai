@@ -186,7 +186,7 @@ class Agent(nn.Module):
         legal_param2_mask, param2_min_samples, param2_max_samples = get_legal_param2(snapshot_list)
 
         # get and sample param2 distribution, based on shared + action type
-        param2_logits = self.param2_head(action_shared)
+        param2_logits = self.param2_head(torch.cat([action_shared, param1], dim=1))
         legal_param2_mask = legal_param2_mask.to(param2_logits.device)
 
         masked_param2_logits = param2_logits.masked_fill(~legal_param2_mask, NEG_INF)
@@ -220,26 +220,27 @@ def constrained_bernoulli(logits: torch.Tensor, min_ones: torch.Tensor, max_ones
     batch_size, _ = logits.shape
 
     dist = Bernoulli(logits=logits)
-    sample = dist.sample().to(torch.bool)
+    sample = dist.sample()
     probabilities = torch.sigmoid(logits)
 
     for i in range(batch_size):
         num_ones = int(sample[i].sum().item())
+        print(num_ones)
         if num_ones > max_ones[i]:
             # disable low-probabilitie ones
             ones_index = sample[i].nonzero(as_tuple=True)[0]
             num_to_enable = num_ones - max_ones[i]
             disable_weight = 1.0 - probabilities[i, ones_index]
             choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
-            sample[i, ones_index[choice]] = 0
+            sample[i, ones_index[choice]] = 0.0
 
-        elif num_ones < min_ones:
+        elif num_ones < min_ones[i]:
             # enable high-probability zeros
             zeros_index = sample[i].nonzero(as_tuple=True)[0]
             num_to_enable = num_ones - max_ones[i]
             disable_weight = 1.0 - probabilities[i, zeros_index]
             choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
-            sample[i, zeros_index[choice]] = 0
+            sample[i, zeros_index[choice]] = 0.0
 
     return sample
 
