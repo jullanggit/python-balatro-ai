@@ -357,6 +357,45 @@ def get_legal_param1(snapshots):
 
     return (torch.stack(masks, dim=0), torch.Tensor(min_samples), torch.Tensor(max_samples))
 
+def get_legal_param2(snapshots):
+    """
+    takes an iterable of snapshots
+    returns a tensor of (mask, min_samples, max_samples)
+    """
+    masks, min_samples, max_samples = [], [], []
+    def append(mask, min, max):
+        masks.append(mask)
+        min_samples.append(min)
+        max_samples.append(max)
+
+    for i, snapshot in enumerate(snapshots):
+        action = snapshot["action"]
+        # param1 = snapshot["param1"]
+
+        # used as index/indices for:
+        #   whether a bought shop item should be used
+        if action == ActionType.NO_OP:
+            # allow everything
+            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool), 0, PARAM2_LENGTH)
+        elif action == ActionType.MOVE_JOKER:
+            # TODO: handle eternal jokers for selling
+            # TODO: maybe exclude param1 joker
+            append(set_until(snapshot["len_jokers"], PARAM2_LENGTH), 1, 1)
+        elif action == ActionType.USE_CONSUMABLE:
+            # TODO: actually set min and max_samples and respect the used consumable
+            append(set_until(snapshot["len_hand_cards"], PARAM2_LENGTH), 1, 3)
+        elif action == ActionType.BUY_SHOP_CARD:
+            # bool and_use
+            append(torch.nn.functional.one_hot(torch.tensor(1)).to(torch.bool), 0, 1)
+        else:
+            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool), 0, PARAM2_LENGTH)
+
+        if masks[i].sum() == 0:
+            print(snapshot)
+            raise Exception("there should always be a legal param2 configuration")
+
+    return (torch.stack(masks, dim=0), torch.Tensor(min_samples), torch.Tensor(max_samples))
+
 def set_until(set_until, total_len):
     mask = torch.zeros(total_len, dtype=torch.bool)
     mask[:set_until] = True

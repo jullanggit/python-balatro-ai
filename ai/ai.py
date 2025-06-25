@@ -31,7 +31,7 @@ import sys
 import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from env import BalatroEnv, get_legal_action_type, get_legal_param1
+from env import BalatroEnv, get_legal_action_type, get_legal_param1, get_legal_param2
 import numpy as np
 import torch
 import torch.nn as nn
@@ -176,35 +176,22 @@ class Agent(nn.Module):
 
         # get and sample param1 distribution, based on shared + action type
         param1_logits = self.param1_head(action_shared)
-
         legal_param1_mask = legal_param1_mask.to(param1_logits.device)
 
         masked_param1_logits = param1_logits.masked_fill(~legal_param1_mask, NEG_INF)
         param1_distribution = Bernoulli(logits=masked_param1_logits)
-        param1 = param1_distribution.sample() if action is None else action["param1"]
+        param1 = constrained_bernoulli(masked_param1_logits, param1_min_samples, param1_max_samples) if action is None else action["param1"]
 
-        # enforce min and max samples
-        num_selected = param1.sum(dim=1)
-        for i in range(param1.shape[0]):
-            if num_selected[i] < param1_min_samples[i]:
-                # Sample from legal positions not already selected
-                available = legal_param1_mask[i] & (param1[i] == 0)
-                needed = int(param1_min_samples[i] - num_selected[i])
-                if available.sum() >= needed:
-                    idx = available.nonzero(as_tuple=False).squeeze()
-                    chosen = idx[torch.randperm(idx.shape[0])[:needed]]
-                    param1[i, chosen] = 1.0
-            elif num_selected[i] > param1_max_samples[i]:
-                # Remove random ones to satisfy max constraint
-                selected = (param1[i] == 1)
-                extra = int(num_selected[i] - param1_max_samples[i])
-                idx = selected.nonzero(as_tuple=False).squeeze()
-                chosen = idx[torch.randperm(idx.shape[0])[:extra]]
-                param1[i, chosen] = 0.0
+        #param2
+        legal_param2_mask, param2_min_samples, param2_max_samples = get_legal_param2(snapshot_list)
 
-        # get and sample param2 distribution, based on shared + action type + param1
-        param2_distribution = Bernoulli(logits=self.param2_head(torch.cat([action_shared, param1], dim=1)))
-        param2 = param2_distribution.sample() if action is None else action["param2"]
+        # get and sample param2 distribution, based on shared + action type
+        param2_logits = self.param2_head(action_shared)
+        legal_param2_mask = legal_param2_mask.to(param2_logits.device)
+
+        masked_param2_logits = param2_logits.masked_fill(~legal_param2_mask, NEG_INF)
+        param2_distribution = Bernoulli(logits=masked_param2_logits)
+        param2 = constrained_bernoulli(masked_param2_logits, param2_min_samples, param2_max_samples) if action is None else action["param2"]
 
         # calculate log probabilities
         action_type_logprob = action_type_distribution.log_prob(action_type)
@@ -226,6 +213,35 @@ class Agent(nn.Module):
 
         return sampled_action, total_logprob, total_entropy, self.value_head(shared)
 
+def constrained_bernoulli(logits: torch.Tensor, min_ones: torch.Tensor, max_ones: torch.Tensor) -> torch.Tensor:
+    """
+    Sample from the Bernoulli Distribution, enforcing min and max ones
+    """
+    batch_size, _ = logits.shape
+
+    dist = Bernoulli(logits=logits)
+    sample = dist.sample().to(torch.bool)
+    probabilities = torch.sigmoid(logits)
+
+    for i in range(batch_size):
+        num_ones = int(sample[i].sum().item())
+        if num_ones > max_ones[i]:
+            # disable low-probabilitie ones
+            ones_index = sample[i].nonzero(as_tuple=True)[0]
+            num_to_enable = num_ones - max_ones[i]
+            disable_weight = 1.0 - probabilities[i, ones_index]
+            choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
+            sample[i, ones_index[choice]] = 0
+
+        elif num_ones < min_ones:
+            # enable high-probability zeros
+            zeros_index = sample[i].nonzero(as_tuple=True)[0]
+            num_to_enable = num_ones - max_ones[i]
+            disable_weight = 1.0 - probabilities[i, zeros_index]
+            choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
+            sample[i, zeros_index[choice]] = 0
+
+    return sample
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
