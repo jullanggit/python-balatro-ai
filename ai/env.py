@@ -119,6 +119,7 @@ class BalatroEnv(EnvBase):
             elif action_type == ActionType.PLAY_HAND.value:
                 blind = self.run.blind
                 self.run.play_hand(param1)
+                # TODO: fix math domain error
                 if self.run.state != State.PLAYING_BLIND:
                     # calculate score-based reward
                     reward = 14.43 * math.log(self.run.round_score/self.run.round_goal)
@@ -194,6 +195,7 @@ class BalatroEnv(EnvBase):
 
     def snapshot(self) -> dict:
         return {
+            "device": self.device,
             # action type
             "state": self.run.state,
             "len_jokers": len(self.run.jokers),
@@ -243,8 +245,9 @@ def get_legal_action_type(snapshots):
     """
     masks = []
     for i, snapshot in enumerate(snapshots):
+        device = snapshot["device"]
 
-        move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool)
+        move_and_sell = torch.zeros(len(ActionType), dtype=torch.bool, device=device)
         if snapshot["len_jokers"] > 0:
             add_action_type(move_and_sell, ActionType.SELL_JOKER)
         if snapshot["len_jokers"] > 1:
@@ -255,15 +258,14 @@ def get_legal_action_type(snapshots):
 
         # only allow no-op
         if snapshot["state"] == State.GAME_OVER:
-            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool))
+            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.NO_OP.value), len(ActionType)).to(torch.bool).to(device))
         elif snapshot["state"] == State.CASHING_OUT:
-            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.CASH_OUT.value), len(ActionType)).to(torch.bool))
+            masks.append(torch.nn.functional.one_hot(torch.tensor(ActionType.CASH_OUT.value), len(ActionType)).to(torch.bool).to(device))
         elif snapshot["state"] == State.IN_SHOP:
             in_shop = move_and_sell.detach().clone()
             add_action_type(in_shop, ActionType.NEXT_ROUND)
 
             if snapshot["buyable_shop_cards_mask"].any():
-                print(snapshot["buyable_shop_cards_mask"])
                 add_action_type(in_shop, ActionType.BUY_SHOP_CARD)
             if snapshot["buyable_shop_vouchers_mask"].any():
                 add_action_type(in_shop, ActionType.REDEEM_SHOP_VOUCHER)
@@ -318,15 +320,16 @@ def get_legal_param1(snapshots):
 
     for i, snapshot in enumerate(snapshots):
         action = snapshot["action"]
+        device = snapshot["device"]
 
         if action == ActionType.NO_OP:
             # allow everything
-            append(torch.ones(PARAM1_LENGTH, dtype=torch.bool), 0, PARAM1_LENGTH)
+            append(torch.ones(PARAM1_LENGTH, dtype=torch.bool, device=device), 0, PARAM1_LENGTH)
         elif action == ActionType.PLAY_HAND or action == ActionType.DISCARD_HAND:
             max_sample = 5
 
             len_hand_cards = snapshot["len_hand_cards"]
-            mask = set_until(len_hand_cards, PARAM1_LENGTH)
+            mask = set_until(len_hand_cards, PARAM1_LENGTH, device)
 
             if snapshot["forced_selected_card_index"] is not None:
                 max_sample = 4
@@ -335,10 +338,10 @@ def get_legal_param1(snapshots):
 
         elif action == ActionType.MOVE_JOKER or action == ActionType.SELL_JOKER:
             # TODO: handle eternal jokers for selling
-            append(set_until(snapshot["len_jokers"], PARAM1_LENGTH), 1, 1)
+            append(set_until(snapshot["len_jokers"], PARAM1_LENGTH, device), 1, 1)
         elif action == ActionType.USE_CONSUMABLE or action == ActionType.SELL_CONSUMABLE:
             # TODO: handle non-usable consumables (judgement, ankh etc., see below)
-            append(set_until(snapshot["len_consumables"], PARAM1_LENGTH), 1, 1)
+            append(set_until(snapshot["len_consumables"], PARAM1_LENGTH, device), 1, 1)
         elif action == ActionType.BUY_SHOP_CARD:
             append(snapshot["buyable_shop_cards_mask"], 1, 1)
         elif action == ActionType.REDEEM_SHOP_VOUCHER:
@@ -347,9 +350,9 @@ def get_legal_param1(snapshots):
             append(snapshot["buyable_shop_packs_mask"], 1, 1)
         elif action == ActionType.CHOOSE_PACK_ITEM:
             # TODO: handle non-usable cards (jokers/judgement when joker slots full, ankh when empty, etc.)
-            append(set_until(snapshot["len_pack_items"], PARAM1_LENGTH), 1, 1)
+            append(set_until(snapshot["len_pack_items"], PARAM1_LENGTH, device), 1, 1)
         else:
-            append(torch.ones(PARAM1_LENGTH, dtype=torch.bool), 0, PARAM1_LENGTH)
+            append(torch.ones(PARAM1_LENGTH, dtype=torch.bool, device=device), 0, PARAM1_LENGTH)
 
         if masks[i].sum() == 0:
             print(snapshot)
@@ -370,25 +373,26 @@ def get_legal_param2(snapshots):
 
     for i, snapshot in enumerate(snapshots):
         action = snapshot["action"]
+        device = snapshot["device"]
         # param1 = snapshot["param1"]
 
         # used as index/indices for:
         #   whether a bought shop item should be used
         if action == ActionType.NO_OP:
             # allow everything
-            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool), 0, PARAM2_LENGTH)
+            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool, device=device), 0, PARAM2_LENGTH)
         elif action == ActionType.MOVE_JOKER:
             # TODO: handle eternal jokers for selling
             # TODO: maybe exclude param1 joker
-            append(set_until(snapshot["len_jokers"], PARAM2_LENGTH), 1, 1)
+            append(set_until(snapshot["len_jokers"], PARAM2_LENGTH, device), 1, 1)
         elif action == ActionType.USE_CONSUMABLE:
             # TODO: actually set min and max_samples and respect the used consumable
-            append(set_until(snapshot["len_hand_cards"], PARAM2_LENGTH), 1, 3)
+            append(set_until(snapshot["len_hand_cards"], PARAM2_LENGTH, device), 1, 3)
         elif action == ActionType.BUY_SHOP_CARD:
             # bool and_use
-            append(torch.nn.functional.one_hot(torch.tensor(1)).to(torch.bool), 0, 1)
+            append(torch.nn.functional.one_hot(torch.tensor(1), PARAM2_LENGTH).to(torch.bool).to(device), 0, 1)
         else:
-            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool), 0, PARAM2_LENGTH)
+            append(torch.ones(PARAM2_LENGTH, dtype=torch.bool, device=device), 0, PARAM2_LENGTH)
 
         if masks[i].sum() == 0:
             print(snapshot)
@@ -396,8 +400,8 @@ def get_legal_param2(snapshots):
 
     return (torch.stack(masks, dim=0), torch.Tensor(min_samples), torch.Tensor(max_samples))
 
-def set_until(set_until, total_len):
-    mask = torch.zeros(total_len, dtype=torch.bool)
+def set_until(set_until, total_len, device):
+    mask = torch.zeros(total_len, dtype=torch.bool, device=device)
     mask[:set_until] = True
     return mask
 

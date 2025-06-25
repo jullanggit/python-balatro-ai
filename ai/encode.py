@@ -4,6 +4,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from balatro import Tag, PokerHand, Blind, Rank, Suit, Enhancement, Seal, Edition, Tarot, Planet, Spectral, Card, BalatroJoker, Consumable, Run, Stake, State, Voucher, Pack
+import balatro.jokers, balatro.classes
 
 MAX_CONSUMABLES = 20
 MAX_DECK_CARDS = 100
@@ -32,6 +33,14 @@ def all_subclasses(cls: type) -> list[type]:
         out.extend(all_subclasses(sub))
     return out
 all_jokers =  all_subclasses(BalatroJoker)
+# filter out duplicates (Caste for some reason)
+seen = set()
+unique_jokers = []
+for cls in all_jokers:
+    if cls not in seen:
+        seen.add(cls)
+        unique_jokers.append(cls)
+all_jokers = unique_jokers
 all_jokers.sort(key=lambda C: C.__name__)
 JOKERS_TO_INDEX = _enum_to_index(all_jokers)
 

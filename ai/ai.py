@@ -225,22 +225,31 @@ def constrained_bernoulli(logits: torch.Tensor, min_ones: torch.Tensor, max_ones
 
     for i in range(batch_size):
         num_ones = int(sample[i].sum().item())
-        print(num_ones)
         if num_ones > max_ones[i]:
             # disable low-probabilitie ones
             ones_index = sample[i].nonzero(as_tuple=True)[0]
-            num_to_enable = num_ones - max_ones[i]
+            num_to_disable = int(num_ones - max_ones[i])
             disable_weight = 1.0 - probabilities[i, ones_index]
-            choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
+
+            # guard: if all weights are zero, fallback to uniform
+            if disable_weight.sum().item() <= 0.0:
+                disable_weight = torch.ones_like(disable_weight, device=disable_weight.device)
+
+            choice = torch.multinomial(disable_weight, num_to_disable, replacement=False)
             sample[i, ones_index[choice]] = 0.0
 
         elif num_ones < min_ones[i]:
             # enable high-probability zeros
-            zeros_index = sample[i].nonzero(as_tuple=True)[0]
-            num_to_enable = num_ones - max_ones[i]
-            disable_weight = 1.0 - probabilities[i, zeros_index]
-            choice = torch.multinomial(disable_weight, num_to_enable, replacement=False)
-            sample[i, zeros_index[choice]] = 0.0
+            zeros_index = (1.0 - sample[i]).nonzero(as_tuple=True)[0]
+            num_to_enable = int(min_ones[i]- num_ones)
+            enable_weight = probabilities[i, zeros_index]
+
+            # guard: if all weights are zero, fallback to uniform
+            if enable_weight.sum().item() <= 0.0:
+                enable_weight = torch.ones_like(enable_weight, device=enable_weight.device)
+
+            choice = torch.multinomial(enable_weight, num_to_enable, replacement=False)
+            sample[i, zeros_index[choice]] = 1.0
 
     return sample
 
