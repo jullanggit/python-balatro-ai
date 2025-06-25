@@ -48,7 +48,7 @@ from env import ActionType, PARAM1_LENGTH, PARAM2_LENGTH
 class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     """the name of this experiment"""
-    seed: int = 1
+    seed: int | None = None
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
@@ -281,13 +281,14 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
     np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     def make_env(i):
-        return lambda seed=args.seed + i, device=device: BalatroEnv(i, seed=seed, device=device)
+        return lambda seed=None if args.seed is None else args.seed + i, device=device: BalatroEnv(i, seed=seed, device=device)
     # env setup
     env_fns = [ make_env(i) for i in range(args.num_envs) ]
     envs = ParallelEnv(args.num_envs, env_fns)

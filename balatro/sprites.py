@@ -914,7 +914,7 @@ def get_sprite(
                 sprite = get_sprite(card_back)
                 sprite = sprite.resize((WIDTH, HEIGHT))
             else:
-                with open("resources/textures/Jokers.txt") as file:
+                with open("resources/textures/jokers.txt") as file:
                     joker_sheet = Image.open(io.BytesIO(base64.b64decode(file.read())))
                 with open("resources/textures/stickers.txt") as file:
                     stickers_sheet = Image.open(

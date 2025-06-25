@@ -12,8 +12,14 @@ if __name__ == "__main__":
     parser.add_argument("--file", type=str, required=True, help="Path to replay JSONL file")
     args = parser.parse_args()
 
-    # initialize env
-    env = BalatroEnv(worker_id=0, seed=42)
+    # extract seed from filename
+    basename = os.path.basename(args.file)
+    parts = basename.replace('.jsonl','').split('_')
+    # expected format: replay_{seed/timestamp}.jsonl
+    seed = int(parts[1])
+
+    env = BalatroEnv(worker_id=0, seed=seed, generate_replay=False)
+
     td = env.reset()
     print("Starting replay, initial obs:", td["observation"])
 
@@ -29,6 +35,6 @@ if __name__ == "__main__":
             td = env.step(TensorDict(action, batch_size=[]))["next"]
             # improve logging
             record["action_type"] = ActionType(record["action_type"])
-            print("Step:", record, "Reward:", td["reward"].item(), "Done:", td["done"].item())
+            print("Step:", record, "Reward:", td["reward"].item(), "Total reward:", env.total_reward, "Done:", td["done"].item())
             if td["done"]:
                 break

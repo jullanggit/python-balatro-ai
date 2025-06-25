@@ -16,7 +16,7 @@ from balatro import Deck, Stake, Run
 from encode import one_hot
 import math
 import json
-import uuid
+import time
 
 class ActionType(Enum):
     SELECT_BLIND = 0
@@ -45,10 +45,12 @@ PARAM2_LENGTH = max(MAX_JOKERS, 2, 1)
 class BalatroEnv(EnvBase):
     batch_locked = False
 
-    def __init__(self, worker_id: int, td_params=None, seed=None, device="cpu"):
+    def __init__(self, worker_id: int, td_params=None, seed=None, device="cpu", generate_replay=True):
         super().__init__(device=device, batch_size=[])
         self.worker_id = worker_id
         self.seed = seed
+        self.set_seed = seed
+        self.generate_replay=generate_replay
         self._init_run()
         self.observation_spec = Composite(
              observation=UnboundedContinuous(
@@ -90,13 +92,17 @@ class BalatroEnv(EnvBase):
         """
         initializes run and logging
         """
+        # generate seed if there is None set, so we can replay accurately
+        timestamp = int(time.time_ns())
+        if self.set_seed is None:
+            # use current unix timestamp as fallback seed
+            self.seed = timestamp
+
         self.run = Run(Deck.RED, stake=Stake.WHITE, seed=self.seed)
-        os.makedirs("runs", exist_ok=True)
-        # unique filename
-        self.replay_file = os.path.join(
-            "runs", f"replay_{uuid.uuid4().hex}.jsonl"
-        )
-        open(self.replay_file, 'w').close()
+        if self.generate_replay:
+            os.makedirs("runs", exist_ok=True)
+            self.replay_file = os.path.join("runs", f"replay_{self.seed}.jsonl")
+            open(self.replay_file, 'w').close()
         self.total_reward = 0.0
 
 
@@ -121,9 +127,10 @@ class BalatroEnv(EnvBase):
         param2 = torch.arange(PARAM2_LENGTH, device=param2_mask.device)[param2_mask].tolist()
 
         # log actions
-        record = {"action_type": action_type, "param1": tensordict["param1"].tolist(), "param2": tensordict["param2"].tolist()}
-        with open(self.replay_file, 'a') as f:
-            f.write(json.dumps(record) + "\n")
+        if self.generate_replay:
+            record = {"action_type": action_type, "param1": tensordict["param1"].tolist(), "param2": tensordict["param2"].tolist()}
+            with open(self.replay_file, 'a') as f:
+                f.write(json.dumps(record) + "\n")
 
         reward: float = 0.0
 
