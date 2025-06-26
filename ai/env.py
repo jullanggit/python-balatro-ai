@@ -136,7 +136,7 @@ class BalatroEnv(EnvBase):
             with open(self.replay_file, 'a') as f:
                 f.write(json.dumps(record) + "\n")
 
-        reward: float = 0.0
+        reward: float = -0.5 # encourage taking actions that lead to rewards
 
         # TODO: handle incorrect actions/params (with negative reward)
         try:
@@ -233,6 +233,8 @@ class BalatroEnv(EnvBase):
             "can_discard": self.run.discards > 0,
             "can_skip_blind": self.run.blind == Blind.SMALL_BLIND or self.run.blind == Blind.BIG_BLIND,
             "can_reroll_boss_blind": (Voucher.DIRECTORS_CUT in self.run.vouchers or (Voucher.RETCON in self.run.vouchers and not self.run._rerolled_boss_blind)) and self.run._available_money >= 10,
+            "joker_slots": self.run.joker_slots,
+            "consumable_slots": self.run.consumable_slots,
             # param1
             "len_hand_cards": None if self.run.hand is None else len(self.run.hand),
             "forced_selected_card_index": self.run.forced_selected_card_index,
