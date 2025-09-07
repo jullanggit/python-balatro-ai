@@ -1,7 +1,8 @@
 # python-balatro
 
 ## AI
-- This project has been [forked](https://github.com/pjpuzzler/python-balatro) and is currently being extended with an AI
+- This project was [forked](https://github.com/pjpuzzler/python-balatro) and has been extended with an AI.
+- See https://github.com/jullanggit/python-balatro-ai/blob/main/typst/main.pdf for a german writeup of the process.
 
 ![WIP](https://img.shields.io/badge/Status-Work%20in%20Progress-yellow)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
